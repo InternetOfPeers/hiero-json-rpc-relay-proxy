@@ -106,15 +106,17 @@ describe("ethTxDecoder", () => {
 
 // dbManager tests
 describe("dbManager", function () {
-  const TEST_DB_FILE = "data/test_routing_db.json";
+  const TEST_DATA_FOLDER = "data";
+  const TEST_NETWORK = "testnet";
+  const TEST_DB_FILE = path.join(
+    TEST_DATA_FOLDER,
+    `test_routing_db_${TEST_NETWORK}.json`
+  );
   const defaultRoutes = {
-    "0x742d35cc6634c0532925a3b8d0c0f3e5c5c07c20": "https://api1.example.com",
-    "0x8ba1f109551bd432803012645hac136c8eb0ff6": "https://api2.example.com",
-    "0xd8da6bf26964af9d7eed9e03e53415d37aa96045":
-      "https://admin-api.example.com",
     "0x4f1a953df9df8d1c6073ce57f7493e50515fa73f":
-      "https://mainnet.hashio.io/api",
-    "0x0000000000000000000000000000000000000000": "http://localhost:8080",
+      "https://testnet.hashio.io/api",
+    "0x0000000000000000000000000000000000000000":
+      "https://testnet.hashio.io/api",
   };
 
   beforeEach(async function () {
@@ -146,8 +148,8 @@ describe("dbManager", function () {
 
   test("should return the correct target server for known and unknown addresses", function () {
     assert.strictEqual(
-      getTargetServer("0x742d35cc6634c0532925a3b8d0c0f3e5c5c07c20", "default"),
-      "https://api1.example.com"
+      getTargetServer("0x4f1a953df9df8d1c6073ce57f7493e50515fa73f", "default"),
+      "https://testnet.hashio.io/api"
     );
     assert.strictEqual(getTargetServer("0xnotfound", "default"), "default");
   });
@@ -193,7 +195,12 @@ describe("server.js integration", function () {
   }
 
   let serverProcess;
-  const TEST_DB_FILE = "data/test_routing_db.json";
+  const TEST_DATA_FOLDER = "data";
+  const TEST_NETWORK = "testnet";
+  const TEST_DB_FILE = path.join(
+    TEST_DATA_FOLDER,
+    `test_routing_db_${TEST_NETWORK}.json`
+  );
   const PORT = 3999;
   const BASE_URL = `http://localhost:${PORT}`;
   const DB_PATH = path.join(__dirname, "..", TEST_DB_FILE);
@@ -209,7 +216,8 @@ describe("server.js integration", function () {
     const testEnv = {
       ...process.env,
       PORT: PORT.toString(),
-      DB_FILE: TEST_DB_FILE,
+      DATA_FOLDER: TEST_DATA_FOLDER,
+      HEDERA_NETWORK: TEST_NETWORK,
       // Use existing Hedera credentials from process.env if they exist
     };
 
@@ -261,7 +269,7 @@ describe("server.js integration", function () {
     const res = await makeRequest(`${BASE_URL}/routes`);
     assert.strictEqual(res.status, 200);
     const data = await res.json();
-    assert.ok(data["0x742d35cc6634c0532925a3b8d0c0f3e5c5c07c20"]);
+    assert.ok(data["0x4f1a953df9df8d1c6073ce57f7493e50515fa73f"]);
   });
 
   test("should update routes on POST /routes", async function () {

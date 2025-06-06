@@ -72,7 +72,7 @@ loadEnvFile();
 
 // Configuration
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
-const DB_FILE = process.env.DB_FILE || "data/routing_db.json";
+const DATA_FOLDER = process.env.DATA_FOLDER || "data";
 const DEFAULT_SERVER =
   process.env.DEFAULT_SERVER || "https://mainnet.hashio.io/api"; // Fallback server
 
@@ -80,6 +80,11 @@ const DEFAULT_SERVER =
 const HEDERA_ACCOUNT_ID = process.env.HEDERA_ACCOUNT_ID;
 const HEDERA_PRIVATE_KEY = process.env.HEDERA_PRIVATE_KEY;
 const HEDERA_NETWORK = process.env.HEDERA_NETWORK || "testnet"; // testnet or mainnet
+
+// Generate network-specific database file path
+function getDBFilePath() {
+  return path.join(DATA_FOLDER, `routing_db_${HEDERA_NETWORK}.json`);
+}
 const HEDERA_TOPIC_ID = process.env.HEDERA_TOPIC_ID; // Optional: existing topic ID
 
 let hederaClient = null;
@@ -146,7 +151,7 @@ async function createHederaTopic(client) {
     console.log("Creating new Hedera topic...");
 
     const transaction = new TopicCreateTransaction()
-      .setTopicMemo("Ethereum Relay Proxy Topic")
+      .setTopicMemo("Hiero JSON-RPC Relay Proxy Topic")
       .setMaxTransactionFee(new Hbar(2)); // Set max fee to 2 HBAR
 
     const txResponse = await transaction.execute(client);
@@ -494,7 +499,7 @@ const server = http.createServer(async (req, res) => {
     if (req.url === "/routes" && req.method === "POST") {
       const { body, jsonData } = await parseRequestBody(req);
       if (jsonData) {
-        await updateRoutes(jsonData, saveDatabase, DB_FILE);
+        await updateRoutes(jsonData, saveDatabase, getDBFilePath());
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(
           JSON.stringify({ message: "Routes updated", routes: getRoutingDB() })
@@ -589,8 +594,8 @@ server.on("error", (err) => {
 // Start server
 async function startServer() {
   try {
-    await initDatabase(DB_FILE);
-    await initRSAKeyPair(DB_FILE);
+    await initDatabase(getDBFilePath());
+    await initRSAKeyPair(getDBFilePath());
     await initHederaTopic();
   } catch (error) {
     console.error("Failed to initialize server:", error.message);
@@ -598,7 +603,7 @@ async function startServer() {
   }
 
   server.listen(PORT, () => {
-    console.log(`Ethereum transaction routing proxy running on port ${PORT}`);
+    console.log(`Hiero JSON-RPC Relay Proxy running on port ${PORT}`);
     console.log(`Default target server: ${DEFAULT_SERVER}`);
 
     if (topicId) {

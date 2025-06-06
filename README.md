@@ -43,7 +43,7 @@ Configure using a `.env` file (recommended) or environment variables:
 ```bash
 # Server Configuration
 PORT=3000
-DB_FILE=data/routing_db.json
+DATA_FOLDER=data
 DEFAULT_SERVER=https://mainnet.hashio.io/api
 
 # Hedera Configuration (optional but recommended)
@@ -53,7 +53,28 @@ HEDERA_NETWORK=testnet
 HEDERA_TOPIC_ID=0.0.654321
 ```
 
-**Note**: Environment variables take precedence over `.env` file values.
+**Notes**:
+
+- Environment variables take precedence over `.env` file values.
+- The `DATA_FOLDER` parameter specifies the directory for database files.
+- Database files are network-specific: `routing_db_testnet.json` and `routing_db_mainnet.json`.
+- Each network maintains separate routing tables and RSA key pairs for isolation.
+
+**Network-Specific Database Files**:
+
+```bash
+# Testnet configuration will use:
+data/routing_db_testnet.json
+
+# Mainnet configuration will use:
+data/routing_db_mainnet.json
+```
+
+This ensures that testnet and mainnet configurations remain completely isolated, including:
+
+- Separate routing tables for different network environments
+- Independent RSA key pairs for each network
+- Network-specific Hedera topic configurations
 
 ### Getting Hedera Credentials (Optional)
 
