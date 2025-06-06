@@ -1,9 +1,9 @@
 require("dotenv").config();
 const http = require("http");
 const https = require("https");
-const url = require("url");
 const fs = require("fs").promises;
 const path = require("path");
+const { rlpDecode, extractToFromTransaction } = require("./ethTxDecoder");
 
 // Configuration
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
@@ -13,155 +13,6 @@ const DEFAULT_SERVER =
 
 // In-memory database cache
 let routingDB = {};
-
-// Browser-compatible RLP decoding for Ethereum transactions
-function rlpDecode(data) {
-  // Convert hex string to byte array
-  function hexToBytes(hex) {
-    const bytes = [];
-    const cleanHex = hex.replace("0x", "");
-    for (let i = 0; i < cleanHex.length; i += 2) {
-      bytes.push(parseInt(cleanHex.substr(i, 2), 16));
-    }
-    return bytes;
-  }
-
-  // Convert bytes to Buffer-like object
-  function createBuffer(bytes) {
-    return {
-      data: bytes,
-      length: bytes.length,
-      slice: function (start, end) {
-        return createBuffer(this.data.slice(start, end));
-      },
-      toString: function (encoding) {
-        if (encoding === "hex") {
-          return this.data.map((b) => b.toString(16).padStart(2, "0")).join("");
-        }
-        return this.data;
-      },
-    };
-  }
-
-  const bytes = hexToBytes(data);
-  const buffer = createBuffer(bytes);
-
-  function decode(buf, offset = 0) {
-    if (offset >= buf.length) return [null, offset];
-
-    const firstByte = buf.data[offset];
-
-    // Single byte [0x00, 0x7f]
-    if (firstByte < 0x80) {
-      return [createBuffer([firstByte]), offset + 1];
-    }
-
-    // String [0x80, 0xb7] - short string
-    if (firstByte <= 0xb7) {
-      const length = firstByte - 0x80;
-      if (length === 0) {
-        return [createBuffer([]), offset + 1];
-      }
-      const data = buf.data.slice(offset + 1, offset + 1 + length);
-      return [createBuffer(data), offset + 1 + length];
-    }
-
-    // String [0xb8, 0xbf] - long string
-    if (firstByte <= 0xbf) {
-      const lengthOfLength = firstByte - 0xb7;
-      let length = 0;
-      for (let i = 0; i < lengthOfLength; i++) {
-        length = (length << 8) + buf.data[offset + 1 + i];
-      }
-      const data = buf.data.slice(
-        offset + 1 + lengthOfLength,
-        offset + 1 + lengthOfLength + length
-      );
-      return [createBuffer(data), offset + 1 + lengthOfLength + length];
-    }
-
-    // List [0xc0, 0xf7] - short list
-    if (firstByte <= 0xf7) {
-      const length = firstByte - 0xc0;
-      const result = [];
-      let currentOffset = offset + 1;
-      const endOffset = offset + 1 + length;
-
-      while (currentOffset < endOffset) {
-        const [item, newOffset] = decode(buf, currentOffset);
-        if (item !== null) result.push(item);
-        currentOffset = newOffset;
-      }
-
-      return [result, endOffset];
-    }
-
-    // List [0xf8, 0xff] - long list
-    if (firstByte <= 0xff) {
-      const lengthOfLength = firstByte - 0xf7;
-      let length = 0;
-      for (let i = 0; i < lengthOfLength; i++) {
-        length = (length << 8) + buf.data[offset + 1 + i];
-      }
-      const result = [];
-      let currentOffset = offset + 1 + lengthOfLength;
-      const endOffset = offset + 1 + lengthOfLength + length;
-
-      while (currentOffset < endOffset) {
-        const [item, newOffset] = decode(buf, currentOffset);
-        if (item !== null) result.push(item);
-        currentOffset = newOffset;
-      }
-
-      return [result, endOffset];
-    }
-
-    throw new Error("Invalid RLP encoding");
-  }
-
-  const [result] = decode(buffer);
-  return result;
-}
-
-function extractToFromTransaction(rawTx) {
-  try {
-    // Remove 0x prefix if present
-    let cleanTx = rawTx.replace(/^0x/, "");
-
-    // Handle typed transactions (EIP-2718, EIP-1559, etc.)
-    let decoded;
-    if (cleanTx.startsWith("02")) {
-      // EIP-1559 transaction (type 0x02)
-      cleanTx = cleanTx.slice(2); // Remove type byte
-      decoded = rlpDecode("0x" + cleanTx);
-      if (!Array.isArray(decoded) || decoded.length < 6) {
-        throw new Error("Invalid EIP-1559 transaction format");
-      }
-      // "to" is at index 5
-      var toField = decoded[5];
-    } else {
-      // Legacy transaction
-      decoded = rlpDecode("0x" + cleanTx);
-      if (!Array.isArray(decoded) || decoded.length < 6) {
-        throw new Error("Invalid legacy transaction format");
-      }
-      // "to" is at index 3
-      var toField = decoded[3];
-    }
-
-    // Convert to address
-    if (!toField || toField.length === 0) {
-      return null; // Contract creation transaction
-    }
-
-    const toAddress = "0x" + toField.toString("hex");
-    console.log(`Extracted "to" address: ${toAddress}`);
-    return toAddress.toLowerCase();
-  } catch (error) {
-    console.error('Error extracting "to" from transaction:', error.message);
-    return null;
-  }
-}
 
 // Initialize database
 async function initDatabase() {
