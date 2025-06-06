@@ -13,6 +13,7 @@ A complete Ethereum transaction routing proxy server with integrated Hedera Cons
 - ✅ Dynamic route management via REST API
 - ✅ Persistent routing database with JSON storage
 - ✅ Graceful error handling and fallback routing
+- ✅ **Built-in .env file support** - No external dependencies for configuration
 
 ### **Hedera Integration**
 - ✅ **Automatic topic creation** - Creates new paid Hedera topics if none exist
@@ -141,10 +142,15 @@ npm test  # Uses Node.js native test runner
 
 ### **Basic Startup**
 ```bash
-# Without Hedera
+# Without Hedera (minimal setup)
 npm start
 
-# With Hedera (testnet)
+# With Hedera using .env file (recommended)
+cp .env.example .env
+# Edit .env with your credentials
+npm start
+
+# With Hedera using environment variables
 HEDERA_ACCOUNT_ID=0.0.123456 \
 HEDERA_PRIVATE_KEY=302e... \
 HEDERA_NETWORK=testnet \
@@ -161,11 +167,12 @@ curl -X POST http://localhost:3000/api/broadcast \
 ## 🎯 **Key Achievements**
 
 1. **Minimized Dependencies**: Reduced from 4 dependencies to 1
-2. **Enhanced Functionality**: Added comprehensive Hedera topic management
+2. **Enhanced Functionality**: Added comprehensive Hedera topic management  
 3. **Improved Testing**: Native test runner with 100% endpoint coverage
 4. **Better Performance**: Native modules for HTTP operations
-5. **Complete Documentation**: Comprehensive setup and usage guides
-6. **Production Ready**: Proper error handling, logging, and graceful shutdown
+5. **Built-in Configuration**: Native .env file support without external dependencies
+6. **Complete Documentation**: Comprehensive setup and usage guides
+7. **Production Ready**: Proper error handling, logging, and graceful shutdown
 
 ## 📚 **Documentation**
 

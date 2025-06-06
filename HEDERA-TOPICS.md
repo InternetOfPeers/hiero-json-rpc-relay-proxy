@@ -10,7 +10,12 @@ The relay proxy can automatically create and manage a Hedera Consensus Service (
 
 ### 1. Environment Variables
 
-Add the following environment variables to enable Hedera functionality:
+You can configure the application using environment variables or a `.env` file. The server includes built-in support for `.env` files without requiring external dependencies.
+
+#### Using .env file (recommended):
+
+1. Copy the example file: `cp .env.example .env`
+2. Edit `.env` with your configuration:
 
 ```bash
 # Required for Hedera functionality
@@ -20,7 +25,22 @@ HEDERA_NETWORK=testnet                # "testnet" or "mainnet"
 
 # Optional - if you already have a topic
 HEDERA_TOPIC_ID=0.0.654321           # Existing topic ID (optional)
+
+# Server configuration (optional)
+PORT=3000
+DB_FILE=routing_db.json
+DEFAULT_SERVER=https://mainnet.hashio.io/api
 ```
+
+#### Using environment variables directly:
+
+```bash
+export HEDERA_ACCOUNT_ID=0.0.123456
+export HEDERA_PRIVATE_KEY=302e020100300506...
+export HEDERA_NETWORK=testnet
+```
+
+**Note:** Environment variables take precedence over `.env` file values.
 
 ### 2. Getting Hedera Credentials
 
@@ -62,6 +82,19 @@ GET /hedera/topic
 ## Usage Examples
 
 ### 1. Start Server with Hedera Support
+
+#### Using .env file (recommended):
+
+```bash
+# Copy and configure .env file
+cp .env.example .env
+# Edit .env with your credentials
+
+# Start the server
+npm start
+```
+
+#### Using environment variables:
 
 ```bash
 # Set environment variables
