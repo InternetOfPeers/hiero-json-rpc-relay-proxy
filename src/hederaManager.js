@@ -386,6 +386,180 @@ class HederaManager {
   isEnabled() {
     return !!(this.accountId && this.privateKey);
   }
+
+  // Start listening for new messages on the topic
+  startMessageListener(intervalMs = 30000) {
+    if (!this.currentTopicId) {
+      console.log("No topic ID available, cannot start message listener");
+      return null;
+    }
+
+    console.log(
+      `🔗 Starting message listener for topic ${this.currentTopicId}`
+    );
+    console.log(
+      `   Checking for new messages every ${intervalMs / 1000} seconds`
+    );
+
+    let lastSequenceNumber = 0;
+    let isFirstCheck = true;
+
+    const checkForNewMessages = async () => {
+      try {
+        // Get all messages from the topic
+        const messages = await this.getTopicMessages(this.currentTopicId);
+
+        if (messages && messages.length > 0) {
+          // Sort messages by sequence number to ensure proper order
+          const sortedMessages = messages.sort(
+            (a, b) => a.sequence_number - b.sequence_number
+          );
+
+          if (isFirstCheck) {
+            // On first check, just set the last sequence number without logging
+            lastSequenceNumber =
+              sortedMessages[sortedMessages.length - 1].sequence_number;
+            console.log(
+              `📊 Found ${messages.length} existing messages in topic (sequence 1 to ${lastSequenceNumber})`
+            );
+            isFirstCheck = false;
+          } else {
+            // Check for new messages since last check
+            const newMessages = sortedMessages.filter(
+              (msg) => msg.sequence_number > lastSequenceNumber
+            );
+
+            if (newMessages.length > 0) {
+              console.log(
+                `\n🆕 Found ${newMessages.length} new message(s) in topic ${this.currentTopicId}:`
+              );
+
+              for (const message of newMessages) {
+                const timestamp = new Date(
+                  message.consensus_timestamp * 1000
+                ).toISOString();
+                const content = Buffer.from(message.message, "base64").toString(
+                  "utf8"
+                );
+
+                console.log(
+                  `   📝 Message #${message.sequence_number} (${timestamp}):`
+                );
+                console.log(
+                  `      Content: ${content.substring(0, 200)}${
+                    content.length > 200 ? "..." : ""
+                  }`
+                );
+                console.log(`      Payer: ${message.payer_account_id}`);
+              }
+
+              // Update last sequence number
+              lastSequenceNumber =
+                newMessages[newMessages.length - 1].sequence_number;
+            }
+          }
+        } else if (isFirstCheck) {
+          console.log("📊 No existing messages found in topic");
+          isFirstCheck = false;
+        }
+      } catch (error) {
+        console.error(`❌ Error checking for new messages:`, error.message);
+      }
+    };
+
+    // Initial check
+    checkForNewMessages();
+
+    // Set up interval for periodic checks
+    const intervalId = setInterval(checkForNewMessages, intervalMs);
+
+    return intervalId;
+  }
+
+  // Get all messages from a topic using mirror node API
+  async getTopicMessages(topicIdString, limit = 100) {
+    if (!topicIdString) {
+      return [];
+    }
+
+    try {
+      // Determine the mirror node URL based on network
+      const mirrorNodeUrl =
+        this.network === "mainnet"
+          ? "https://mainnet.mirrornode.hedera.com"
+          : "https://testnet.mirrornode.hedera.com";
+
+      // Get messages from the topic (ordered by sequence number)
+      const url = `${mirrorNodeUrl}/api/v1/topics/${topicIdString}/messages?limit=${limit}&order=asc`;
+
+      return new Promise((resolve, reject) => {
+        const timeoutId = setTimeout(() => {
+          reject(
+            new Error(`Mirror node API request timed out after 5 seconds`)
+          );
+        }, 5000);
+
+        const httpModule = mirrorNodeUrl.startsWith("https:") ? https : http;
+
+        const req = httpModule.get(url, (res) => {
+          clearTimeout(timeoutId);
+
+          let data = "";
+          res.on("data", (chunk) => {
+            data += chunk;
+          });
+
+          res.on("end", () => {
+            try {
+              if (res.statusCode === 200) {
+                const response = JSON.parse(data);
+                resolve(response.messages || []);
+              } else if (res.statusCode === 404) {
+                // No messages found
+                resolve([]);
+              } else {
+                reject(
+                  new Error(
+                    `Mirror node returned status ${res.statusCode}: ${data}`
+                  )
+                );
+              }
+            } catch (parseError) {
+              reject(
+                new Error(
+                  `Failed to parse mirror node response: ${parseError.message}`
+                )
+              );
+            }
+          });
+        });
+
+        req.on("error", (error) => {
+          clearTimeout(timeoutId);
+          reject(new Error(`Failed to call mirror node API: ${error.message}`));
+        });
+
+        req.setTimeout(5000, () => {
+          req.destroy();
+          reject(new Error(`Mirror node API request timed out`));
+        });
+      });
+    } catch (error) {
+      console.log(
+        `Error getting messages from topic ${topicIdString}:`,
+        error.message
+      );
+      throw error;
+    }
+  }
+
+  // Stop the message listener
+  stopMessageListener(intervalId) {
+    if (intervalId) {
+      clearInterval(intervalId);
+      console.log("🛑 Message listener stopped");
+    }
+  }
 }
 
 module.exports = { HederaManager };

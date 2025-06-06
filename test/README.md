@@ -24,6 +24,12 @@ This directory contains the test suite for the Hiero JSON-RPC Relay Proxy, organ
   - Network configuration (testnet/mainnet)
   - Credential handling
 
+- **`messageListener.test.js`** - Tests for the automatic message listener functionality
+  - Message listener startup and configuration
+  - New message detection and logging
+  - API error handling and recovery
+  - Interval cleanup and shutdown
+
 ### Integration Tests
 
 - **`integration.test.js`** - End-to-end tests for the HTTP server

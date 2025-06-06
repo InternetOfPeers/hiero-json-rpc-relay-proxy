@@ -265,12 +265,29 @@ async function startServer() {
     console.log(`  curl -X POST http://localhost:${PORT}/api/broadcast \\`);
     console.log(`    -H "Content-Type: application/json" \\`);
     console.log(`    -d '{"rawTransaction": "0xf86c..."}'`);
+
+    // Start listening for new Hedera topic messages if topic is available
+    if (hederaManager.isEnabled() && topicId) {
+      console.log("\n" + "=".repeat(60));
+      console.log("🎯 STARTING HEDERA MESSAGE LISTENER");
+      console.log("=".repeat(60));
+
+      // Start message listener with 30-second intervals
+      global.messageListenerInterval =
+        hederaManager.startMessageListener(30000);
+    }
   });
 }
 
 // Graceful shutdown
 process.on("SIGINT", () => {
   console.log("\nShutting down server...");
+
+  // Stop message listener if running
+  if (global.messageListenerInterval) {
+    hederaManager.stopMessageListener(global.messageListenerInterval);
+  }
+
   server.close(() => {
     console.log("Server closed");
     process.exit(0);

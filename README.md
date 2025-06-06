@@ -179,7 +179,7 @@ npm run test:all
 
 ### Test Coverage
 
-- **Unit Tests (21 tests)**: RLP decoding, database operations, routing logic, RSA key management, HederaManager functionality
+- **Unit Tests (29 tests)**: RLP decoding, database operations, routing logic, RSA key management, HederaManager functionality, message listener
 - **Integration Tests (5 tests)**: HTTP endpoints, server startup, Hedera functionality, RSA endpoints, JSON-RPC forwarding
 
 **Test Files:**
@@ -187,6 +187,7 @@ npm run test:all
 - `test/ethTxDecoder.test.js` - Ethereum transaction parsing and RLP decoding (5 tests)
 - `test/dbManager.test.js` - Database operations and routing logic (5 tests)  
 - `test/hederaManager.test.js` - Hedera Consensus Service integration (11 tests)
+- `test/messageListener.test.js` - Message listener functionality (8 tests)
 - `test/integration.test.js` - End-to-end HTTP server tests (5 tests)
 
 **Test Organization:**
@@ -199,6 +200,47 @@ Each test file focuses on a specific module for better maintainability:
 - **integration**: Management endpoints, JSON-RPC forwarding, server lifecycle
 
 **Note**: Integration tests require valid Hedera credentials in environment for full coverage.
+
+## 🔔 Message Listener
+
+The proxy includes an automatic message listener that monitors the Hedera topic for new messages:
+
+### Capabilities
+
+- **Automatic Startup**: Starts listening immediately after server initialization if Hedera is enabled
+- **Real-time Monitoring**: Polls the mirror node API every 30 seconds for new messages
+- **Message Content Logging**: Displays message sequence number, timestamp, content, and payer account
+- **Graceful Error Handling**: Continues operation even if individual API calls fail
+- **Clean Shutdown**: Automatically stops when server is terminated
+
+### Message Display Format
+
+When new messages are detected, they are logged in the following format:
+
+```text
+🆕 Found 1 new message(s) in topic 0.0.123456:
+   📝 Message #2 (2025-06-06T22:15:30.123Z):
+      Content: Hello World (truncated to 200 chars if longer)
+      Payer: 0.0.789012
+```
+
+### Listener Settings
+
+- **Poll Interval**: 30 seconds (configurable via code)
+- **Content Truncation**: Long messages are truncated to 200 characters in logs  
+- **Timeout**: 5 seconds per mirror node API call
+
+**Note**: There may be a 1-2 minute delay between message submission and appearance in the mirror node API.
+
+## 🏗️ Architecture
+
+### Listener Settings
+
+- **Poll Interval**: 30 seconds (configurable via code)
+- **Content Truncation**: Long messages are truncated to 200 characters in logs
+- **Timeout**: 5 seconds per mirror node API call
+
+**Note**: There may be a 1-2 minute delay between message submission and appearance in the mirror node API.
 
 Total: **26 tests** across **4 test files**
 
@@ -337,6 +379,38 @@ The server implements fail-safe mechanisms to ensure data integrity:
 - **Graceful Degradation**: Can run without Hedera credentials for basic routing functionality
 
 This design ensures that the server never runs in an undefined state when Hedera functionality is enabled.
+
+## 🔔 Message Listener
+
+The proxy includes an automatic message listener that monitors the Hedera topic for new messages:
+
+### Features
+
+- **Automatic Startup**: Starts listening immediately after server initialization if Hedera is enabled
+- **Real-time Monitoring**: Polls the mirror node API every 30 seconds for new messages
+- **Message Content Logging**: Displays message sequence number, timestamp, content, and payer account
+- **Graceful Error Handling**: Continues operation even if individual API calls fail
+- **Clean Shutdown**: Automatically stops when server is terminated
+
+### Message Display Format
+
+When new messages are detected, they are logged in the following format:
+
+```
+🆕 Found 1 new message(s) in topic 0.0.123456:
+   📝 Message #2 (2025-06-06T22:15:30.123Z):
+      Content: Hello World (truncated to 200 chars if longer)
+      Payer: 0.0.789012
+```
+
+### Configuration
+
+The message listener uses the following settings:
+- **Poll Interval**: 30 seconds (configurable via code)
+- **Content Truncation**: Long messages are truncated to 200 characters in logs
+- **Timeout**: 5 seconds per mirror node API call
+
+**Note**: There may be a 1-2 minute delay between message submission and appearance in the mirror node API.
 
 ## 📚 Resources
 
