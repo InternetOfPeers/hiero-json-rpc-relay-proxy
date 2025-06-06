@@ -115,9 +115,11 @@ function parseRequestBody(req) {
 
 // Forward request to target server
 function forwardRequest(targetServer, req, res, requestBody) {
-  const targetUrl = new URL(req.url, targetServer);
+  const targetUrl = new URL(targetServer);
   const httpModule = targetUrl.protocol === "https:" ? https : http;
 
+  // For JSON-RPC requests, we want to forward to the exact target server path
+  // Don't append the original request path since we're proxying to a specific API endpoint
   const options = {
     hostname: targetUrl.hostname,
     port: targetUrl.port,
@@ -209,23 +211,31 @@ const server = http.createServer(async (req, res) => {
     const { body: requestBody, jsonData } = await parseRequestBody(req);
 
     let toAddress = null;
+    let targetServer = DEFAULT_SERVER;
 
-    // Look for raw transaction in different possible fields
-    if (jsonData) {
+    // Only analyze transactions for eth_sendRawTransaction method
+    if (jsonData && jsonData.method === "eth_sendRawTransaction") {
       const rawTx = jsonData.params;
 
-      if (rawTx) {
+      if (rawTx && rawTx.length > 0) {
         toAddress = extractToFromTransaction(rawTx[0]);
+        // Get target server based on "to" address only for eth_sendRawTransaction
+        targetServer = getTargetServer(toAddress, DEFAULT_SERVER);
+        console.log(
+          `${req.method} ${req.url} - method: ${jsonData.method}, to address: "${toAddress}" -> ${targetServer}`
+        );
       } else {
-        console.log("No raw transaction found in JSON payload");
+        console.log(
+          `${req.method} ${req.url} - method: ${jsonData.method}, no raw transaction found -> ${DEFAULT_SERVER}`
+        );
       }
+    } else {
+      // For all other methods, use default server
+      const method = jsonData ? jsonData.method : "unknown";
+      console.log(
+        `${req.method} ${req.url} - method: ${method} -> ${DEFAULT_SERVER} (default)`
+      );
     }
-
-    // Log the routing decision
-    console.log(`${req.method} ${req.url} - to address: "${toAddress}"`);
-
-    // Get target server based on "to" address
-    const targetServer = getTargetServer(toAddress, DEFAULT_SERVER);
 
     // Forward the request
     forwardRequest(targetServer, req, res, requestBody);
