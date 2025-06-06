@@ -152,35 +152,6 @@ function getHederaClient() {
   return hederaClient;
 }
 
-// Submit a message to the Hedera topic (optional functionality)
-async function submitMessageToTopic(message) {
-  if (!hederaClient || !topicId) {
-    throw new Error("Hedera client or topic not initialized");
-  }
-
-  try {
-    const { TopicMessageSubmitTransaction } = require("@hashgraph/sdk");
-
-    const transaction = new TopicMessageSubmitTransaction()
-      .setTopicId(topicId)
-      .setMessage(message);
-
-    const txResponse = await transaction.execute(hederaClient);
-    const receipt = await txResponse.getReceipt(hederaClient);
-
-    console.log(
-      `Message submitted to topic ${topicId}. Transaction ID: ${txResponse.transactionId}`
-    );
-    return {
-      transactionId: txResponse.transactionId.toString(),
-      topicSequenceNumber: receipt.topicSequenceNumber,
-    };
-  } catch (error) {
-    console.error("Failed to submit message to topic:", error.message);
-    throw error;
-  }
-}
-
 // Parse request body
 function parseRequestBody(req) {
   return new Promise((resolve, reject) => {
@@ -287,57 +258,6 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    // Handle Hedera topic message submission
-    if (req.url === "/hedera/topic/message" && req.method === "POST") {
-      const { body, jsonData } = await parseRequestBody(req);
-
-      if (!hederaClient || !topicId) {
-        res.writeHead(503, { "Content-Type": "application/json" });
-        res.end(
-          JSON.stringify({
-            error: "Hedera topic not available",
-            details: "No Hedera credentials provided or topic not initialized",
-          })
-        );
-        return;
-      }
-
-      if (!jsonData || !jsonData.message) {
-        res.writeHead(400, { "Content-Type": "application/json" });
-        res.end(
-          JSON.stringify({ error: "Message is required in JSON payload" })
-        );
-        return;
-      }
-
-      try {
-        const result = await submitMessageToTopic(jsonData.message);
-        res.writeHead(200, { "Content-Type": "application/json" });
-        res.end(
-          JSON.stringify(
-            {
-              success: true,
-              topicId: topicId,
-              transactionId: result.transactionId,
-              sequenceNumber: result.topicSequenceNumber?.toString(),
-              message: jsonData.message,
-            },
-            null,
-            2
-          )
-        );
-      } catch (error) {
-        res.writeHead(500, { "Content-Type": "application/json" });
-        res.end(
-          JSON.stringify({
-            error: "Failed to submit message to topic",
-            details: error.message,
-          })
-        );
-      }
-      return;
-    }
-
     // Parse request body for transaction analysis
     const { body: requestBody, jsonData } = await parseRequestBody(req);
 
@@ -400,26 +320,10 @@ async function startServer() {
     console.log(
       `  GET  http://localhost:${PORT}/hedera/topic - Get Hedera topic info`
     );
-    if (topicId) {
-      console.log(
-        `  POST http://localhost:${PORT}/hedera/topic/message - Submit message to topic`
-      );
-    }
-    console.log(
-      `  POST http://localhost:${PORT}/hedera/topic/message - Submit message to Hedera topic`
-    );
     console.log("\nExample request:");
     console.log(`  curl -X POST http://localhost:${PORT}/api/broadcast \\`);
     console.log(`    -H "Content-Type: application/json" \\`);
     console.log(`    -d '{"rawTransaction": "0xf86c..."}'`);
-    if (topicId) {
-      console.log("\nExample Hedera topic message:");
-      console.log(
-        `  curl -X POST http://localhost:${PORT}/hedera/topic/message \\`
-      );
-      console.log(`    -H "Content-Type: application/json" \\`);
-      console.log(`    -d '{"message": "Transaction routed successfully"}'`);
-    }
   });
 }
 

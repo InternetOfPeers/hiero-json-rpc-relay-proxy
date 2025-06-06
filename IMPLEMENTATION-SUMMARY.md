@@ -88,7 +88,6 @@ HEDERA_TOPIC_ID=0.0.654321  # Optional: existing topic
 
 ### **Hedera Topic Management**
 - `GET /hedera/topic` - Get topic information and status
-- `POST /hedera/topic/message` - Submit message to Hedera topic
 
 ## 🔄 **How It Works**
 
@@ -97,7 +96,6 @@ HEDERA_TOPIC_ID=0.0.654321  # Optional: existing topic
 2. **Transaction Analysis** - Extracts "to" address from raw transaction using custom RLP decoder
 3. **Route Lookup** - Checks routing database for address-specific server
 4. **Request Forwarding** - Proxies request to target server or default server
-5. **Optional Logging** - Can submit routing decisions to Hedera topic
 
 ### **Hedera Topic Management Flow**
 1. **Server Startup** - Initializes Hedera client if credentials provided
@@ -158,13 +156,6 @@ npm start
 curl -X POST http://localhost:3000/api/broadcast \
   -H "Content-Type: application/json" \
   -d '{"rawTransaction": "0xf86c..."}'
-```
-
-### **Hedera Topic Message**
-```bash
-curl -X POST http://localhost:3000/hedera/topic/message \
-  -H "Content-Type: application/json" \
-  -d '{"message": "Transaction processed successfully"}'
 ```
 
 ## 🎯 **Key Achievements**

@@ -214,16 +214,4 @@ describe("index.js integration", function () {
     // Topic ID should be null since no credentials
     assert.strictEqual(data.topicId, null);
   });
-
-  test("should fail gracefully when posting to topic without credentials", async function () {
-    const res = await makeRequest(`${BASE_URL}/hedera/topic/message`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: "test message" }),
-    });
-    assert.strictEqual(res.status, 503);
-    const data = await res.json();
-    assert.strictEqual(data.error, "Hedera topic not available");
-    assert.ok(data.details.includes("No Hedera credentials"));
-  });
 });

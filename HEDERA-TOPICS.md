@@ -59,36 +59,6 @@ GET /hedera/topic
 }
 ```
 
-### Submit Message to Topic
-
-```bash
-POST /hedera/topic/message
-Content-Type: application/json
-
-{
-  "message": "Your message here"
-}
-```
-
-**Success Response:**
-```json
-{
-  "success": true,
-  "topicId": "0.0.123456",
-  "transactionId": "0.0.789012@1638360000.123456789",
-  "sequenceNumber": "42",
-  "message": "Your message here"
-}
-```
-
-**Error Response (No Hedera setup):**
-```json
-{
-  "error": "Hedera topic not available",
-  "details": "No Hedera credentials provided or topic not initialized"
-}
-```
-
 ## Usage Examples
 
 ### 1. Start Server with Hedera Support
@@ -109,30 +79,13 @@ npm start
 curl http://localhost:3000/hedera/topic
 ```
 
-### 3. Submit a Message
+### 3. Automatic Transaction Routing Logging
 
-```bash
-curl -X POST http://localhost:3000/hedera/topic/message \
-  -H "Content-Type: application/json" \
-  -d '{"message": "Transaction routed to API server 1"}'
-```
-
-### 4. Log Transaction Routing
-
-You can extend the server to automatically log routing decisions:
-
-```javascript
-// Example: Log transaction routing to Hedera topic
-if (topicId && hederaClient) {
-  const logMessage = `Transaction routed: ${toAddress} -> ${targetServer}`;
-  submitMessageToTopic(logMessage).catch(console.error);
-}
-```
+You can extend the server to automatically log routing decisions to the Hedera topic for audit purposes.
 
 ## Topic Costs
 
 - **Topic Creation**: ~$0.01 USD (varies with HBAR price)
-- **Message Submission**: ~$0.0001 USD per message
 - **Topic Info Query**: ~$0.0001 USD
 
 ## Security Considerations
@@ -140,7 +93,6 @@ if (topicId && hederaClient) {
 1. **Private Key Security**: Store private keys securely, never commit to version control
 2. **Network Selection**: Use testnet for development, mainnet for production
 3. **Access Control**: The topic is publicly readable but only writable by the account holder
-4. **Rate Limiting**: Consider implementing rate limiting for topic message submissions
 
 ## Troubleshooting
 
@@ -165,47 +117,6 @@ Set `DEBUG=1` environment variable for detailed logging:
 
 ```bash
 DEBUG=1 npm start
-```
-
-## Integration Examples
-
-### 1. Audit Logging
-
-```javascript
-// Log all transaction routing decisions
-async function logTransactionRouting(fromAddress, toAddress, targetServer) {
-  if (getHederaTopicId() && getHederaClient()) {
-    const message = JSON.stringify({
-      timestamp: new Date().toISOString(),
-      fromAddress,
-      toAddress,
-      targetServer,
-      type: 'routing_decision'
-    });
-    try {
-      await submitMessageToTopic(message);
-    } catch (error) {
-      console.error('Failed to log to Hedera topic:', error);
-    }
-  }
-}
-```
-
-### 2. Performance Monitoring
-
-```javascript
-// Log performance metrics
-async function logPerformanceMetrics(responseTime, targetServer) {
-  if (getHederaTopicId() && getHederaClient()) {
-    const message = JSON.stringify({
-      timestamp: new Date().toISOString(),
-      responseTime,
-      targetServer,
-      type: 'performance_metric'
-    });
-    await submitMessageToTopic(message);
-  }
-}
 ```
 
 ## Further Reading
