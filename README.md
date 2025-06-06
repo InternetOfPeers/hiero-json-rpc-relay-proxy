@@ -175,12 +175,88 @@ npm run test:all
 
 ### Test Coverage
 
-- **Unit Tests (10 tests)**: RLP decoding, database operations, routing logic, RSA key management
+- **Unit Tests (21 tests)**: RLP decoding, database operations, routing logic, RSA key management, HederaManager functionality
 - **Integration Tests (4 tests)**: HTTP endpoints, server startup, Hedera functionality, RSA endpoints
+
+**Test Files:**
+
+- `test/test.js` - Main test suite with ethTxDecoder, dbManager, and integration tests
+- `test/hederaManager.test.js` - Comprehensive HederaManager unit tests (11 tests)
+
+**HederaManager Test Coverage:**
+
+- Configuration initialization and validation
+- Network configuration (testnet/mainnet)
+- Topic ID management and state tracking
+- Client initialization with and without credentials
+- Topic info API responses
+- Enable/disable detection based on credentials
 
 **Note**: Integration tests require valid Hedera credentials in environment for full coverage.
 
 ## 🏗️ Architecture
+
+### Project Structure
+
+The project is organized into focused, modular components for maintainability and testability:
+
+```text
+├── src/
+│   ├── server.js           # Main HTTP server and routing logic
+│   ├── hederaManager.js    # Hedera Consensus Service integration (NEW)
+│   ├── ethTxDecoder.js     # Custom RLP decoder for Ethereum transactions
+│   └── dbManager.js        # Route database and RSA key management
+├── test/
+│   ├── test.js             # Main test suite (integration + unit tests)
+│   └── hederaManager.test.js # HederaManager unit tests (NEW)
+├── data/
+│   └── routing_db.json     # Persistent route and RSA key storage
+└── package.json            # Dependencies (minimal)
+```
+
+### HederaManager Module
+
+The **HederaManager** is a dedicated module that encapsulates all Hedera Consensus Service functionality:
+
+**Key Features:**
+
+- **Isolated Hedera Logic**: All Hedera-specific code separated from main server
+- **Comprehensive API**: Handles client initialization, topic management, and public key operations
+- **Fail-Safe Design**: Server stops on critical failures to ensure data integrity
+- **Network Agnostic**: Supports both testnet and mainnet configurations
+- **Mirror Node Integration**: Uses REST API for efficient topic verification
+
+**Public Methods:**
+
+- `initClient()` - Initialize Hedera client with credentials
+- `initTopic(getRSAKeyPair)` - Complete topic initialization orchestration
+- `checkTopicExists(topicId)` - Verify topic accessibility
+- `createTopic()` - Create new Hedera topic with auto-generated memo
+- `submitPublicKeyToTopic(topicId, publicKey)` - Submit RSA public key to topic
+- `checkTopicHasMessages(topicId)` - Check if topic has messages via mirror node
+- `getTopicInfo()` - Get topic status for API endpoints
+- `getTopicId()` - Get current topic ID
+- `getClient()` - Get Hedera client instance
+- `isEnabled()` - Check if Hedera credentials are provided
+
+**Usage Example:**
+
+```javascript
+const { HederaManager } = require('./hederaManager');
+
+const hederaManager = new HederaManager({
+  accountId: process.env.HEDERA_ACCOUNT_ID,
+  privateKey: process.env.HEDERA_PRIVATE_KEY,
+  network: process.env.HEDERA_NETWORK || 'testnet',
+  topicId: process.env.HEDERA_TOPIC_ID,
+});
+
+// Initialize topic (handles all complexity internally)
+await hederaManager.initTopic(getRSAKeyPair);
+
+// Get topic info for API responses
+const info = hederaManager.getTopicInfo();
+```
 
 ### Transaction Routing Flow
 
@@ -189,29 +265,21 @@ npm run test:all
 3. **Route Lookup** → Checks routing database for address-specific server
 4. **Request Forwarding** → Proxies to target server or default fallback
 
-### Hedera Topic Flow
+### Hedera Integration Flow
 
-1. **Client Initialization** → Sets up Hedera client if credentials provided
-2. **Topic Verification** → Uses mirror node API to validate existing topic and check for messages
-3. **Auto-Creation** → Creates new topic if needed with automatic memo
-4. **RSA Key Management** → Generates and stores RSA key pairs, submits public key to topics
+1. **HederaManager Initialization** → Creates manager instance with configuration
+2. **Client Setup** → Initializes Hedera client if credentials provided
+3. **Topic Orchestration** → Handles topic verification, creation, and public key submission
+4. **Mirror Node Verification** → Uses REST API to validate topic state efficiently
 5. **Fail-Safe Operation** → Server stops on critical failures to ensure data integrity
 
-### File Structure
+### Benefits of Separation
 
-```text
-├── src/
-│   ├── server.js         # Main server with Hedera integration  
-│   ├── ethTxDecoder.js   # Custom RLP decoder
-│   └── dbManager.js      # Route database and RSA key management
-├── test/
-│   └── test.js           # Comprehensive test suite
-├── data/
-│   └── routing_db.json   # Persistent route and RSA key storage
-├── package.json          # Dependencies (minimal)
-├── .env.example          # Configuration template
-└── README.md             # This file
-```
+✅ **Improved Maintainability**: Hedera logic isolated in dedicated module  
+✅ **Better Testing**: Comprehensive unit tests for HederaManager  
+✅ **Code Reusability**: HederaManager can be used in other projects  
+✅ **Cleaner Server Logic**: Main server focuses on routing and HTTP handling  
+✅ **Enhanced Reliability**: Fail-safe design prevents inconsistent states
 
 ## 🔧 Troubleshooting
 
