@@ -8,6 +8,10 @@ node_modules/
 data/*
 !data/.gitkeep
 
+# Test database files
+test/data/*
+!test/data/.gitkeep
+
 # Logs
 *.log
 npm-debug.log*
