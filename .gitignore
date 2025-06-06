@@ -12,6 +12,10 @@ data/*
 test/data/*
 !test/data/.gitkeep
 
+# Demo database files
+demo/data/*
+!demo/data/.gitkeep
+
 # Logs
 *.log
 npm-debug.log*
