@@ -14,50 +14,7 @@ const {
   hasRSAKeyPair,
 } = require("./dbManager");
 const { HederaManager } = require("./hederaManager");
-
-// Simple .env file parser (no external dependencies)
-function loadEnvFile(envPath = ".env") {
-  try {
-    const fullPath = path.resolve(envPath);
-    if (fs.existsSync(fullPath)) {
-      const envContent = fs.readFileSync(fullPath, "utf8");
-      const lines = envContent.split("\n");
-
-      for (const line of lines) {
-        const trimmedLine = line.trim();
-
-        // Skip empty lines and comments
-        if (!trimmedLine || trimmedLine.startsWith("#")) {
-          continue;
-        }
-
-        // Parse key=value pairs
-        const equalIndex = trimmedLine.indexOf("=");
-        if (equalIndex > 0) {
-          const key = trimmedLine.substring(0, equalIndex).trim();
-          let value = trimmedLine.substring(equalIndex + 1).trim();
-
-          // Remove quotes if present
-          if (
-            (value.startsWith('"') && value.endsWith('"')) ||
-            (value.startsWith("'") && value.endsWith("'"))
-          ) {
-            value = value.slice(1, -1);
-          }
-
-          // Only set if not already defined in process.env
-          if (!process.env[key]) {
-            process.env[key] = value;
-          }
-        }
-      }
-      console.log(`Loaded environment variables from ${envPath}`);
-    }
-  } catch (error) {
-    // Silently fail if .env file doesn't exist or can't be read
-    // This maintains the same behavior as dotenv
-  }
-}
+const { loadEnvFile } = require("./envLoader");
 
 // Load .env file before accessing environment variables
 loadEnvFile();
