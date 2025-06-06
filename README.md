@@ -168,6 +168,10 @@ npm start
 ```bash
 # Unit tests only (default, skips integration tests)
 npm test
+npm run test:unit
+
+# Integration tests only
+npm run test:integration
 
 # All tests including integration (~10 seconds)
 npm run test:all
@@ -176,23 +180,27 @@ npm run test:all
 ### Test Coverage
 
 - **Unit Tests (21 tests)**: RLP decoding, database operations, routing logic, RSA key management, HederaManager functionality
-- **Integration Tests (4 tests)**: HTTP endpoints, server startup, Hedera functionality, RSA endpoints
+- **Integration Tests (5 tests)**: HTTP endpoints, server startup, Hedera functionality, RSA endpoints, JSON-RPC forwarding
 
 **Test Files:**
 
-- `test/test.js` - Main test suite with ethTxDecoder, dbManager, and integration tests
-- `test/hederaManager.test.js` - Comprehensive HederaManager unit tests (11 tests)
+- `test/ethTxDecoder.test.js` - Ethereum transaction parsing and RLP decoding (5 tests)
+- `test/dbManager.test.js` - Database operations and routing logic (5 tests)  
+- `test/hederaManager.test.js` - Hedera Consensus Service integration (11 tests)
+- `test/integration.test.js` - End-to-end HTTP server tests (5 tests)
 
-**HederaManager Test Coverage:**
+**Test Organization:**
 
-- Configuration initialization and validation
-- Network configuration (testnet/mainnet)
-- Topic ID management and state tracking
-- Client initialization with and without credentials
-- Topic info API responses
-- Enable/disable detection based on credentials
+Each test file focuses on a specific module for better maintainability:
+
+- **ethTxDecoder**: Transaction "to" address extraction, contract creation handling, RLP encoding/decoding
+- **dbManager**: Route persistence, target server routing, RSA key pair management
+- **hederaManager**: Client initialization, topic management, network configuration  
+- **integration**: Management endpoints, JSON-RPC forwarding, server lifecycle
 
 **Note**: Integration tests require valid Hedera credentials in environment for full coverage.
+
+Total: **26 tests** across **4 test files**
 
 ## 🏗️ Architecture
 
