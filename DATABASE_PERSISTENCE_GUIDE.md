@@ -2,7 +2,8 @@
 
 ## Overview
 
-The Hiero JSON-RPC Relay Proxy now includes **database persistence** for the Hedera message listener, ensuring that the system remembers the last processed message even after server restarts. This prevents message duplication and provides reliable state management across server sessions.
+The Hiero JSON-RPC Relay Proxy now includes **database persist# Start listening with persistence
+const intervalId = hederaManager.startMessageListener(5000);ce** for the Hedera message listener, ensuring that the system remembers the last processed message even after server restarts. This prevents message duplication and provides reliable state management across server sessions.
 
 ## 🎯 Key Features
 
@@ -141,7 +142,7 @@ npm run demo
 ### First Run (No Previous State)
 ```
 🔗 Starting message listener for topic 0.0.123456
-   Checking for new messages every 30 seconds
+   Checking for new messages every 5 seconds
 📊 Found 3 existing messages in topic (sequence 1 to 3)
 📝 Saved last processed sequence 3 for topic 0.0.123456
 ```
@@ -149,7 +150,7 @@ npm run demo
 ### Subsequent Runs (With Previous State)
 ```
 🔗 Starting message listener for topic 0.0.123456
-   Checking for new messages every 30 seconds
+   Checking for new messages every 5 seconds
 📚 Restored last processed sequence: 3 for topic 0.0.123456
 📊 Found 5 existing messages in topic (sequence 1 to 5)
 
@@ -171,7 +172,7 @@ npm run demo
 # Server restart
 📚 Restored last processed sequence: 5 for topic 0.0.123456
 🔗 Starting message listener for topic 0.0.123456
-   Checking for new messages every 30 seconds
+   Checking for new messages every 5 seconds
 # Only processes messages with sequence > 5
 ```
 

@@ -41,7 +41,7 @@ Successfully implemented **Hedera Topic Message Listener** functionality that:
 
 ### **Message Listener Flow:**
 1. **Initialization**: Starts automatically after Hedera topic setup
-2. **Polling**: Checks mirror node API every 30 seconds
+2. **Polling**: Checks mirror node API every 5 seconds
 3. **Detection**: Compares current messages with last known sequence number
 4. **Logging**: Displays new messages with rich formatting
 5. **Persistence**: Tracks state across polling intervals
@@ -53,7 +53,7 @@ Successfully implemented **Hedera Topic Message Listener** functionality that:
 - Missing topic or credentials
 
 ### **Performance Features:**
-- Configurable polling interval (default: 30 seconds)
+- Configurable polling interval (default: 5 seconds)
 - Content truncation for large messages
 - Efficient sequence-based change detection
 - Minimal memory footprint
@@ -68,7 +68,7 @@ npm start
 # ✅ Server starts
 # ✅ Hedera topic initialized  
 # ✅ Message listener starts automatically
-# 🔗 Polls every 30 seconds for new messages
+# 🔗 Polls every 5 seconds for new messages
 ```
 
 ### **2. Demo Script**
@@ -123,7 +123,7 @@ npm run demo
 ## 🎯 **KEY BENEFITS**
 
 1. **Zero Configuration** - Works automatically with existing Hedera setup
-2. **Real-time Monitoring** - Detects new messages within 30 seconds
+2. **Real-time Monitoring** - Detects new messages within 5 seconds
 3. **Production Ready** - Comprehensive error handling and testing
 4. **Developer Friendly** - Rich logging and debugging information
 5. **Scalable** - Efficient polling mechanism with minimal resource usage

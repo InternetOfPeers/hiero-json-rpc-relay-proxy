@@ -212,7 +212,7 @@ The proxy includes an automatic message listener that monitors the Hedera topic 
 
 - **Automatic Startup**: Starts listening immediately after server initialization if Hedera is enabled
 - **Database Persistence**: Saves the last processed message sequence number to prevent duplicate processing across server restarts
-- **Real-time Monitoring**: Polls the mirror node API every 30 seconds for new messages
+- **Real-time Monitoring**: Polls the mirror node API every 5 seconds for new messages
 - **Message Content Logging**: Displays message sequence number, timestamp, content, and payer account
 - **State Recovery**: Automatically resumes from the last processed message after server restart
 - **Graceful Error Handling**: Continues operation even if individual API calls or database operations fail
@@ -250,7 +250,7 @@ When new messages are detected, they are logged in the following format:
 
 The message listener uses the following settings:
 
-- **Poll Interval**: 30 seconds (configurable via code)
+- **Poll Interval**: 5 seconds (configurable via code)
 - **Content Truncation**: Long messages are truncated to 200 characters in logs
 - **Timeout**: 5 seconds per mirror node API call
 - **Database Storage**: Sequence numbers stored in `data/routing_db_[network].json`
@@ -261,7 +261,7 @@ The message listener uses the following settings:
 
 ### Listener Settings
 
-- **Poll Interval**: 30 seconds (configurable via code)
+- **Poll Interval**: 5 seconds (configurable via code)
 - **Content Truncation**: Long messages are truncated to 200 characters in logs
 - **Timeout**: 5 seconds per mirror node API call
 

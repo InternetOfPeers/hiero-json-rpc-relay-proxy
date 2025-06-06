@@ -392,7 +392,7 @@ class HederaManager {
   }
 
   // Start listening for new messages on the topic
-  startMessageListener(intervalMs = 30000) {
+  startMessageListener(intervalMs = 5000) {
     if (!this.currentTopicId) {
       console.log("No topic ID available, cannot start message listener");
       return null;
@@ -406,14 +406,24 @@ class HederaManager {
     );
 
     // Initialize lastSequenceNumber from database if persistence is available
-    let lastSequenceNumber = 0;
+    // Always start from sequence 1 to skip message #1 (which typically contains the public key)
+    let lastSequenceNumber = 1;
     if (this.getLastProcessedSequence) {
-      lastSequenceNumber = this.getLastProcessedSequence(this.currentTopicId);
-      if (lastSequenceNumber > 0) {
+      const storedSequence = this.getLastProcessedSequence(this.currentTopicId);
+      if (storedSequence > 1) {
+        lastSequenceNumber = storedSequence;
         console.log(
           `📚 Restored last processed sequence: ${lastSequenceNumber} for topic ${this.currentTopicId}`
         );
+      } else {
+        console.log(
+          `📚 Starting from sequence 2 (skipping message #1) for topic ${this.currentTopicId}`
+        );
       }
+    } else {
+      console.log(
+        `📚 Starting from sequence 2 (skipping message #1) for topic ${this.currentTopicId}`
+      );
     }
 
     let isFirstCheck = true;
@@ -430,12 +440,24 @@ class HederaManager {
           );
 
           if (isFirstCheck) {
-            // On first check, just set the last sequence number without logging
-            lastSequenceNumber =
-              sortedMessages[sortedMessages.length - 1].sequence_number;
-            console.log(
-              `📊 Found ${messages.length} existing messages in topic (sequence 1 to ${lastSequenceNumber})`
+            // On first check, filter out message #1 and set the last sequence number
+            const filteredMessages = sortedMessages.filter(
+              (msg) => msg.sequence_number > 1
             );
+
+            if (filteredMessages.length > 0) {
+              lastSequenceNumber =
+                filteredMessages[filteredMessages.length - 1].sequence_number;
+              console.log(
+                `📊 Found ${messages.length} existing messages in topic (skipped message #1, processed sequence 2 to ${lastSequenceNumber})`
+              );
+            } else if (sortedMessages.length > 0) {
+              // Only message #1 exists, so we start from sequence 1 but haven't processed anything yet
+              lastSequenceNumber = 1;
+              console.log(
+                `📊 Found ${messages.length} existing messages in topic (skipped message #1, ready to process from sequence 2)`
+              );
+            }
             isFirstCheck = false;
 
             // Save to database if persistence is available (initial state)
@@ -454,9 +476,11 @@ class HederaManager {
               }
             }
           } else {
-            // Check for new messages since last check
+            // Check for new messages since last check (excluding message #1)
             const newMessages = sortedMessages.filter(
-              (msg) => msg.sequence_number > lastSequenceNumber
+              (msg) =>
+                msg.sequence_number > lastSequenceNumber &&
+                msg.sequence_number > 1
             );
 
             if (newMessages.length > 0) {

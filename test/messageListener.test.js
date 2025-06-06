@@ -102,7 +102,11 @@ describe("HederaManager Message Listener", () => {
     assert.ok(
       logOutput.some((log) => log.includes("Found 2 existing messages"))
     );
-    assert.ok(logOutput.some((log) => log.includes("sequence 1 to 2")));
+    assert.ok(
+      logOutput.some((log) =>
+        log.includes("skipped message #1, processed sequence 2 to 2")
+      )
+    );
   });
 
   it("should detect new messages after initial check", async () => {

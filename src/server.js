@@ -277,9 +277,8 @@ async function startServer() {
       console.log("🎯 STARTING HEDERA MESSAGE LISTENER");
       console.log("=".repeat(60));
 
-      // Start message listener with 30-second intervals
-      global.messageListenerInterval =
-        hederaManager.startMessageListener(30000);
+      // Start message listener with 5-second intervals
+      global.messageListenerInterval = hederaManager.startMessageListener(5000);
     }
   });
 }

@@ -60,7 +60,7 @@ async function demonstrateMessageListener() {
     console.log(`✅ Using topic: ${topicId}\n`);
 
     console.log("2️⃣  Starting message listener...");
-    const intervalId = hederaManager.startMessageListener(10000); // Check every 10 seconds
+    const intervalId = hederaManager.startMessageListener(); // Check every 5 seconds (default)
 
     console.log("3️⃣  Submitting test message...");
     await new Promise((resolve) => setTimeout(resolve, 2000)); // Wait 2 seconds
