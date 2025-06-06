@@ -157,7 +157,7 @@ describe("index.js integration", function () {
     console.log("⏭️  Skipping integration tests (SKIP_INTEGRATION_TESTS=true)");
     return;
   }
-  
+
   let serverProcess;
   const TEST_DB_FILE = "test_routing_db.json";
   const PORT = 3999;
