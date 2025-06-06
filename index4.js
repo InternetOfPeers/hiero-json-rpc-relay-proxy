@@ -1,3 +1,4 @@
+require("dotenv").config();
 const http = require("http");
 const https = require("https");
 const url = require("url");
@@ -5,9 +6,10 @@ const fs = require("fs").promises;
 const path = require("path");
 
 // Configuration
-const PORT = 3000;
-const DB_FILE = "routing_db.json";
-const DEFAULT_SERVER = "https://mainnet.hashio.io/api"; // Fallback server
+const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
+const DB_FILE = process.env.DB_FILE || "routing_db.json";
+const DEFAULT_SERVER =
+  process.env.DEFAULT_SERVER || "https://mainnet.hashio.io/api"; // Fallback server
 
 // In-memory database cache
 let routingDB = {};
