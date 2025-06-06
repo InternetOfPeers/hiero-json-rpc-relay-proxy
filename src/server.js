@@ -66,7 +66,7 @@ loadEnvFile();
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 const DATA_FOLDER = process.env.DATA_FOLDER || "data";
 const DEFAULT_SERVER =
-  process.env.DEFAULT_SERVER || "https://mainnet.hashio.io/api"; // Fallback server
+  process.env.DEFAULT_SERVER || "https://testnet.hashio.io/api"; // Fallback server
 
 // Hedera configuration
 const HEDERA_ACCOUNT_ID = process.env.HEDERA_ACCOUNT_ID;
@@ -212,11 +212,7 @@ const server = http.createServer(async (req, res) => {
 
     // Look for raw transaction in different possible fields
     if (jsonData) {
-      const rawTx =
-        jsonData.rawTransaction ||
-        jsonData.params ||
-        jsonData.data ||
-        jsonData.transaction;
+      const rawTx = jsonData.params;
 
       if (rawTx) {
         toAddress = extractToFromTransaction(rawTx[0]);

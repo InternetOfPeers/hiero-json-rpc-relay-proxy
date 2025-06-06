@@ -44,7 +44,7 @@ Configure using a `.env` file (recommended) or environment variables:
 # Server Configuration
 PORT=3000
 DATA_FOLDER=data
-DEFAULT_SERVER=https://mainnet.hashio.io/api
+DEFAULT_SERVER=https://testnet.hashio.io/api
 
 # Hedera Configuration (optional but recommended)
 HEDERA_ACCOUNT_ID=0.0.123456
