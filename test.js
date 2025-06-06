@@ -152,6 +152,12 @@ describe("dbManager", function () {
 
 // Integration tests
 describe("index.js integration", function () {
+  // Skip integration tests if SKIP_INTEGRATION_TESTS environment variable is set
+  if (process.env.SKIP_INTEGRATION_TESTS) {
+    console.log("⏭️  Skipping integration tests (SKIP_INTEGRATION_TESTS=true)");
+    return;
+  }
+  
   let serverProcess;
   const TEST_DB_FILE = "test_routing_db.json";
   const PORT = 3999;

@@ -4,6 +4,7 @@
   "main": "index.js",
   "scripts": {
     "test": "node --test test.js",
+    "test:unit": "SKIP_INTEGRATION_TESTS=true node --test test.js",
     "start": "node index.js"
   },
   "author": "",
