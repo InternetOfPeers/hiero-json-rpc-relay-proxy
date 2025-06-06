@@ -224,10 +224,12 @@ npm run clean
 ```
 
 **What it cleans:**
-- Demo database files (`demo/data/`)  
+
+- Demo database files (`demo/data/`)
 - Test database files (`test/data/`)
 
 **What it preserves:**
+
 - **Production database files (`data/`)** - Protected for safety
 - Directory structure (`.gitkeep` files retained)
 - Source code and configuration files

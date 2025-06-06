@@ -16,7 +16,9 @@ const path = require("path");
 
 async function cleanDatabaseFiles() {
   console.log("🧹 Cleaning development database files...\n");
-  console.log("ℹ️  Production database files (data/) are preserved for safety\n");
+  console.log(
+    "ℹ️  Production database files (data/) are preserved for safety\n"
+  );
 
   const filesToCheck = [
     // Demo database files
