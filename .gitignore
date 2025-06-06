@@ -4,6 +4,9 @@ node_modules/
 # Environment variables
 .env
 
+# Database and configuration files
+routing_db.json
+
 # Logs
 *.log
 npm-debug.log*
