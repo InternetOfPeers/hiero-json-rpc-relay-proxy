@@ -196,4 +196,34 @@ describe("index.js integration", function () {
     const data = await res.json();
     assert.strictEqual(data.routes["0xabc"], "https://new.example.com");
   });
+
+  test("should return Hedera topic info on GET /hedera/topic", async function () {
+    const res = await makeRequest(`${BASE_URL}/hedera/topic`);
+    assert.strictEqual(res.status, 200);
+    const data = await res.json();
+    // Should have expected properties
+    assert.ok(data.hasOwnProperty("topicId"));
+    assert.ok(data.hasOwnProperty("hederaNetwork"));
+    assert.ok(data.hasOwnProperty("clientInitialized"));
+    // Network should be testnet or mainnet
+    assert.ok(
+      data.hederaNetwork === "testnet" || data.hederaNetwork === "mainnet"
+    );
+    // Client should be false since no credentials provided in test
+    assert.strictEqual(data.clientInitialized, false);
+    // Topic ID should be null since no credentials
+    assert.strictEqual(data.topicId, null);
+  });
+
+  test("should fail gracefully when posting to topic without credentials", async function () {
+    const res = await makeRequest(`${BASE_URL}/hedera/topic/message`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: "test message" }),
+    });
+    assert.strictEqual(res.status, 503);
+    const data = await res.json();
+    assert.strictEqual(data.error, "Hedera topic not available");
+    assert.ok(data.details.includes("No Hedera credentials"));
+  });
 });

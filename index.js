@@ -1,5 +1,13 @@
 const http = require("http");
 const https = require("https");
+const {
+  Client,
+  PrivateKey,
+  AccountId,
+  TopicCreateTransaction,
+  TopicInfoQuery,
+  Hbar,
+} = require("@hashgraph/sdk");
 const { rlpDecode, extractToFromTransaction } = require("./ethTxDecoder");
 const {
   initDatabase,
@@ -14,6 +22,164 @@ const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 const DB_FILE = process.env.DB_FILE || "routing_db.json";
 const DEFAULT_SERVER =
   process.env.DEFAULT_SERVER || "https://mainnet.hashio.io/api"; // Fallback server
+
+// Hedera configuration
+const HEDERA_ACCOUNT_ID = process.env.HEDERA_ACCOUNT_ID;
+const HEDERA_PRIVATE_KEY = process.env.HEDERA_PRIVATE_KEY;
+const HEDERA_NETWORK = process.env.HEDERA_NETWORK || "testnet"; // testnet or mainnet
+const HEDERA_TOPIC_ID = process.env.HEDERA_TOPIC_ID; // Optional: existing topic ID
+
+let hederaClient = null;
+let topicId = null;
+
+// Initialize Hedera client
+function initHederaClient() {
+  if (!HEDERA_ACCOUNT_ID || !HEDERA_PRIVATE_KEY) {
+    console.log(
+      "Hedera credentials not provided. Skipping Hedera topic setup."
+    );
+    return null;
+  }
+
+  try {
+    const accountId = AccountId.fromString(HEDERA_ACCOUNT_ID);
+    const privateKey = PrivateKey.fromString(HEDERA_PRIVATE_KEY);
+
+    // Create client for the appropriate network
+    const client =
+      HEDERA_NETWORK === "mainnet" ? Client.forMainnet() : Client.forTestnet();
+
+    client.setOperator(accountId, privateKey);
+
+    console.log(`Hedera client initialized for ${HEDERA_NETWORK}`);
+    console.log(`Using account: ${HEDERA_ACCOUNT_ID}`);
+
+    return client;
+  } catch (error) {
+    console.error("Failed to initialize Hedera client:", error.message);
+    return null;
+  }
+}
+
+// Check if topic exists and is accessible
+async function checkTopicExists(client, topicIdString) {
+  if (!client || !topicIdString) {
+    return false;
+  }
+
+  try {
+    const topicInfoQuery = new TopicInfoQuery().setTopicId(topicIdString);
+
+    const topicInfo = await topicInfoQuery.execute(client);
+    console.log(`Topic ${topicIdString} exists and is accessible`);
+    console.log(`Topic memo: ${topicInfo.topicMemo}`);
+    return true;
+  } catch (error) {
+    console.log(
+      `Topic ${topicIdString} does not exist or is not accessible:`,
+      error.message
+    );
+    return false;
+  }
+}
+
+// Create a new Hedera topic
+async function createHederaTopic(client) {
+  if (!client) {
+    throw new Error("Hedera client not initialized");
+  }
+
+  try {
+    console.log("Creating new Hedera topic...");
+
+    const transaction = new TopicCreateTransaction()
+      .setTopicMemo("Ethereum Relay Proxy Topic")
+      .setMaxTransactionFee(new Hbar(2)); // Set max fee to 2 HBAR
+
+    const txResponse = await transaction.execute(client);
+    const receipt = await txResponse.getReceipt(client);
+    const newTopicId = receipt.topicId;
+
+    console.log(`✅ Hedera topic created successfully: ${newTopicId}`);
+    return newTopicId.toString();
+  } catch (error) {
+    console.error("Failed to create Hedera topic:", error.message);
+    throw error;
+  }
+}
+
+// Initialize Hedera topic management
+async function initHederaTopic() {
+  hederaClient = initHederaClient();
+
+  if (!hederaClient) {
+    console.log("Hedera functionality disabled - no credentials provided");
+    return;
+  }
+
+  try {
+    // Check if a topic ID was provided in environment variables
+    if (HEDERA_TOPIC_ID) {
+      const exists = await checkTopicExists(hederaClient, HEDERA_TOPIC_ID);
+      if (exists) {
+        topicId = HEDERA_TOPIC_ID;
+        console.log(`Using existing Hedera topic: ${topicId}`);
+        return;
+      } else {
+        console.log(
+          `Provided topic ID ${HEDERA_TOPIC_ID} is not accessible, creating new topic...`
+        );
+      }
+    }
+
+    // Create a new topic
+    topicId = await createHederaTopic(hederaClient);
+    console.log(`Hedera topic initialized: ${topicId}`);
+    console.log(`💡 Add this to your .env file: HEDERA_TOPIC_ID=${topicId}`);
+  } catch (error) {
+    console.error("Failed to initialize Hedera topic:", error.message);
+    console.log("Server will continue without Hedera topic functionality");
+  }
+}
+
+// Get current topic ID
+function getHederaTopicId() {
+  return topicId;
+}
+
+// Get Hedera client
+function getHederaClient() {
+  return hederaClient;
+}
+
+// Submit a message to the Hedera topic (optional functionality)
+async function submitMessageToTopic(message) {
+  if (!hederaClient || !topicId) {
+    throw new Error("Hedera client or topic not initialized");
+  }
+
+  try {
+    const { TopicMessageSubmitTransaction } = require("@hashgraph/sdk");
+
+    const transaction = new TopicMessageSubmitTransaction()
+      .setTopicId(topicId)
+      .setMessage(message);
+
+    const txResponse = await transaction.execute(hederaClient);
+    const receipt = await txResponse.getReceipt(hederaClient);
+
+    console.log(
+      `Message submitted to topic ${topicId}. Transaction ID: ${txResponse.transactionId}`
+    );
+    return {
+      transactionId: txResponse.transactionId.toString(),
+      topicSequenceNumber: receipt.topicSequenceNumber,
+    };
+  } catch (error) {
+    console.error("Failed to submit message to topic:", error.message);
+    throw error;
+  }
+}
 
 // Parse request body
 function parseRequestBody(req) {
@@ -103,6 +269,75 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    // Handle Hedera topic info endpoint
+    if (req.url === "/hedera/topic" && req.method === "GET") {
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(
+        JSON.stringify(
+          {
+            topicId: topicId,
+            hederaNetwork: HEDERA_NETWORK,
+            accountId: HEDERA_ACCOUNT_ID,
+            clientInitialized: hederaClient !== null,
+          },
+          null,
+          2
+        )
+      );
+      return;
+    }
+
+    // Handle Hedera topic message submission
+    if (req.url === "/hedera/topic/message" && req.method === "POST") {
+      const { body, jsonData } = await parseRequestBody(req);
+
+      if (!hederaClient || !topicId) {
+        res.writeHead(503, { "Content-Type": "application/json" });
+        res.end(
+          JSON.stringify({
+            error: "Hedera topic not available",
+            details: "No Hedera credentials provided or topic not initialized",
+          })
+        );
+        return;
+      }
+
+      if (!jsonData || !jsonData.message) {
+        res.writeHead(400, { "Content-Type": "application/json" });
+        res.end(
+          JSON.stringify({ error: "Message is required in JSON payload" })
+        );
+        return;
+      }
+
+      try {
+        const result = await submitMessageToTopic(jsonData.message);
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(
+          JSON.stringify(
+            {
+              success: true,
+              topicId: topicId,
+              transactionId: result.transactionId,
+              sequenceNumber: result.topicSequenceNumber?.toString(),
+              message: jsonData.message,
+            },
+            null,
+            2
+          )
+        );
+      } catch (error) {
+        res.writeHead(500, { "Content-Type": "application/json" });
+        res.end(
+          JSON.stringify({
+            error: "Failed to submit message to topic",
+            details: error.message,
+          })
+        );
+      }
+      return;
+    }
+
     // Parse request body for transaction analysis
     const { body: requestBody, jsonData } = await parseRequestBody(req);
 
@@ -145,9 +380,16 @@ server.on("error", (err) => {
 // Start server
 async function startServer() {
   await initDatabase(DB_FILE);
+  await initHederaTopic();
+
   server.listen(PORT, () => {
     console.log(`Ethereum transaction routing proxy running on port ${PORT}`);
     console.log(`Default target server: ${DEFAULT_SERVER}`);
+
+    if (topicId) {
+      console.log(`Hedera topic: ${topicId}`);
+    }
+
     console.log("\nAvailable routes:");
     Object.entries(getRoutingDB()).forEach(([address, server]) => {
       console.log(`  ${address} -> ${server}`);
@@ -155,10 +397,29 @@ async function startServer() {
     console.log("\nManagement endpoints:");
     console.log(`  GET  http://localhost:${PORT}/routes - View current routes`);
     console.log(`  POST http://localhost:${PORT}/routes - Update routes`);
+    console.log(
+      `  GET  http://localhost:${PORT}/hedera/topic - Get Hedera topic info`
+    );
+    if (topicId) {
+      console.log(
+        `  POST http://localhost:${PORT}/hedera/topic/message - Submit message to topic`
+      );
+    }
+    console.log(
+      `  POST http://localhost:${PORT}/hedera/topic/message - Submit message to Hedera topic`
+    );
     console.log("\nExample request:");
     console.log(`  curl -X POST http://localhost:${PORT}/api/broadcast \\`);
     console.log(`    -H "Content-Type: application/json" \\`);
     console.log(`    -d '{"rawTransaction": "0xf86c..."}'`);
+    if (topicId) {
+      console.log("\nExample Hedera topic message:");
+      console.log(
+        `  curl -X POST http://localhost:${PORT}/hedera/topic/message \\`
+      );
+      console.log(`    -H "Content-Type: application/json" \\`);
+      console.log(`    -d '{"message": "Transaction routed successfully"}'`);
+    }
   });
 }
 
