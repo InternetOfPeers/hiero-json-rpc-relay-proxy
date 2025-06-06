@@ -8,6 +8,8 @@ const {
   AccountId,
   TopicCreateTransaction,
   TopicInfoQuery,
+  TopicMessageQuery,
+  TopicMessageSubmitTransaction,
   Hbar,
 } = require("@hashgraph/sdk");
 const { rlpDecode, extractToFromTransaction } = require("./ethTxDecoder");
@@ -176,6 +178,9 @@ async function initHederaTopic() {
       if (exists) {
         topicId = HEDERA_TOPIC_ID;
         console.log(`Using existing Hedera topic: ${topicId}`);
+
+        // Check if topic has messages and send public key if empty
+        await checkAndSubmitPublicKey(false); // Pass false to indicate this is an existing topic
         return;
       } else {
         console.log(
@@ -188,9 +193,57 @@ async function initHederaTopic() {
     topicId = await createHederaTopic(hederaClient);
     console.log(`Hedera topic initialized: ${topicId}`);
     console.log(`💡 Add this to your .env file: HEDERA_TOPIC_ID=${topicId}`);
+
+    // For new topics, always send the public key as the first message
+    await checkAndSubmitPublicKey(true); // Pass true to indicate this is a new topic
   } catch (error) {
     console.error("Failed to initialize Hedera topic:", error.message);
     console.log("Server will continue without Hedera topic functionality");
+  }
+}
+
+// Check topic for messages and submit public key if needed
+async function checkAndSubmitPublicKey(isNewTopic = false) {
+  if (!hederaClient || !topicId) {
+    console.log(
+      "Hedera client or topic not initialized, skipping public key submission"
+    );
+    return;
+  }
+
+  try {
+    // Get the RSA public key
+    const keyPair = getRSAKeyPair();
+    if (!keyPair || !keyPair.publicKey) {
+      console.log("RSA key pair not available, skipping public key submission");
+      return;
+    }
+
+    // For newly created topics, always submit public key without checking
+    // For existing topics, check for messages first
+    let shouldSubmitKey = isNewTopic;
+
+    if (!isNewTopic) {
+      const hasMessages = await checkTopicHasMessages(hederaClient, topicId);
+      shouldSubmitKey = !hasMessages;
+    }
+
+    if (shouldSubmitKey) {
+      console.log(
+        isNewTopic
+          ? "Sending public key as first message to new topic..."
+          : "Topic has no messages, sending public key as first message..."
+      );
+      await submitPublicKeyToTopic(hederaClient, topicId, keyPair.publicKey);
+    } else {
+      console.log("Topic already has messages, skipping public key submission");
+    }
+  } catch (error) {
+    console.error(
+      "Failed to check topic messages or submit public key:",
+      error.message
+    );
+    console.log("Server will continue without public key submission");
   }
 }
 
@@ -266,6 +319,122 @@ function forwardRequest(targetServer, req, res, requestBody) {
     proxyReq.write(requestBody);
   }
   proxyReq.end();
+}
+
+// Check if topic has any messages
+async function checkTopicHasMessages(client, topicIdString) {
+  if (!client || !topicIdString) {
+    return false;
+  }
+
+  try {
+    console.log(`Checking for messages in topic ${topicIdString}...`);
+
+    // For newly created topics, there's often a propagation delay
+    // Use a more robust approach with shorter timeout and immediate fallback
+    const query = new TopicMessageQuery().setTopicId(topicIdString).setLimit(1);
+
+    return new Promise((resolve) => {
+      let hasMessages = false;
+      let resolved = false;
+      let subscription = null;
+
+      // Very short timeout for new topics
+      const timeoutId = setTimeout(() => {
+        if (!resolved) {
+          resolved = true;
+          if (subscription) {
+            try {
+              subscription.unsubscribe();
+            } catch (e) {
+              // Ignore unsubscribe errors
+            }
+          }
+          console.log(
+            `No messages found in topic ${topicIdString} after timeout`
+          );
+          resolve(false);
+        }
+      }, 3000); // Reduced to 3 seconds
+
+      try {
+        subscription = query.subscribe(
+          client,
+          (message) => {
+            if (!resolved) {
+              resolved = true;
+              hasMessages = true;
+              clearTimeout(timeoutId);
+              console.log(`Found existing messages in topic ${topicIdString}`);
+              resolve(true);
+            }
+          },
+          (error) => {
+            if (!resolved) {
+              resolved = true;
+              clearTimeout(timeoutId);
+              console.log(
+                `Error checking messages in topic ${topicIdString}:`,
+                error.message
+              );
+              // For newly created topics, assume no messages on subscription error
+              resolve(false);
+            }
+          }
+        );
+      } catch (subscribeError) {
+        if (!resolved) {
+          resolved = true;
+          clearTimeout(timeoutId);
+          console.log(
+            `Failed to subscribe to topic ${topicIdString}:`,
+            subscribeError.message
+          );
+          resolve(false);
+        }
+      }
+    });
+  } catch (error) {
+    console.log(
+      `Error checking messages in topic ${topicIdString}:`,
+      error.message
+    );
+    return false;
+  }
+}
+
+// Submit public key message to topic
+async function submitPublicKeyToTopic(client, topicIdString, publicKey) {
+  if (!client || !topicIdString || !publicKey) {
+    throw new Error("Missing required parameters for topic message submission");
+  }
+
+  try {
+    console.log(`Submitting public key to topic ${topicIdString}...`);
+
+    // Send the plain text PEM public key directly
+    const message = publicKey;
+
+    const transaction = new TopicMessageSubmitTransaction()
+      .setTopicId(topicIdString)
+      .setMessage(message)
+      .setMaxTransactionFee(new Hbar(1)); // Set max fee to 1 HBAR
+
+    const txResponse = await transaction.execute(client);
+    const receipt = await txResponse.getReceipt(client);
+
+    console.log(
+      `✅ Public key submitted to topic ${topicIdString} successfully`
+    );
+    console.log(`Transaction ID: ${txResponse.transactionId}`);
+    return receipt;
+  } catch (error) {
+    console.error(
+      `Failed to submit public key to topic ${topicIdString}:`,
+      error.message
+    );
+    throw error;
+  }
 }
 
 const server = http.createServer(async (req, res) => {

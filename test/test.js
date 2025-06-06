@@ -218,7 +218,11 @@ describe("index.js integration", function () {
       stdio: ["ignore", "pipe", "pipe"],
     });
 
-    // Log server errors for debugging
+    // Log server output for debugging
+    serverProcess.stdout.on("data", (data) => {
+      console.log("Server stdout:", data.toString());
+    });
+
     serverProcess.stderr.on("data", (data) => {
       console.error("Server stderr:", data.toString());
     });
@@ -227,8 +231,23 @@ describe("index.js integration", function () {
       console.error("Server process error:", err);
     });
 
+    serverProcess.on("exit", (code, signal) => {
+      console.log(`Server process exited with code ${code}, signal ${signal}`);
+    });
+
     // Wait for server to be ready (increased timeout for Hedera initialization)
-    await new Promise((resolve) => setTimeout(resolve, 3000));
+    // Also check if server is actually responding
+    console.log("Waiting for server to start...");
+    await new Promise((resolve) => setTimeout(resolve, 10000));
+
+    // Test if server is responding
+    try {
+      const healthCheck = await makeRequest(`${BASE_URL}/routes`);
+      console.log("Server health check passed, status:", healthCheck.status);
+    } catch (error) {
+      console.error("Server health check failed:", error.message);
+      throw new Error("Server failed to start properly");
+    }
   });
 
   after(async function () {
