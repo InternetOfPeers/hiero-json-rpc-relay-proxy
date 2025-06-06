@@ -1,8 +1,6 @@
 require("dotenv").config();
 const http = require("http");
 const https = require("https");
-const fs = require("fs").promises;
-const path = require("path");
 const { rlpDecode, extractToFromTransaction } = require("./ethTxDecoder");
 const {
   initDatabase,
