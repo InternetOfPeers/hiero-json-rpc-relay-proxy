@@ -2,7 +2,13 @@ const fs = require("fs").promises;
 const path = require("path");
 const crypto = require("crypto");
 
-let routingDB = {};
+let database = {
+  routes: {},
+  metadata: {
+    rsaKeys: null,
+    sequences: {},
+  },
+};
 
 // Generate RSA key pair
 function generateRSAKeyPair() {
@@ -31,9 +37,9 @@ function generateRSAKeyPair() {
 // Check if RSA key pair exists in database
 function hasRSAKeyPair() {
   return !!(
-    routingDB.rsaKeys &&
-    routingDB.rsaKeys.publicKey &&
-    routingDB.rsaKeys.privateKey
+    database.metadata.rsaKeys &&
+    database.metadata.rsaKeys.publicKey &&
+    database.metadata.rsaKeys.privateKey
   );
 }
 
@@ -42,21 +48,22 @@ function getRSAKeyPair() {
   if (!hasRSAKeyPair()) {
     return null;
   }
-  return routingDB.rsaKeys;
+  return database.metadata.rsaKeys;
 }
 
 // Store RSA key pair in database
 async function storeRSAKeyPair(keyPair, DB_FILE) {
   try {
-    if (!routingDB.rsaKeys) {
-      routingDB.rsaKeys = {};
+    database.metadata.rsaKeys = {
+      publicKey: keyPair.publicKey,
+      privateKey: keyPair.privateKey,
+      createdAt: new Date().toISOString(),
+    };
+
+    if (DB_FILE) {
+      await saveDatabase(DB_FILE);
     }
 
-    routingDB.rsaKeys.publicKey = keyPair.publicKey;
-    routingDB.rsaKeys.privateKey = keyPair.privateKey;
-    routingDB.rsaKeys.createdAt = new Date().toISOString();
-
-    await saveDatabase(DB_FILE);
     console.log("RSA key pair stored in database");
   } catch (error) {
     console.error("Failed to store RSA key pair:", error.message);
@@ -88,20 +95,56 @@ async function initDatabase(DB_FILE) {
       ? DB_FILE
       : path.join(__dirname, "..", DB_FILE);
     const data = await fs.readFile(dbPath, "utf8");
-    routingDB = JSON.parse(data);
-    console.log("Database loaded:", Object.keys(routingDB).length, "routes");
+    const loadedData = JSON.parse(data);
+
+    // Handle migration from old format to new format
+    if (loadedData.routes && loadedData.metadata) {
+      // New structured format
+      database = loadedData;
+    } else {
+      // Old flat format - migrate to new structure
+      database.routes = {};
+      database.metadata = { rsaKeys: null, sequences: {} };
+
+      for (const [key, value] of Object.entries(loadedData)) {
+        if (key === "rsaKeys") {
+          database.metadata.rsaKeys = value;
+        } else if (key.startsWith("lastSequence_")) {
+          database.metadata.sequences[key] = value;
+        } else {
+          // Assume it's a route
+          database.routes[key] = value;
+        }
+      }
+
+      // Save migrated data
+      await saveDatabase(DB_FILE);
+      console.log("Migrated database to new structured format");
+    }
+
+    console.log(
+      "Database loaded:",
+      Object.keys(database.routes).length,
+      "routes"
+    );
   } catch (error) {
-    // Create default database
-    routingDB = {
-      "0x4f1a953df9df8d1c6073ce57f7493e50515fa73f":
-        "https://testnet.hashio.io/api",
-      "0x0000000000000000000000000000000000000000":
-        "https://testnet.hashio.io/api",
+    // Create default database with new structure
+    database = {
+      routes: {
+        "0x4f1a953df9df8d1c6073ce57f7493e50515fa73f":
+          "https://testnet.hashio.io/api",
+        "0x0000000000000000000000000000000000000000":
+          "https://testnet.hashio.io/api",
+      },
+      metadata: {
+        rsaKeys: null,
+        sequences: {},
+      },
     };
     await saveDatabase(DB_FILE);
     console.log(
       "Created default database with",
-      Object.keys(routingDB).length,
+      Object.keys(database.routes).length,
       "routes"
     );
   }
@@ -113,7 +156,7 @@ async function saveDatabase(DB_FILE) {
     const dbPath = path.isAbsolute(DB_FILE)
       ? DB_FILE
       : path.join(__dirname, "..", DB_FILE);
-    await fs.writeFile(dbPath, JSON.stringify(routingDB, null, 2));
+    await fs.writeFile(dbPath, JSON.stringify(database, null, 2));
   } catch (error) {
     console.error("Error saving database:", error.message);
   }
@@ -125,7 +168,7 @@ function getTargetServer(address, DEFAULT_SERVER) {
     return DEFAULT_SERVER;
   }
   const normalizedAddress = address.toLowerCase();
-  const targetServer = routingDB[normalizedAddress];
+  const targetServer = database.routes[normalizedAddress];
   if (targetServer) {
     console.log(`Routing ${normalizedAddress} to: ${targetServer}`);
     return targetServer;
@@ -141,7 +184,7 @@ function getLastProcessedSequence(topicId) {
   }
 
   const key = `lastSequence_${topicId}`;
-  return routingDB[key] || 0;
+  return database.metadata.sequences[key] || 0;
 }
 
 // Store the last processed message sequence number for a topic
@@ -152,7 +195,7 @@ async function storeLastProcessedSequence(topicId, sequenceNumber, DB_FILE) {
 
   try {
     const key = `lastSequence_${topicId}`;
-    routingDB[key] = sequenceNumber;
+    database.metadata.sequences[key] = sequenceNumber;
 
     if (DB_FILE) {
       await saveDatabase(DB_FILE);
@@ -168,7 +211,8 @@ async function storeLastProcessedSequence(topicId, sequenceNumber, DB_FILE) {
 }
 
 function getRoutingDB() {
-  return routingDB;
+  // Return only the routes for backward compatibility
+  return database.routes;
 }
 
 function updateRoutes(newRoutes, save = null, DB_FILE = null) {
@@ -177,7 +221,7 @@ function updateRoutes(newRoutes, save = null, DB_FILE = null) {
   for (const [key, value] of Object.entries(newRoutes)) {
     normalizedRoutes[key.toLowerCase()] = value;
   }
-  Object.assign(routingDB, normalizedRoutes);
+  Object.assign(database.routes, normalizedRoutes);
   if (save && DB_FILE) {
     return save(DB_FILE);
   }
