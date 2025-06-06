@@ -163,13 +163,32 @@ describe("index.js integration", function () {
     try {
       await fs.unlink(DB_PATH);
     } catch {}
+
     // Start the server with env overrides
+    // Include existing Hedera credentials if available
+    const testEnv = {
+      ...process.env,
+      PORT: PORT.toString(),
+      DB_FILE: TEST_DB_FILE,
+      // Use existing Hedera credentials from process.env if they exist
+    };
+
     serverProcess = spawn(process.execPath, ["index.js"], {
-      env: { ...process.env, PORT: PORT.toString(), DB_FILE: TEST_DB_FILE },
+      env: testEnv,
       stdio: ["ignore", "pipe", "pipe"],
     });
-    // Wait for server to be ready
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+
+    // Log server errors for debugging
+    serverProcess.stderr.on("data", (data) => {
+      console.error("Server stderr:", data.toString());
+    });
+
+    serverProcess.on("error", (err) => {
+      console.error("Server process error:", err);
+    });
+
+    // Wait for server to be ready (increased timeout for Hedera initialization)
+    await new Promise((resolve) => setTimeout(resolve, 3000));
   });
 
   after(async function () {
@@ -209,9 +228,13 @@ describe("index.js integration", function () {
     assert.ok(
       data.hederaNetwork === "testnet" || data.hederaNetwork === "mainnet"
     );
-    // Client should be false since no credentials provided in test
-    assert.strictEqual(data.clientInitialized, false);
-    // Topic ID should be null since no credentials
-    assert.strictEqual(data.topicId, null);
+    // Client should be initialized if valid credentials are provided
+    assert.strictEqual(data.clientInitialized, true);
+    // Topic ID should be a valid topic ID format (e.g., "0.0.123456")
+    assert.ok(typeof data.topicId === "string");
+    assert.ok(/^0\.0\.\d+$/.test(data.topicId));
+    // Should also have accountId when client is initialized
+    assert.ok(data.hasOwnProperty("accountId"));
+    assert.ok(/^0\.0\.\d+$/.test(data.accountId));
   });
 });
