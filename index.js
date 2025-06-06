@@ -1,4 +1,3 @@
-require("dotenv").config();
 const http = require("http");
 const https = require("https");
 const { rlpDecode, extractToFromTransaction } = require("./ethTxDecoder");
