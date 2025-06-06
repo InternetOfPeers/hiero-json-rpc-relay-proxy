@@ -216,20 +216,23 @@ You can extend the server to automatically log routing decisions to the Hedera t
 
 ### Running Tests
 ```bash
-# Run all tests (unit + integration)
+# Run unit tests only (default, fast execution)
 npm test
 
-# Run only unit tests (fast, no server startup required)
+# Run unit tests only (explicit)
 npm run test:unit
 
-# Skip integration tests using environment variable
-SKIP_INTEGRATION_TESTS=true npm test
+# Run all tests including integration tests (requires Hedera credentials)
+npm run test:all
+
+# Manual environment variable control
+SKIP_INTEGRATION_TESTS=false npm test
 ```
 
 **Test Options:**
-- **Full test suite**: Includes server startup and HTTP endpoint testing (~3 seconds)
-- **Unit tests only**: Fast execution, no Hedera credentials required (~80ms)
-- **Integration tests**: Require valid Hedera credentials in environment
+- **Default**: Unit tests only for fast development feedback (~80ms)
+- **Full test suite**: Requires `npm run test:all` and valid Hedera credentials (~3 seconds)
+- **Integration tests**: Test server startup and HTTP endpoints with Hedera functionality
 
 All tests use Node.js built-in test runner and native HTTP modules for better performance and fewer dependencies.
 
