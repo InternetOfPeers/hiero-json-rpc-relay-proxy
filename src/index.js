@@ -8,7 +8,6 @@ const {
   AccountId,
   TopicCreateTransaction,
   TopicInfoQuery,
-  TopicMessageQuery,
   TopicMessageSubmitTransaction,
   Hbar,
 } = require("@hashgraph/sdk");
@@ -180,6 +179,7 @@ async function initHederaTopic() {
         console.log(`Using existing Hedera topic: ${topicId}`);
 
         // Check if topic has messages and send public key if empty
+        // Server MUST stop if this operation times out
         await checkAndSubmitPublicKey(false); // Pass false to indicate this is an existing topic
         return;
       } else {
@@ -195,10 +195,12 @@ async function initHederaTopic() {
     console.log(`💡 Add this to your .env file: HEDERA_TOPIC_ID=${topicId}`);
 
     // For new topics, always send the public key as the first message
-    await checkAndSubmitPublicKey(true); // Pass true to indicate this is a new topic
+    // Server MUST stop if this operation fails or times out
+    await checkAndSubmitPublicKey(true);
   } catch (error) {
     console.error("Failed to initialize Hedera topic:", error.message);
-    console.log("Server will continue without Hedera topic functionality");
+    console.error("Server MUST stop - Hedera topic initialization failed");
+    process.exit(1);
   }
 }
 
@@ -211,39 +213,67 @@ async function checkAndSubmitPublicKey(isNewTopic = false) {
     return;
   }
 
-  try {
-    // Get the RSA public key
-    const keyPair = getRSAKeyPair();
-    if (!keyPair || !keyPair.publicKey) {
-      console.log("RSA key pair not available, skipping public key submission");
-      return;
-    }
+  // Get the RSA public key
+  const keyPair = getRSAKeyPair();
+  if (!keyPair || !keyPair.publicKey) {
+    console.log("RSA key pair not available, skipping public key submission");
+    return;
+  }
 
-    // For newly created topics, always submit public key without checking
-    // For existing topics, check for messages first
-    let shouldSubmitKey = isNewTopic;
+  // For newly created topics, always submit public key without checking
+  // For existing topics, check for messages first
+  let shouldSubmitKey = isNewTopic;
 
-    if (!isNewTopic) {
-      const hasMessages = await checkTopicHasMessages(hederaClient, topicId);
+  if (!isNewTopic) {
+    console.log("Checking if topic has existing messages...");
+    // Add timeout wrapper that throws error on timeout (server MUST stop)
+    try {
+      const hasMessages = await Promise.race([
+        checkTopicHasMessages(hederaClient, topicId),
+        new Promise((_, reject) =>
+          setTimeout(
+            () =>
+              reject(
+                new Error(
+                  "Timeout: Failed to check topic messages within 5 seconds"
+                )
+              ),
+            5000
+          )
+        ),
+      ]);
       shouldSubmitKey = !hasMessages;
+      console.log(`Topic message check result: hasMessages=${hasMessages}`);
+    } catch (error) {
+      console.error("Critical error checking topic messages:", error.message);
+      console.error("Server must stop - cannot verify topic state");
+      process.exit(1);
     }
+  }
 
-    if (shouldSubmitKey) {
-      console.log(
-        isNewTopic
-          ? "Sending public key as first message to new topic..."
-          : "Topic has no messages, sending public key as first message..."
-      );
-      await submitPublicKeyToTopic(hederaClient, topicId, keyPair.publicKey);
-    } else {
-      console.log("Topic already has messages, skipping public key submission");
-    }
-  } catch (error) {
-    console.error(
-      "Failed to check topic messages or submit public key:",
-      error.message
+  if (shouldSubmitKey) {
+    console.log(
+      isNewTopic
+        ? "Sending public key as first message to new topic..."
+        : "Topic has no messages, sending public key as first message..."
     );
-    console.log("Server will continue without public key submission");
+    // Add timeout wrapper for public key submission (server MUST stop on timeout)
+    await Promise.race([
+      submitPublicKeyToTopic(hederaClient, topicId, keyPair.publicKey),
+      new Promise((_, reject) =>
+        setTimeout(
+          () =>
+            reject(
+              new Error(
+                "Timeout: Failed to submit public key within 10 seconds"
+              )
+            ),
+          10000
+        )
+      ),
+    ]);
+  } else {
+    console.log("Topic already has messages, skipping public key submission");
   }
 }
 
@@ -321,85 +351,100 @@ function forwardRequest(targetServer, req, res, requestBody) {
   proxyReq.end();
 }
 
-// Check if topic has any messages
+// Check if topic has any messages using mirror node API
 async function checkTopicHasMessages(client, topicIdString) {
-  if (!client || !topicIdString) {
+  if (!topicIdString) {
     return false;
   }
 
   try {
-    console.log(`Checking for messages in topic ${topicIdString}...`);
+    console.log(
+      `Checking for messages in topic ${topicIdString} via mirror node...`
+    );
 
-    // For newly created topics, there's often a propagation delay
-    // Use a more robust approach with shorter timeout and immediate fallback
-    const query = new TopicMessageQuery().setTopicId(topicIdString).setLimit(1);
+    // Determine the mirror node URL based on network
+    const mirrorNodeUrl =
+      HEDERA_NETWORK === "mainnet"
+        ? "https://mainnet.mirrornode.hedera.com"
+        : "https://testnet.mirrornode.hedera.com";
 
-    return new Promise((resolve) => {
-      let hasMessages = false;
-      let resolved = false;
-      let subscription = null;
+    // Try to get the first message (sequence number 1)
+    const url = `${mirrorNodeUrl}/api/v1/topics/${topicIdString}/messages/1`;
 
-      // Very short timeout for new topics
+    console.log(`Fetching: ${url}`);
+
+    return new Promise((resolve, reject) => {
       const timeoutId = setTimeout(() => {
-        if (!resolved) {
-          resolved = true;
-          if (subscription) {
-            try {
-              subscription.unsubscribe();
-            } catch (e) {
-              // Ignore unsubscribe errors
-            }
-          }
-          console.log(
-            `No messages found in topic ${topicIdString} after timeout`
-          );
-          resolve(false);
-        }
-      }, 3000); // Reduced to 3 seconds
-
-      try {
-        subscription = query.subscribe(
-          client,
-          (message) => {
-            if (!resolved) {
-              resolved = true;
-              hasMessages = true;
-              clearTimeout(timeoutId);
-              console.log(`Found existing messages in topic ${topicIdString}`);
-              resolve(true);
-            }
-          },
-          (error) => {
-            if (!resolved) {
-              resolved = true;
-              clearTimeout(timeoutId);
-              console.log(
-                `Error checking messages in topic ${topicIdString}:`,
-                error.message
-              );
-              // For newly created topics, assume no messages on subscription error
-              resolve(false);
-            }
-          }
+        console.log(`Timeout: Failed to check topic messages within 5 seconds`);
+        reject(
+          new Error(`Timeout: Failed to check topic messages within 5 seconds`)
         );
-      } catch (subscribeError) {
-        if (!resolved) {
-          resolved = true;
-          clearTimeout(timeoutId);
-          console.log(
-            `Failed to subscribe to topic ${topicIdString}:`,
-            subscribeError.message
-          );
-          resolve(false);
-        }
-      }
+      }, 5000);
+
+      const httpModule = mirrorNodeUrl.startsWith("https:") ? https : http;
+
+      const req = httpModule.get(url, (res) => {
+        clearTimeout(timeoutId);
+
+        let data = "";
+        res.on("data", (chunk) => {
+          data += chunk;
+        });
+
+        res.on("end", () => {
+          try {
+            if (res.statusCode === 200) {
+              const response = JSON.parse(data);
+              console.log(
+                `Found existing message in topic ${topicIdString} (sequence: ${response.sequence_number})`
+              );
+              resolve(true);
+            } else if (res.statusCode === 404) {
+              console.log(
+                `No messages found in topic ${topicIdString} (404 response)`
+              );
+              resolve(false);
+            } else {
+              console.log(
+                `Mirror node returned status ${res.statusCode} for topic ${topicIdString}`
+              );
+              reject(
+                new Error(
+                  `Mirror node returned status ${res.statusCode}: ${data}`
+                )
+              );
+            }
+          } catch (parseError) {
+            console.error(
+              `Error parsing mirror node response:`,
+              parseError.message
+            );
+            reject(
+              new Error(
+                `Failed to parse mirror node response: ${parseError.message}`
+              )
+            );
+          }
+        });
+      });
+
+      req.on("error", (error) => {
+        clearTimeout(timeoutId);
+        console.error(`Error calling mirror node API:`, error.message);
+        reject(new Error(`Failed to call mirror node API: ${error.message}`));
+      });
+
+      req.setTimeout(5000, () => {
+        req.destroy();
+        reject(new Error(`Mirror node API request timed out after 5 seconds`));
+      });
     });
   } catch (error) {
     console.log(
       `Error checking messages in topic ${topicIdString}:`,
       error.message
     );
-    return false;
+    throw error;
   }
 }
 
@@ -543,9 +588,14 @@ server.on("error", (err) => {
 
 // Start server
 async function startServer() {
-  await initDatabase(DB_FILE);
-  await initRSAKeyPair(DB_FILE);
-  await initHederaTopic();
+  try {
+    await initDatabase(DB_FILE);
+    await initRSAKeyPair(DB_FILE);
+    await initHederaTopic();
+  } catch (error) {
+    console.error("Failed to initialize server:", error.message);
+    process.exit(1);
+  }
 
   server.listen(PORT, () => {
     console.log(`Ethereum transaction routing proxy running on port ${PORT}`);
