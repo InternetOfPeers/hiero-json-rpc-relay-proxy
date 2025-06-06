@@ -165,9 +165,18 @@ npm start
 
 ## 🧪 Testing
 
-### Test Commands
+### Available Scripts
 
 ```bash
+# Start the server
+npm start
+
+# Run demo script
+npm run demo
+
+# Clean database files
+npm run clean
+
 # Unit tests only (default, skips integration tests)
 npm test
 npm run test:unit
@@ -203,6 +212,43 @@ Each test file focuses on a specific module for better maintainability:
 - **integration**: Management endpoints, JSON-RPC forwarding, server lifecycle
 
 **Note**: Integration tests require valid Hedera credentials in environment for full coverage.
+
+## 🧹 Database Cleanup
+
+The project includes a convenient script to clean up all database files created during development, testing, and demos:
+
+### Clean Command
+
+```bash
+npm run clean
+```
+
+**What it cleans:**
+- Demo database files (`demo/data/`)  
+- Test database files (`test/data/`)
+
+**What it preserves:**
+- **Production database files (`data/`)** - Protected for safety
+- Directory structure (`.gitkeep` files retained)
+- Source code and configuration files
+- Git history and tracking
+
+**Example output:**
+```
+🧹 Cleaning development database files...
+
+ℹ️  Production database files (data/) are preserved for safety
+
+🗑️  Deleted: demo/data/demo_routing_db_testnet.json
+🗑️  Deleted: test/data/test_routing_db_testnet.json
+
+✅ Successfully cleaned 2 development database files
+
+📁 Directory structure preserved (.gitkeep files retained)
+🛡️  Production database files (data/) remain untouched
+```
+
+Use this command to clean up development and test data without affecting production routing configuration.
 
 ## 🔔 Message Listener
 
