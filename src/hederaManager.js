@@ -25,6 +25,10 @@ class HederaManager {
     this.topicId = config.topicId;
     this.client = null;
     this.currentTopicId = null;
+    // Database persistence functions
+    this.getLastProcessedSequence = config.getLastProcessedSequence;
+    this.storeLastProcessedSequence = config.storeLastProcessedSequence;
+    this.dbFile = config.dbFile;
   }
 
   // Initialize Hedera client
@@ -401,7 +405,17 @@ class HederaManager {
       `   Checking for new messages every ${intervalMs / 1000} seconds`
     );
 
+    // Initialize lastSequenceNumber from database if persistence is available
     let lastSequenceNumber = 0;
+    if (this.getLastProcessedSequence) {
+      lastSequenceNumber = this.getLastProcessedSequence(this.currentTopicId);
+      if (lastSequenceNumber > 0) {
+        console.log(
+          `📚 Restored last processed sequence: ${lastSequenceNumber} for topic ${this.currentTopicId}`
+        );
+      }
+    }
+
     let isFirstCheck = true;
 
     const checkForNewMessages = async () => {
@@ -423,6 +437,22 @@ class HederaManager {
               `📊 Found ${messages.length} existing messages in topic (sequence 1 to ${lastSequenceNumber})`
             );
             isFirstCheck = false;
+
+            // Save to database if persistence is available (initial state)
+            if (this.storeLastProcessedSequence && this.dbFile) {
+              try {
+                await this.storeLastProcessedSequence(
+                  this.currentTopicId,
+                  lastSequenceNumber,
+                  this.dbFile
+                );
+              } catch (error) {
+                console.error(
+                  `Failed to save initial sequence to database:`,
+                  error.message
+                );
+              }
+            }
           } else {
             // Check for new messages since last check
             const newMessages = sortedMessages.filter(
@@ -454,8 +484,25 @@ class HederaManager {
               }
 
               // Update last sequence number
-              lastSequenceNumber =
+              const newLastSequence =
                 newMessages[newMessages.length - 1].sequence_number;
+              lastSequenceNumber = newLastSequence;
+
+              // Save to database if persistence is available
+              if (this.storeLastProcessedSequence && this.dbFile) {
+                try {
+                  await this.storeLastProcessedSequence(
+                    this.currentTopicId,
+                    newLastSequence,
+                    this.dbFile
+                  );
+                } catch (error) {
+                  console.error(
+                    `Failed to save sequence to database:`,
+                    error.message
+                  );
+                }
+              }
             }
           }
         } else if (isFirstCheck) {

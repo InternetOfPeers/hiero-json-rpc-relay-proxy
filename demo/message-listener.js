@@ -4,22 +4,44 @@
 // This script will submit a test message to the Hedera topic to demonstrate
 // the message listener detecting new messages
 
-const { HederaManager } = require("./src/hederaManager");
-const { loadEnvFile } = require("./src/envLoader");
+const { HederaManager } = require("../src/hederaManager");
+const { loadEnvFile } = require("../src/envLoader");
+const {
+  initDatabase,
+  getLastProcessedSequence,
+  storeLastProcessedSequence,
+} = require("../src/dbManager");
+const path = require("path");
 
-// Load environment variables
-loadEnvFile();
+// Load environment variables from the project root
+loadEnvFile(path.join(__dirname, "../.env"));
 
 async function demonstrateMessageListener() {
   console.log("🚀 Hedera Message Listener Demo");
   console.log("===============================\n");
 
-  // Initialize Hedera Manager
+  // Initialize database for persistence (using demo data folder)
+  // This keeps demo data separate from production data
+  const HEDERA_NETWORK = process.env.HEDERA_NETWORK || "testnet";
+  const DEMO_DATA_FOLDER = path.join(__dirname, "data");
+  const dbFile = path.join(
+    DEMO_DATA_FOLDER,
+    `demo_routing_db_${HEDERA_NETWORK}.json`
+  );
+
+  console.log("0️⃣  Initializing demo database...");
+  console.log(`   Using demo database: ${dbFile}`);
+  await initDatabase(dbFile);
+
+  // Initialize Hedera Manager with database persistence
   const hederaManager = new HederaManager({
     accountId: process.env.HEDERA_ACCOUNT_ID,
     privateKey: process.env.HEDERA_PRIVATE_KEY,
-    network: process.env.HEDERA_NETWORK || "testnet",
+    network: HEDERA_NETWORK,
     topicId: process.env.HEDERA_TOPIC_ID,
+    getLastProcessedSequence,
+    storeLastProcessedSequence,
+    dbFile: dbFile,
   });
 
   if (!hederaManager.isEnabled()) {
@@ -48,7 +70,7 @@ async function demonstrateMessageListener() {
 
     console.log("✅ Test message submitted!");
     console.log(
-      "⏳ Waiting for message to appear in mirror node (this may take 1-2 minutes)..."
+      "⏳ Waiting for message to appear in mirror node (this may take a few seconds)..."
     );
     console.log(
       "   The message listener will automatically detect and log the new message.\n"

@@ -12,6 +12,8 @@ const {
   initRSAKeyPair,
   getRSAKeyPair,
   hasRSAKeyPair,
+  getLastProcessedSequence,
+  storeLastProcessedSequence,
 } = require("./dbManager");
 const { HederaManager } = require("./hederaManager");
 const { loadEnvFile } = require("./envLoader");
@@ -42,6 +44,9 @@ const hederaManager = new HederaManager({
   privateKey: HEDERA_PRIVATE_KEY,
   network: HEDERA_NETWORK,
   topicId: HEDERA_TOPIC_ID,
+  getLastProcessedSequence,
+  storeLastProcessedSequence,
+  dbFile: getDBFilePath(),
 });
 
 // Parse request body

@@ -237,4 +237,130 @@ describe("HederaManager Message Listener", () => {
       )
     );
   });
+
+  it("should restore last processed sequence from database on startup", () => {
+    const mockGetLastProcessedSequence = mock.fn(() => 42);
+
+    hederaManager.getLastProcessedSequence = mockGetLastProcessedSequence;
+    hederaManager.getTopicMessages = mock.fn(async () => []);
+
+    const intervalId = hederaManager.startMessageListener(100);
+    activeIntervals.push(intervalId);
+
+    // Should have called getLastProcessedSequence with topic ID
+    assert.strictEqual(mockGetLastProcessedSequence.mock.callCount(), 1);
+    assert.strictEqual(
+      mockGetLastProcessedSequence.mock.calls[0].arguments[0],
+      "0.0.789012"
+    );
+
+    // Should log restored sequence
+    assert.ok(
+      logOutput.some((log) =>
+        log.includes("Restored last processed sequence: 42")
+      )
+    );
+  });
+
+  it("should save processed messages to database", async () => {
+    const mockStoreLastProcessedSequence = mock.fn();
+    const mockMessages = [
+      {
+        sequence_number: 1,
+        consensus_timestamp: Math.floor(Date.now() / 1000) - 3600,
+        message: Buffer.from("Initial message").toString("base64"),
+        payer_account_id: "0.0.123456",
+      },
+    ];
+
+    const newMessages = [
+      ...mockMessages,
+      {
+        sequence_number: 2,
+        consensus_timestamp: Math.floor(Date.now() / 1000) - 60,
+        message: Buffer.from("New message").toString("base64"),
+        payer_account_id: "0.0.789012",
+      },
+    ];
+
+    let callCount = 0;
+    hederaManager.getTopicMessages = mock.fn(async () => {
+      callCount++;
+      return callCount === 1 ? mockMessages : newMessages;
+    });
+
+    hederaManager.storeLastProcessedSequence = mockStoreLastProcessedSequence;
+    hederaManager.dbFile = "test.db";
+
+    const intervalId = hederaManager.startMessageListener(100);
+    activeIntervals.push(intervalId);
+
+    // Wait for both checks to complete
+    await new Promise((resolve) => setTimeout(resolve, 250));
+
+    // Should have saved the latest sequence number twice (initial check + new message)
+    assert.ok(mockStoreLastProcessedSequence.mock.callCount() >= 1);
+
+    const lastCall =
+      mockStoreLastProcessedSequence.mock.calls[
+        mockStoreLastProcessedSequence.mock.callCount() - 1
+      ];
+    assert.strictEqual(lastCall.arguments[0], "0.0.789012"); // topic ID
+    assert.strictEqual(lastCall.arguments[1], 2); // sequence number
+    assert.strictEqual(lastCall.arguments[2], "test.db"); // db file
+  });
+
+  it("should handle database save errors gracefully", async () => {
+    const mockStoreLastProcessedSequence = mock.fn(async () => {
+      throw new Error("Database save failed");
+    });
+
+    const mockMessages = [
+      {
+        sequence_number: 1,
+        consensus_timestamp: Math.floor(Date.now() / 1000) - 3600,
+        message: Buffer.from("Test message").toString("base64"),
+        payer_account_id: "0.0.123456",
+      },
+    ];
+
+    hederaManager.getTopicMessages = mock.fn(async () => mockMessages);
+    hederaManager.storeLastProcessedSequence = mockStoreLastProcessedSequence;
+    hederaManager.dbFile = "test.db";
+
+    const intervalId = hederaManager.startMessageListener(100);
+    activeIntervals.push(intervalId);
+
+    // Wait for check to complete
+    await new Promise((resolve) => setTimeout(resolve, 150));
+
+    // Should have attempted to save but logged the error
+    assert.ok(mockStoreLastProcessedSequence.mock.callCount() >= 1);
+    assert.ok(logOutput.some((log) => log.includes("Failed to save")));
+  });
+
+  it("should work without database persistence functions", async () => {
+    const mockMessages = [
+      {
+        sequence_number: 1,
+        consensus_timestamp: Math.floor(Date.now() / 1000) - 3600,
+        message: Buffer.from("Test message").toString("base64"),
+        payer_account_id: "0.0.123456",
+      },
+    ];
+
+    hederaManager.getTopicMessages = mock.fn(async () => mockMessages);
+    // Don't set persistence functions - should work without them
+
+    const intervalId = hederaManager.startMessageListener(100);
+    activeIntervals.push(intervalId);
+
+    // Wait for check to complete
+    await new Promise((resolve) => setTimeout(resolve, 150));
+
+    // Should still process messages normally
+    assert.ok(
+      logOutput.some((log) => log.includes("Found 1 existing messages"))
+    );
+  });
 });

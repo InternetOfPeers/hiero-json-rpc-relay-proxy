@@ -134,6 +134,39 @@ function getTargetServer(address, DEFAULT_SERVER) {
   return DEFAULT_SERVER;
 }
 
+// Get the last processed message sequence number for a topic
+function getLastProcessedSequence(topicId) {
+  if (!topicId) {
+    return 0;
+  }
+
+  const key = `lastSequence_${topicId}`;
+  return routingDB[key] || 0;
+}
+
+// Store the last processed message sequence number for a topic
+async function storeLastProcessedSequence(topicId, sequenceNumber, DB_FILE) {
+  if (!topicId || typeof sequenceNumber !== "number") {
+    return;
+  }
+
+  try {
+    const key = `lastSequence_${topicId}`;
+    routingDB[key] = sequenceNumber;
+
+    if (DB_FILE) {
+      await saveDatabase(DB_FILE);
+    }
+
+    console.log(
+      `📝 Saved last processed sequence ${sequenceNumber} for topic ${topicId}`
+    );
+  } catch (error) {
+    console.error("Failed to store last processed sequence:", error.message);
+    throw error;
+  }
+}
+
 function getRoutingDB() {
   return routingDB;
 }
@@ -160,4 +193,6 @@ module.exports = {
   initRSAKeyPair,
   getRSAKeyPair,
   hasRSAKeyPair,
+  getLastProcessedSequence,
+  storeLastProcessedSequence,
 };

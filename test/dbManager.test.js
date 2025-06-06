@@ -13,6 +13,8 @@ const {
   initRSAKeyPair,
   getRSAKeyPair,
   hasRSAKeyPair,
+  getLastProcessedSequence,
+  storeLastProcessedSequence,
 } = require("../src/dbManager");
 
 // dbManager tests
@@ -98,5 +100,57 @@ describe("dbManager", function () {
     assert.strictEqual(firstKeyPair.publicKey, secondKeyPair.publicKey);
     assert.strictEqual(firstKeyPair.privateKey, secondKeyPair.privateKey);
     assert.strictEqual(firstKeyPair.createdAt, secondKeyPair.createdAt);
+  });
+
+  test("should store and retrieve last processed sequence number", async function () {
+    const topicId = "0.0.123456";
+    const sequenceNumber = 42;
+
+    // Initially should return 0 for unknown topic
+    assert.strictEqual(getLastProcessedSequence(topicId), 0);
+
+    // Store sequence number
+    await storeLastProcessedSequence(topicId, sequenceNumber, TEST_DB_FILE);
+
+    // Should retrieve the stored sequence number
+    assert.strictEqual(getLastProcessedSequence(topicId), sequenceNumber);
+
+    // Verify persistence by reloading database
+    await initDatabase(TEST_DB_FILE);
+    assert.strictEqual(getLastProcessedSequence(topicId), sequenceNumber);
+  });
+
+  test("should handle multiple topic sequence numbers", async function () {
+    const topic1 = "0.0.111111";
+    const topic2 = "0.0.222222";
+    const sequence1 = 10;
+    const sequence2 = 20;
+
+    // Store sequence numbers for different topics
+    await storeLastProcessedSequence(topic1, sequence1, TEST_DB_FILE);
+    await storeLastProcessedSequence(topic2, sequence2, TEST_DB_FILE);
+
+    // Should retrieve correct sequence for each topic
+    assert.strictEqual(getLastProcessedSequence(topic1), sequence1);
+    assert.strictEqual(getLastProcessedSequence(topic2), sequence2);
+
+    // Unknown topic should still return 0
+    assert.strictEqual(getLastProcessedSequence("0.0.999999"), 0);
+  });
+
+  test("should handle invalid inputs for sequence storage", async function () {
+    const topicId = "0.0.123456";
+
+    // Should handle null topic ID gracefully
+    await storeLastProcessedSequence(null, 10, TEST_DB_FILE);
+    assert.strictEqual(getLastProcessedSequence(null), 0);
+
+    // Should handle invalid sequence number gracefully
+    await storeLastProcessedSequence(topicId, "invalid", TEST_DB_FILE);
+    assert.strictEqual(getLastProcessedSequence(topicId), 0);
+
+    // Should handle missing DB file gracefully
+    await storeLastProcessedSequence(topicId, 5);
+    assert.strictEqual(getLastProcessedSequence(topicId), 5);
   });
 });

@@ -22,8 +22,10 @@ npm start
 - **Custom RLP Decoder**: Native implementation for both legacy and EIP-1559 transactions
 - **Dynamic Route Management**: REST API for updating routing rules
 - **Hedera Topic Integration**: Automatic topic creation, verification, and public key management
+- **Message Listener with Persistence**: Real-time message monitoring with database persistence across server restarts
 - **RSA Key Pair Management**: Automatic generation and storage of RSA key pairs
 - **Mirror Node Integration**: Uses Hedera mirror node API for efficient topic message verification
+- **Database Persistence**: SQLite-like JSON database with automatic state recovery
 - **Fail-Safe Operation**: Server stops on critical Hedera operation failures to ensure data integrity
 - **Minimal Dependencies**: Only `@hashgraph/sdk` required (built-in .env support)
 - **Production Ready**: Comprehensive error handling and graceful degradation
@@ -179,15 +181,15 @@ npm run test:all
 
 ### Test Coverage
 
-- **Unit Tests (29 tests)**: RLP decoding, database operations, routing logic, RSA key management, HederaManager functionality, message listener
+- **Unit Tests (36 tests)**: RLP decoding, database operations, routing logic, RSA key management, HederaManager functionality, message listener with persistence
 - **Integration Tests (5 tests)**: HTTP endpoints, server startup, Hedera functionality, RSA endpoints, JSON-RPC forwarding
 
 **Test Files:**
 
 - `test/ethTxDecoder.test.js` - Ethereum transaction parsing and RLP decoding (5 tests)
-- `test/dbManager.test.js` - Database operations and routing logic (5 tests)  
+- `test/dbManager.test.js` - Database operations, routing logic, and message persistence (8 tests)  
 - `test/hederaManager.test.js` - Hedera Consensus Service integration (11 tests)
-- `test/messageListener.test.js` - Message listener functionality (8 tests)
+- `test/messageListener.test.js` - Message listener functionality with database persistence (12 tests)
 - `test/integration.test.js` - End-to-end HTTP server tests (5 tests)
 
 **Test Organization:**
@@ -195,23 +197,43 @@ npm run test:all
 Each test file focuses on a specific module for better maintainability:
 
 - **ethTxDecoder**: Transaction "to" address extraction, contract creation handling, RLP encoding/decoding
-- **dbManager**: Route persistence, target server routing, RSA key pair management
+- **dbManager**: Route persistence, target server routing, RSA key pair management, sequence number storage
 - **hederaManager**: Client initialization, topic management, network configuration  
+- **messageListener**: Message processing, database persistence, error handling, state recovery
 - **integration**: Management endpoints, JSON-RPC forwarding, server lifecycle
 
 **Note**: Integration tests require valid Hedera credentials in environment for full coverage.
 
 ## 🔔 Message Listener
 
-The proxy includes an automatic message listener that monitors the Hedera topic for new messages:
+The proxy includes an automatic message listener that monitors the Hedera topic for new messages with full database persistence:
 
-### Capabilities
+### Features
 
 - **Automatic Startup**: Starts listening immediately after server initialization if Hedera is enabled
+- **Database Persistence**: Saves the last processed message sequence number to prevent duplicate processing across server restarts
 - **Real-time Monitoring**: Polls the mirror node API every 30 seconds for new messages
 - **Message Content Logging**: Displays message sequence number, timestamp, content, and payer account
-- **Graceful Error Handling**: Continues operation even if individual API calls fail
+- **State Recovery**: Automatically resumes from the last processed message after server restart
+- **Graceful Error Handling**: Continues operation even if individual API calls or database operations fail
 - **Clean Shutdown**: Automatically stops when server is terminated
+
+### Database Persistence
+
+The message listener uses the database to maintain state across server restarts:
+
+```javascript
+// Automatic sequence tracking per topic
+getLastProcessedSequence(topicId)     // Retrieves last processed sequence
+storeLastProcessedSequence(topicId, sequenceNumber)  // Saves current position
+```
+
+**Key Benefits:**
+
+- **No Duplicate Processing**: Prevents reprocessing messages after server restart
+- **Graceful Degradation**: Message processing continues even if database saves fail
+- **Topic-Specific Tracking**: Each topic maintains its own sequence counter
+- **Enterprise Ready**: Reliable state management for production environments
 
 ### Message Display Format
 
@@ -224,11 +246,14 @@ When new messages are detected, they are logged in the following format:
       Payer: 0.0.789012
 ```
 
-### Listener Settings
+### Configuration
+
+The message listener uses the following settings:
 
 - **Poll Interval**: 30 seconds (configurable via code)
-- **Content Truncation**: Long messages are truncated to 200 characters in logs  
+- **Content Truncation**: Long messages are truncated to 200 characters in logs
 - **Timeout**: 5 seconds per mirror node API call
+- **Database Storage**: Sequence numbers stored in `data/routing_db_[network].json`
 
 **Note**: There may be a 1-2 minute delay between message submission and appearance in the mirror node API.
 
@@ -356,6 +381,11 @@ const info = hederaManager.getTopicInfo();
    - Database corruption or permissions issue
    - Delete `data/routing_db.json` to regenerate
 
+6. **Message listener not resuming from correct position**
+   - Check database file permissions in `data/` folder
+   - Verify sequence numbers are being saved (check database file)
+   - Database persistence gracefully degrades - message processing continues even if saves fail
+
 ### Debug Commands
 
 ```bash
@@ -380,38 +410,6 @@ The server implements fail-safe mechanisms to ensure data integrity:
 
 This design ensures that the server never runs in an undefined state when Hedera functionality is enabled.
 
-## 🔔 Message Listener
-
-The proxy includes an automatic message listener that monitors the Hedera topic for new messages:
-
-### Features
-
-- **Automatic Startup**: Starts listening immediately after server initialization if Hedera is enabled
-- **Real-time Monitoring**: Polls the mirror node API every 30 seconds for new messages
-- **Message Content Logging**: Displays message sequence number, timestamp, content, and payer account
-- **Graceful Error Handling**: Continues operation even if individual API calls fail
-- **Clean Shutdown**: Automatically stops when server is terminated
-
-### Message Display Format
-
-When new messages are detected, they are logged in the following format:
-
-```
-🆕 Found 1 new message(s) in topic 0.0.123456:
-   📝 Message #2 (2025-06-06T22:15:30.123Z):
-      Content: Hello World (truncated to 200 chars if longer)
-      Payer: 0.0.789012
-```
-
-### Configuration
-
-The message listener uses the following settings:
-- **Poll Interval**: 30 seconds (configurable via code)
-- **Content Truncation**: Long messages are truncated to 200 characters in logs
-- **Timeout**: 5 seconds per mirror node API call
-
-**Note**: There may be a 1-2 minute delay between message submission and appearance in the mirror node API.
-
 ## 📚 Resources
 
 - [Hedera Consensus Service Docs](https://docs.hedera.com/hedera/core-concepts/consensus-service)
@@ -419,3 +417,4 @@ The message listener uses the following settings:
 - [Hedera Mirror Node API](https://docs.hedera.com/hedera/sdks-and-apis/rest-api)
 - [HCS Topic Management](https://docs.hedera.com/hedera/sdks-and-apis/sdks/consensus-service)
 - [Hedera Testnet Portal](https://portal.hedera.com/)
+- [Database Persistence Guide](./DATABASE_PERSISTENCE_GUIDE.md)
