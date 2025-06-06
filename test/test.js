@@ -14,14 +14,14 @@ const fs = require("node:fs").promises;
 const path = require("node:path");
 
 // Import modules to test
-const { rlpDecode, extractToFromTransaction } = require("./ethTxDecoder");
+const { rlpDecode, extractToFromTransaction } = require("../src/ethTxDecoder");
 const {
   initDatabase,
   saveDatabase,
   getTargetServer,
   getRoutingDB,
   updateRoutes,
-} = require("./dbManager");
+} = require("../src/dbManager");
 
 // Utility function to make HTTP requests without node-fetch
 function makeRequest(url, options = {}) {
@@ -115,16 +115,16 @@ describe("dbManager", function () {
   };
 
   beforeEach(async function () {
-    // Remove test db file if exists
+    // Remove test db file if exists - look in parent directory since files are in root
     try {
-      await fs.unlink(path.join(__dirname, TEST_DB_FILE));
+      await fs.unlink(path.join(__dirname, "..", TEST_DB_FILE));
     } catch {}
     await initDatabase(TEST_DB_FILE);
   });
 
   afterEach(async function () {
     try {
-      await fs.unlink(path.join(__dirname, TEST_DB_FILE));
+      await fs.unlink(path.join(__dirname, "..", TEST_DB_FILE));
     } catch {}
   });
 
@@ -162,7 +162,7 @@ describe("index.js integration", function () {
   const TEST_DB_FILE = "test_routing_db.json";
   const PORT = 3999;
   const BASE_URL = `http://localhost:${PORT}`;
-  const DB_PATH = path.join(__dirname, TEST_DB_FILE);
+  const DB_PATH = path.join(__dirname, "..", TEST_DB_FILE);
 
   before(async function () {
     // Remove test db file if exists
@@ -179,7 +179,7 @@ describe("index.js integration", function () {
       // Use existing Hedera credentials from process.env if they exist
     };
 
-    serverProcess = spawn(process.execPath, ["index.js"], {
+    serverProcess = spawn(process.execPath, ["src/index.js"], {
       env: testEnv,
       stdio: ["ignore", "pipe", "pipe"],
     });

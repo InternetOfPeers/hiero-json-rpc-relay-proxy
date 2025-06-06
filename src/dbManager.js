@@ -5,7 +5,7 @@ let routingDB = {};
 
 async function initDatabase(DB_FILE) {
   try {
-    const dbPath = path.join(__dirname, DB_FILE);
+    const dbPath = path.join(__dirname, "..", DB_FILE);
     const data = await fs.readFile(dbPath, "utf8");
     routingDB = JSON.parse(data);
     console.log("Database loaded:", Object.keys(routingDB).length, "routes");
@@ -31,7 +31,7 @@ async function initDatabase(DB_FILE) {
 
 async function saveDatabase(DB_FILE) {
   try {
-    const dbPath = path.join(__dirname, DB_FILE);
+    const dbPath = path.join(__dirname, "..", DB_FILE);
     await fs.writeFile(dbPath, JSON.stringify(routingDB, null, 2));
   } catch (error) {
     console.error("Error saving database:", error.message);
