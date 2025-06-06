@@ -5,7 +5,8 @@ node_modules/
 .env
 
 # Database and configuration files
-data/
+data/*
+!data/.gitkeep
 
 # Logs
 *.log
