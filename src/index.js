@@ -17,6 +17,9 @@ const {
   getTargetServer,
   getRoutingDB,
   updateRoutes,
+  initRSAKeyPair,
+  getRSAKeyPair,
+  hasRSAKeyPair,
 } = require("./dbManager");
 
 // Simple .env file parser (no external dependencies)
@@ -68,7 +71,7 @@ loadEnvFile();
 
 // Configuration
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
-const DB_FILE = process.env.DB_FILE || "routing_db.json";
+const DB_FILE = process.env.DB_FILE || "data/routing_db.json";
 const DEFAULT_SERVER =
   process.env.DEFAULT_SERVER || "https://mainnet.hashio.io/api"; // Fallback server
 
@@ -307,6 +310,29 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    // Handle RSA public key endpoint
+    if (req.url === "/rsa/public-key" && req.method === "GET") {
+      const keyPair = getRSAKeyPair();
+      if (keyPair) {
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(
+          JSON.stringify(
+            {
+              publicKey: keyPair.publicKey,
+              createdAt: keyPair.createdAt,
+              hasPrivateKey: !!keyPair.privateKey,
+            },
+            null,
+            2
+          )
+        );
+      } else {
+        res.writeHead(500, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "RSA key pair not initialized" }));
+      }
+      return;
+    }
+
     // Parse request body for transaction analysis
     const { body: requestBody, jsonData } = await parseRequestBody(req);
 
@@ -349,6 +375,7 @@ server.on("error", (err) => {
 // Start server
 async function startServer() {
   await initDatabase(DB_FILE);
+  await initRSAKeyPair(DB_FILE);
   await initHederaTopic();
 
   server.listen(PORT, () => {
@@ -359,15 +386,26 @@ async function startServer() {
       console.log(`Hedera topic: ${topicId}`);
     }
 
+    // Display RSA key pair status
+    if (hasRSAKeyPair()) {
+      console.log("✅ RSA key pair initialized");
+    }
+
     console.log("\nAvailable routes:");
     Object.entries(getRoutingDB()).forEach(([address, server]) => {
-      console.log(`  ${address} -> ${server}`);
+      // Skip displaying RSA keys in routes listing
+      if (address !== "rsaKeys") {
+        console.log(`  ${address} -> ${server}`);
+      }
     });
     console.log("\nManagement endpoints:");
     console.log(`  GET  http://localhost:${PORT}/routes - View current routes`);
     console.log(`  POST http://localhost:${PORT}/routes - Update routes`);
     console.log(
       `  GET  http://localhost:${PORT}/hedera/topic - Get Hedera topic info`
+    );
+    console.log(
+      `  GET  http://localhost:${PORT}/rsa/public-key - Get RSA public key`
     );
     console.log("\nExample request:");
     console.log(`  curl -X POST http://localhost:${PORT}/api/broadcast \\`);

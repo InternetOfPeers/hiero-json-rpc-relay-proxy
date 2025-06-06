@@ -21,6 +21,9 @@ const {
   getTargetServer,
   getRoutingDB,
   updateRoutes,
+  initRSAKeyPair,
+  getRSAKeyPair,
+  hasRSAKeyPair,
 } = require("../src/dbManager");
 
 // Utility function to make HTTP requests without node-fetch
@@ -103,7 +106,7 @@ describe("ethTxDecoder", () => {
 
 // dbManager tests
 describe("dbManager", function () {
-  const TEST_DB_FILE = "test_routing_db.json";
+  const TEST_DB_FILE = "data/test_routing_db.json";
   const defaultRoutes = {
     "0x742d35cc6634c0532925a3b8d0c0f3e5c5c07c20": "https://api1.example.com",
     "0x8ba1f109551bd432803012645hac136c8eb0ff6": "https://api2.example.com",
@@ -115,7 +118,7 @@ describe("dbManager", function () {
   };
 
   beforeEach(async function () {
-    // Remove test db file if exists - look in parent directory since files are in root
+    // Remove test db file if exists - look in data directory since files are now in data/
     try {
       await fs.unlink(path.join(__dirname, "..", TEST_DB_FILE));
     } catch {}
@@ -148,6 +151,37 @@ describe("dbManager", function () {
     );
     assert.strictEqual(getTargetServer("0xnotfound", "default"), "default");
   });
+
+  test("should initialize RSA key pair if not exists", async function () {
+    // Initially should not have RSA keys
+    assert.strictEqual(hasRSAKeyPair(), false);
+
+    // Initialize RSA key pair
+    const keyPair = await initRSAKeyPair(TEST_DB_FILE);
+
+    // Should now have RSA keys
+    assert.strictEqual(hasRSAKeyPair(), true);
+    assert.ok(keyPair.publicKey);
+    assert.ok(keyPair.privateKey);
+    assert.ok(keyPair.createdAt);
+
+    // Keys should be in PEM format
+    assert.ok(keyPair.publicKey.includes("-----BEGIN PUBLIC KEY-----"));
+    assert.ok(keyPair.privateKey.includes("-----BEGIN PRIVATE KEY-----"));
+  });
+
+  test("should reuse existing RSA key pair", async function () {
+    // Initialize RSA key pair first time
+    const firstKeyPair = await initRSAKeyPair(TEST_DB_FILE);
+
+    // Initialize again - should reuse existing
+    const secondKeyPair = await initRSAKeyPair(TEST_DB_FILE);
+
+    // Should be the same key pair
+    assert.strictEqual(firstKeyPair.publicKey, secondKeyPair.publicKey);
+    assert.strictEqual(firstKeyPair.privateKey, secondKeyPair.privateKey);
+    assert.strictEqual(firstKeyPair.createdAt, secondKeyPair.createdAt);
+  });
 });
 
 // Integration tests
@@ -159,7 +193,7 @@ describe("index.js integration", function () {
   }
 
   let serverProcess;
-  const TEST_DB_FILE = "test_routing_db.json";
+  const TEST_DB_FILE = "data/test_routing_db.json";
   const PORT = 3999;
   const BASE_URL = `http://localhost:${PORT}`;
   const DB_PATH = path.join(__dirname, "..", TEST_DB_FILE);
@@ -242,5 +276,28 @@ describe("index.js integration", function () {
     // Should also have accountId when client is initialized
     assert.ok(data.hasOwnProperty("accountId"));
     assert.ok(/^0\.0\.\d+$/.test(data.accountId));
+  });
+
+  test("should return RSA public key on GET /rsa/public-key", async function () {
+    const res = await makeRequest(`${BASE_URL}/rsa/public-key`);
+    assert.strictEqual(res.status, 200);
+    const data = await res.json();
+
+    // Should have expected properties
+    assert.ok(data.hasOwnProperty("publicKey"));
+    assert.ok(data.hasOwnProperty("createdAt"));
+    assert.ok(data.hasOwnProperty("hasPrivateKey"));
+
+    // Public key should be in PEM format
+    assert.ok(typeof data.publicKey === "string");
+    assert.ok(data.publicKey.includes("-----BEGIN PUBLIC KEY-----"));
+    assert.ok(data.publicKey.includes("-----END PUBLIC KEY-----"));
+
+    // Should have private key available
+    assert.strictEqual(data.hasPrivateKey, true);
+
+    // Created date should be a valid ISO string
+    assert.ok(typeof data.createdAt === "string");
+    assert.ok(!isNaN(Date.parse(data.createdAt)));
   });
 });

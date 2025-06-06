@@ -5,7 +5,7 @@ node_modules/
 .env
 
 # Database and configuration files
-routing_db.json
+data/
 
 # Logs
 *.log

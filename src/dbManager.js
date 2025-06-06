@@ -1,11 +1,90 @@
 const fs = require("fs").promises;
 const path = require("path");
+const crypto = require("crypto");
 
 let routingDB = {};
 
+// Generate RSA key pair
+function generateRSAKeyPair() {
+  try {
+    console.log("Generating new RSA key pair...");
+    const { publicKey, privateKey } = crypto.generateKeyPairSync("rsa", {
+      modulusLength: 2048, // Key size in bits
+      publicKeyEncoding: {
+        type: "spki", // Subject Public Key Info
+        format: "pem",
+      },
+      privateKeyEncoding: {
+        type: "pkcs8", // Public Key Cryptography Standards #8
+        format: "pem",
+      },
+    });
+
+    console.log("✅ RSA key pair generated successfully");
+    return { publicKey, privateKey };
+  } catch (error) {
+    console.error("Failed to generate RSA key pair:", error.message);
+    throw error;
+  }
+}
+
+// Check if RSA key pair exists in database
+function hasRSAKeyPair() {
+  return !!(
+    routingDB.rsaKeys &&
+    routingDB.rsaKeys.publicKey &&
+    routingDB.rsaKeys.privateKey
+  );
+}
+
+// Get RSA key pair from database
+function getRSAKeyPair() {
+  if (!hasRSAKeyPair()) {
+    return null;
+  }
+  return routingDB.rsaKeys;
+}
+
+// Store RSA key pair in database
+async function storeRSAKeyPair(keyPair, DB_FILE) {
+  try {
+    if (!routingDB.rsaKeys) {
+      routingDB.rsaKeys = {};
+    }
+
+    routingDB.rsaKeys.publicKey = keyPair.publicKey;
+    routingDB.rsaKeys.privateKey = keyPair.privateKey;
+    routingDB.rsaKeys.createdAt = new Date().toISOString();
+
+    await saveDatabase(DB_FILE);
+    console.log("RSA key pair stored in database");
+  } catch (error) {
+    console.error("Failed to store RSA key pair:", error.message);
+    throw error;
+  }
+}
+
+// Initialize RSA key pair (generate if not exists)
+async function initRSAKeyPair(DB_FILE) {
+  if (hasRSAKeyPair()) {
+    console.log("Using existing RSA key pair from database");
+    const keyPair = getRSAKeyPair();
+    console.log(`RSA key pair created: ${keyPair.createdAt}`);
+    return keyPair;
+  }
+
+  console.log("No RSA key pair found, generating new one...");
+  const keyPair = generateRSAKeyPair();
+  await storeRSAKeyPair(keyPair, DB_FILE);
+
+  // Return the stored key pair with createdAt field
+  return getRSAKeyPair();
+}
+
 async function initDatabase(DB_FILE) {
   try {
-    const dbPath = path.join(__dirname, "..", DB_FILE);
+    // Handle both absolute and relative paths
+    const dbPath = path.isAbsolute(DB_FILE) ? DB_FILE : path.join(__dirname, "..", DB_FILE);
     const data = await fs.readFile(dbPath, "utf8");
     routingDB = JSON.parse(data);
     console.log("Database loaded:", Object.keys(routingDB).length, "routes");
@@ -31,7 +110,8 @@ async function initDatabase(DB_FILE) {
 
 async function saveDatabase(DB_FILE) {
   try {
-    const dbPath = path.join(__dirname, "..", DB_FILE);
+    // Handle both absolute and relative paths
+    const dbPath = path.isAbsolute(DB_FILE) ? DB_FILE : path.join(__dirname, "..", DB_FILE);
     await fs.writeFile(dbPath, JSON.stringify(routingDB, null, 2));
   } catch (error) {
     console.error("Error saving database:", error.message);
@@ -76,4 +156,7 @@ module.exports = {
   getTargetServer,
   getRoutingDB,
   updateRoutes,
+  initRSAKeyPair,
+  getRSAKeyPair,
+  hasRSAKeyPair,
 };
