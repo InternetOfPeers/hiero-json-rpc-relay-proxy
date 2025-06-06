@@ -77,15 +77,28 @@ function forwardRequest(targetServer, req, res, requestBody) {
 
   // For JSON-RPC requests, we want to forward to the exact target server path
   // Don't append the original request path since we're proxying to a specific API endpoint
+
+  // Filter headers to avoid conflicts with the target server
+  const allowedHeaders = {};
+  if (req.headers["content-type"]) {
+    allowedHeaders["content-type"] = req.headers["content-type"];
+  }
+  if (req.headers["user-agent"]) {
+    allowedHeaders["user-agent"] = req.headers["user-agent"];
+  }
+  if (req.headers["accept"]) {
+    allowedHeaders["accept"] = req.headers["accept"];
+  }
+
   const options = {
     hostname: targetUrl.hostname,
     port: targetUrl.port,
     path: targetUrl.pathname + targetUrl.search,
     method: req.method,
     headers: {
-      ...req.headers,
+      ...allowedHeaders,
       host: targetUrl.host,
-      "content-length": Buffer.byteLength(requestBody),
+      "content-length": Buffer.byteLength(requestBody || ""),
     },
   };
 

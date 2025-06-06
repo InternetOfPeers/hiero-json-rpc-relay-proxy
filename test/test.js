@@ -327,4 +327,44 @@ describe("server.js integration", function () {
     assert.ok(typeof data.createdAt === "string");
     assert.ok(!isNaN(Date.parse(data.createdAt)));
   });
+
+  test("should forward eth_blockNumber JSON-RPC request to default server", async function () {
+    const jsonRpcRequest = {
+      jsonrpc: "2.0",
+      method: "eth_blockNumber",
+      params: [],
+      id: 1,
+    };
+
+    const res = await makeRequest(`${BASE_URL}/`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(jsonRpcRequest),
+    });
+
+    // Should successfully forward the request
+    assert.strictEqual(res.status, 200);
+    const data = await res.json();
+
+    // Should have valid JSON-RPC response structure
+    assert.ok(data.hasOwnProperty("jsonrpc"));
+    assert.strictEqual(data.jsonrpc, "2.0");
+    assert.ok(data.hasOwnProperty("id"));
+    assert.strictEqual(data.id, 1);
+
+    // Should either have result or error (depending on target server availability)
+    assert.ok(data.hasOwnProperty("result") || data.hasOwnProperty("error"));
+
+    // If successful, result should be a hex string representing block number
+    if (data.result) {
+      assert.ok(typeof data.result === "string");
+      assert.ok(data.result.startsWith("0x"));
+    }
+
+    // If error, should have proper error structure
+    if (data.error) {
+      assert.ok(data.error.hasOwnProperty("code"));
+      assert.ok(data.error.hasOwnProperty("message"));
+    }
+  });
 });
