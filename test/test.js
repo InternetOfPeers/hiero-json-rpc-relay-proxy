@@ -185,7 +185,7 @@ describe("dbManager", function () {
 });
 
 // Integration tests
-describe("index.js integration", function () {
+describe("server.js integration", function () {
   // Skip integration tests if SKIP_INTEGRATION_TESTS environment variable is set
   if (process.env.SKIP_INTEGRATION_TESTS) {
     console.log("⏭️  Skipping integration tests (SKIP_INTEGRATION_TESTS=true)");
@@ -213,7 +213,7 @@ describe("index.js integration", function () {
       // Use existing Hedera credentials from process.env if they exist
     };
 
-    serverProcess = spawn(process.execPath, ["src/index.js"], {
+    serverProcess = spawn(process.execPath, ["src/server.js"], {
       env: testEnv,
       stdio: ["ignore", "pipe", "pipe"],
     });

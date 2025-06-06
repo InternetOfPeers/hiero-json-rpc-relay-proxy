@@ -1,12 +1,12 @@
 {
   "name": "relay-proxy",
   "version": "1.0.0",
-  "main": "src/index.js",
+  "main": "src/server.js",
   "scripts": {
     "test": "SKIP_INTEGRATION_TESTS=true node --test test/test.js",
     "test:unit": "SKIP_INTEGRATION_TESTS=true node --test test/test.js",
     "test:all": "node --test test/test.js",
-    "start": "node src/index.js"
+    "start": "node src/server.js"
   },
   "author": "",
   "license": "ISC",
