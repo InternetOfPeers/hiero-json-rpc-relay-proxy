@@ -3,6 +3,7 @@ node_modules/
 
 # Environment variables
 .env
+demo/.env
 
 # Database and configuration files
 data/*

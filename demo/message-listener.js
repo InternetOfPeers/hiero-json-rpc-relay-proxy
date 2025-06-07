@@ -13,8 +13,17 @@ const {
 } = require("../src/dbManager");
 const path = require("path");
 
-// Load environment variables from the project root
-loadEnvFile(path.join(__dirname, "../.env"));
+// Load environment variables from the demo folder first, then fallback to project root
+const demoEnvPath = path.join(__dirname, ".env");
+const projectEnvPath = path.join(__dirname, "../.env");
+
+try {
+  loadEnvFile(demoEnvPath);
+  console.log("📁 Using demo-specific .env file");
+} catch (error) {
+  console.log("📁 Demo .env not found, falling back to project .env");
+  loadEnvFile(projectEnvPath);
+}
 
 async function demonstrateMessageListener() {
   console.log("🚀 Hedera Message Listener Demo");

@@ -9,6 +9,7 @@
     "test:integration": "node --test test/integration.test.js",
     "start": "node src/server.js",
     "demo": "node demo/message-listener.js",
+    "demo:encrypted": "node demo/encrypted-message-sender.js",
     "clean": "node scripts/clean-db.js"
   },
   "author": "Giuseppe Bertone <giuseppe.bertone@proton.me>",
