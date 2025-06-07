@@ -41,6 +41,8 @@ npm start
 - **Hedera Topic Integration**: Automatic topic creation, verification, and public key management
 - **Message Listener with Persistence**: Real-time message monitoring with database persistence across server restarts
 - **RSA Key Pair Management**: Automatic generation and storage of RSA key pairs
+- **Hybrid Encryption**: RSA+AES encryption for secure message transmission to Hedera topics
+- **ECDSA Signature Verification**: Cryptographic signature verification for message authenticity
 - **Mirror Node Integration**: Uses Hedera mirror node API for efficient topic message verification
 - **Database Persistence**: SQLite-like JSON database with automatic state recovery
 - **Fail-Safe Operation**: Server stops on critical Hedera operation failures to ensure data integrity
@@ -210,15 +212,18 @@ npm run test:all
 
 ### Test Coverage
 
-- **Unit Tests (36 tests)**: RLP decoding, database operations, routing logic, RSA key management, HederaManager functionality, message listener with persistence
+- **Unit Tests (90 tests)**: RLP decoding, database operations, routing logic, RSA key management, HederaManager functionality, message listener with persistence, cryptographic utilities
 - **Integration Tests (5 tests)**: HTTP endpoints, server startup, Hedera functionality, RSA endpoints, JSON-RPC forwarding
 
 **Test Files:**
 
 - `test/ethTxDecoder.test.js` - Ethereum transaction parsing and RLP decoding (5 tests)
 - `test/dbManager.test.js` - Database operations, routing logic, and message persistence (8 tests)  
+- `test/envLoader.test.js` - Environment variable loading and configuration management (12 tests)
 - `test/hederaManager.test.js` - Hedera Consensus Service integration (11 tests)
 - `test/messageListener.test.js` - Message listener functionality with database persistence (12 tests)
+- `test/cryptoUtils.test.js` - Hybrid encryption and cryptographic signature verification (35 tests)
+- `test/server.test.js` - Server functionality, HTTP request handling, and utility functions (19 tests)
 - `test/integration.test.js` - End-to-end HTTP server tests (5 tests)
 
 **Test Organization:**
@@ -227,8 +232,11 @@ Each test file focuses on a specific module for better maintainability:
 
 - **ethTxDecoder**: Transaction "to" address extraction, contract creation handling, RLP encoding/decoding
 - **dbManager**: Route persistence, target server routing, RSA key pair management, sequence number storage
+- **envLoader**: Environment variable parsing, .env file loading, configuration validation
 - **hederaManager**: Client initialization, topic management, network configuration  
 - **messageListener**: Message processing, database persistence, error handling, state recovery
+- **cryptoUtils**: Hybrid RSA+AES encryption/decryption, ECDSA signature verification, message validation
+- **server**: HTTP request handling, routing logic, utility functions, error handling
 - **integration**: Management endpoints, JSON-RPC forwarding, server lifecycle
 
 **Note**: Integration tests require valid Hedera credentials in environment for full coverage.
@@ -379,6 +387,7 @@ The project is organized into focused, modular components for maintainability an
 │   ├── server.js           # Main HTTP server and routing logic
 │   ├── hederaManager.js    # Hedera Consensus Service integration (NEW)
 │   ├── ethTxDecoder.js     # Custom RLP decoder for Ethereum transactions
+│   ├── cryptoUtils.js      # Hybrid RSA+AES encryption and ECDSA signature verification
 │   └── dbManager.js        # Route database and RSA key management
 ├── test/
 │   ├── test.js             # Main test suite (integration + unit tests)

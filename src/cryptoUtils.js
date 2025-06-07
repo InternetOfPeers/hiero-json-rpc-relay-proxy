@@ -9,7 +9,7 @@ const crypto = require("crypto");
  * @param {string} publicKeyPem - RSA public key in PEM format
  * @param {string} data - Data to encrypt
  * @param {boolean} verbose - Whether to log verbose output (default: false)
- * @returns {string} Base64-encoded encrypted payload
+ * @returns {string} JSON string containing encrypted payload
  */
 function encryptHybridMessage(publicKeyPem, data, verbose = false) {
   try {
@@ -45,7 +45,7 @@ function encryptHybridMessage(publicKeyPem, data, verbose = false) {
       data: encryptedData,
     };
 
-    // Convert to JSON and then encode as base64 for final payload
+    // Return the JSON payload directly (not base64 encoded)
     const jsonPayload = JSON.stringify(hybridPayload);
 
     if (verbose) {
@@ -62,20 +62,37 @@ function encryptHybridMessage(publicKeyPem, data, verbose = false) {
 
 /**
  * Decrypt hybrid RSA+AES encrypted messages
- * @param {string} encryptedBase64 - Base64-encoded encrypted payload
+ * @param {string} encryptedBase64 - JSON string containing encrypted payload
  * @param {string} privateKeyPem - RSA private key in PEM format
  * @returns {object} Decryption result with success flag and data or error
  */
-function decryptHybridMessage(encryptedBase64, privateKeyPem) {
+function decryptHybridMessage(encryptedData, privateKeyPem) {
   try {
-    // First decode from base64 to get the actual payload
-    let decodedPayload = Buffer.from(encryptedBase64, "base64").toString(
-      "utf8"
-    );
+    let decodedPayload;
 
-    // Check if the result is still base64 (double-encoded)
-    if (/^[A-Za-z0-9+/]+=*$/.test(decodedPayload)) {
-      decodedPayload = Buffer.from(decodedPayload, "base64").toString("utf8");
+    // Try to parse as JSON first (direct JSON input)
+    try {
+      const testPayload = JSON.parse(encryptedData);
+      // Check if it has the expected structure for encrypted data
+      if (testPayload.key && testPayload.iv && testPayload.data) {
+        decodedPayload = encryptedData;
+      } else {
+        throw new Error("Not a valid hybrid payload");
+      }
+    } catch (jsonError) {
+      // If JSON parsing fails, try base64 decoding
+      try {
+        decodedPayload = Buffer.from(encryptedData, "base64").toString("utf8");
+
+        // Check if the result is still base64 (double-encoded)
+        if (/^[A-Za-z0-9+/]+=*$/.test(decodedPayload)) {
+          decodedPayload = Buffer.from(decodedPayload, "base64").toString(
+            "utf8"
+          );
+        }
+      } catch (base64Error) {
+        throw new Error("Invalid input: not valid JSON or base64");
+      }
     }
 
     const hybridPayload = JSON.parse(decodedPayload);
@@ -114,7 +131,7 @@ function decryptHybridMessage(encryptedBase64, privateKeyPem) {
     return {
       success: true,
       decryptedData: decryptedData,
-      originalLength: encryptedBase64.length,
+      originalLength: encryptedData.length,
     };
   } catch (error) {
     return {
