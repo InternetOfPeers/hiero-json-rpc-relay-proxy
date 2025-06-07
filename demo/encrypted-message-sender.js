@@ -145,7 +145,7 @@ async function demonstrateEncryptedMessaging() {
       throw new Error("HEDERA_PRIVATE_KEY not set in environment");
     }
 
-    // Function to sign the URL (demo logic)
+    // Function to sign the URL
     const signUrl = (url) => {
       try {
         const cleanKey = privateKey.startsWith("0x")

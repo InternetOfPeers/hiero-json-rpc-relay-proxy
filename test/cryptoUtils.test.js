@@ -154,9 +154,9 @@ describe("cryptoUtils", function () {
 
     test("should return error for unsupported algorithm", function () {
       const invalidPayload = {
-        encryptedAesKey: "some-key",
+        key: "some-key",
         iv: "some-iv",
-        encryptedData: "some-data",
+        data: "some-data",
         algorithm: "unsupported-algorithm",
       };
       const encoded = Buffer.from(JSON.stringify(invalidPayload)).toString(

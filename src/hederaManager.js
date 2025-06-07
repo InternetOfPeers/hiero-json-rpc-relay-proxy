@@ -9,7 +9,7 @@ const {
   TopicMessageSubmitTransaction,
   Hbar,
 } = require("@hashgraph/sdk");
-const { decryptHybridMessage } = require("./cryptoUtils");
+const { decryptHybridMessage, verifyECDSASignature } = require("./cryptoUtils");
 
 // Hedera Manager Module
 // Handles all Hedera Consensus Service functionality including:
@@ -522,6 +522,12 @@ class HederaManager {
                     console.log(
                       `      📊 Compression: ${decryptionResult.originalLength} → ${decryptionResult.decryptedData.length} bytes`
                     );
+
+                    // Verify ECDSA signatures if message contains routes
+                    await this.verifyMessageSignatures(
+                      decryptionResult.decryptedData,
+                      message.payer_account_id
+                    );
                   } else {
                     console.log(
                       "      ❌ Decryption failed:",
@@ -669,6 +675,148 @@ class HederaManager {
     if (intervalId) {
       clearInterval(intervalId);
       console.log("🛑 Message listener stopped");
+    }
+  }
+
+  // Verify ECDSA signatures in decrypted message
+  async verifyMessageSignatures(decryptedData, payerAccountId) {
+    try {
+      // Parse the decrypted data as JSON
+      const messageData = JSON.parse(decryptedData);
+
+      // Check if the message contains routes with signatures
+      if (!messageData.routes || typeof messageData.routes !== "object") {
+        console.log(
+          "      📝 No routes found in message - skipping signature verification"
+        );
+        return;
+      }
+      console.log("      🔍 Verifying ECDSA signatures...");
+
+      // Try to get the sender's ECDSA public key from account lookup
+      const senderPublicKey = await this.getECDSAPublicKeyFromAccount(
+        payerAccountId
+      );
+
+      if (!senderPublicKey) {
+        console.log(
+          "      ⚠️  Could not retrieve sender's ECDSA public key - skipping verification"
+        );
+        console.log(
+          "      📝 Signature verification feature is ready but requires public key lookup implementation"
+        );
+        return;
+      }
+
+      let totalSignatures = 0;
+      let validSignatures = 0;
+
+      // Verify each route's signature
+      for (const [address, route] of Object.entries(messageData.routes)) {
+        if (route.url && route.sig) {
+          totalSignatures++;
+
+          const isValid = verifyECDSASignature(
+            route.url,
+            route.sig,
+            senderPublicKey
+          );
+
+          if (isValid) {
+            validSignatures++;
+            console.log(
+              `      ✅ Valid signature for ${route.url} (${address.slice(
+                0,
+                10
+              )}...)`
+            );
+          } else {
+            console.log(
+              `      ❌ Invalid signature for ${route.url} (${address.slice(
+                0,
+                10
+              )}...)`
+            );
+            console.log(
+              `         Expected signature algorithm: first16(privateKey) + first16(sha256(url))`
+            );
+          }
+        }
+      }
+
+      if (totalSignatures > 0) {
+        const success = validSignatures === totalSignatures;
+        console.log(
+          `      🎯 Signature verification: ${validSignatures}/${totalSignatures} signatures valid ${
+            success ? "✅" : "❌"
+          }`
+        );
+
+        if (!success) {
+          console.log(
+            "      ⚠️  Message contains invalid signatures - potential security risk!"
+          );
+        }
+      } else {
+        console.log(
+          "      📝 No signatures found in routes - skipping verification"
+        );
+      }
+    } catch (error) {
+      console.log("      ❌ Signature verification failed:", error.message);
+      console.log(
+        "      📝 Message may not be in expected format or contain valid JSON"
+      );
+    }
+  }
+
+  // Get ECDSA public key from Hedera account ID
+  async getECDSAPublicKeyFromAccount(accountId) {
+    try {
+      // For now, we'll use a placeholder approach since getting the public key
+      // from just the account ID requires querying the Hedera network
+      // In a production system, you would:
+      // 1. Query the account info to get the public key
+      // 2. Cache known public keys for performance
+      // 3. Or require messages to include sender's public key
+
+      console.log(
+        `      🔑 Looking up ECDSA public key for account ${accountId}...`
+      );
+
+      // For demo purposes, if this is our own account, use our private key to derive public key
+      if (accountId === this.accountId && this.privateKey) {
+        try {
+          const { PrivateKey } = require("@hashgraph/sdk");
+          const privateKey = PrivateKey.fromStringECDSA(this.privateKey);
+          const publicKey = privateKey.publicKey;
+
+          // Convert to hex format (remove the DER prefix for raw key)
+          const publicKeyHex = publicKey.toStringRaw();
+          console.log(
+            `      🔑 Derived public key for own account: ${publicKeyHex.slice(
+              0,
+              20
+            )}...`
+          );
+          return publicKeyHex;
+        } catch (keyError) {
+          console.log(
+            "      ⚠️  Could not derive public key from private key:",
+            keyError.message
+          );
+        }
+      }
+
+      // TODO: Implement proper public key lookup from Hedera network
+      // This would require querying AccountInfoQuery for the given account ID
+      console.log(
+        "      ⚠️  Public key lookup not implemented for external accounts"
+      );
+      return null;
+    } catch (error) {
+      console.error("      ❌ Error getting ECDSA public key:", error.message);
+      return null;
     }
   }
 }

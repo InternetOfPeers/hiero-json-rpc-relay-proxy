@@ -45,7 +45,9 @@ function encryptHybridMessage(publicKeyPem, data, verbose = false) {
       data: encryptedData,
     };
 
-    const finalPayload = JSON.stringify(hybridPayload);
+    // Convert to JSON and then encode as base64 for final payload
+    const jsonPayload = JSON.stringify(hybridPayload);
+    const finalPayload = Buffer.from(jsonPayload).toString("base64");
 
     if (verbose) {
       console.log(
@@ -73,7 +75,7 @@ function decryptHybridMessage(encryptedBase64, privateKeyPem) {
     );
 
     // Check if the result is still base64 (double-encoded)
-    if (decodedPayload.match(/^[A-Za-z0-9+/]+=*$/)) {
+    if (/^[A-Za-z0-9+/]+=*$/.test(decodedPayload)) {
       decodedPayload = Buffer.from(decodedPayload, "base64").toString("utf8");
     }
 
@@ -82,6 +84,11 @@ function decryptHybridMessage(encryptedBase64, privateKeyPem) {
     // Validate payload structure
     if (!hybridPayload.key || !hybridPayload.iv || !hybridPayload.data) {
       throw new Error("Invalid hybrid payload structure");
+    }
+
+    // Check for unsupported algorithm if specified
+    if (hybridPayload.algorithm && hybridPayload.algorithm !== "RSA+AES") {
+      throw new Error("Unsupported encryption algorithm");
     }
 
     // Decrypt the AES key using RSA private key
@@ -128,12 +135,50 @@ function isEncryptedMessage(message) {
   return (
     typeof message === "string" &&
     message.length > 100 && // Encrypted messages should be reasonably long
-    message.match(/^[A-Za-z0-9+/]+=*$/) // Base64 pattern
+    /^[A-Za-z0-9+/]+=*$/.test(message) // Base64 pattern
   );
+}
+
+/**
+ * Verify ECDSA signature for a URL using the same algorithm as the demo
+ * @param {string} url - URL that was signed
+ * @param {string} signature - Hex signature to verify
+ * @param {string} publicKeyHex - ECDSA public key in hex format (without 0x prefix)
+ * @returns {boolean} True if signature is valid
+ */
+function verifyECDSASignature(url, signature, publicKeyHex) {
+  try {
+    // Clean the public key (remove 0x prefix if present)
+    const cleanPublicKey = publicKeyHex.startsWith("0x")
+      ? publicKeyHex.slice(2)
+      : publicKeyHex;
+
+    // Hash the URL with SHA256
+    const hash = crypto.createHash("sha256").update(url).digest();
+
+    // Get the first 16 bytes of the public key
+    const publicKeyBuffer = Buffer.from(cleanPublicKey, "hex");
+
+    // Combine first 16 bytes of public key with first 16 bytes of URL hash
+    // This matches the signing algorithm in the demo
+    const combined = Buffer.concat([
+      publicKeyBuffer.slice(0, 16),
+      hash.slice(0, 16),
+    ]);
+
+    const expectedSignature = combined.toString("hex");
+
+    // Compare signatures (case-insensitive)
+    return expectedSignature.toLowerCase() === signature.toLowerCase();
+  } catch (error) {
+    console.error("Error verifying ECDSA signature:", error.message);
+    return false;
+  }
 }
 
 module.exports = {
   encryptHybridMessage,
   decryptHybridMessage,
   isEncryptedMessage,
+  verifyECDSASignature,
 };

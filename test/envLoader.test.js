@@ -28,6 +28,13 @@ describe("envLoader", function () {
       // File might not exist
     }
 
+    // Clean up test .env file in test directory
+    try {
+      await fs.unlink(path.join(TEST_ENV_DIR, ".env"));
+    } catch (error) {
+      // File might not exist
+    }
+
     // Restore original environment
     process.env = { ...originalEnv };
   });
@@ -195,21 +202,28 @@ key_with_no_value_and_no_equals`;
     });
 
     test("should use default .env file when no path provided", async function () {
-      // This test assumes we're running from project root
-      // We'll create a temporary .env file and clean it up
-      const defaultEnvFile = ".env";
+      // This test will create a temporary .env file in the test directory
+      // and temporarily change the working directory to test default behavior
+      const testEnvFile = path.join(TEST_ENV_DIR, ".env");
       const envContent = `TEST_DEFAULT=default_value`;
+      const originalCwd = process.cwd();
 
       try {
-        await fs.writeFile(defaultEnvFile, envContent);
+        // Create test .env file in test directory
+        await fs.writeFile(testEnvFile, envContent);
         delete process.env.TEST_DEFAULT;
 
+        // Change to test directory to test default .env loading
+        process.chdir(TEST_ENV_DIR);
         loadEnvFile(); // No path provided, should use default
 
         assert.strictEqual(process.env.TEST_DEFAULT, "default_value");
       } finally {
+        // Restore original working directory
+        process.chdir(originalCwd);
+        
         try {
-          await fs.unlink(defaultEnvFile);
+          await fs.unlink(testEnvFile);
         } catch (error) {
           // File might not exist
         }

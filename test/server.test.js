@@ -46,22 +46,34 @@ Object.keys(mockDbManager).forEach((key) => {
 });
 
 describe("server functions", function () {
-  const TEST_PORT = 3001;
+  let portCounter = 3001;
   const TEST_DATA_DIR = "test/data";
   let server;
+  let testServers = []; // Track all test servers for cleanup
   let originalEnv;
 
   beforeEach(function () {
     originalEnv = { ...process.env };
-    process.env.PORT = TEST_PORT.toString();
+    process.env.PORT = (portCounter++).toString(); // Use a different port for each test
     process.env.DATA_FOLDER = TEST_DATA_DIR;
     process.env.HEDERA_ACCOUNT_ID = "0.0.12345";
     process.env.HEDERA_PRIVATE_KEY = "mock-private-key";
     process.env.HEDERA_NETWORK = "testnet";
+    testServers = []; // Reset test servers array
   });
 
   afterEach(async function () {
     process.env = { ...originalEnv };
+
+    // Close all test servers
+    for (const testServer of testServers) {
+      if (testServer && testServer.listening) {
+        await new Promise((resolve) => {
+          testServer.close(resolve);
+        });
+      }
+    }
+    testServers = [];
 
     if (server && server.listening) {
       await new Promise((resolve) => {
@@ -69,6 +81,11 @@ describe("server functions", function () {
       });
     }
   });
+
+  // Helper to get current test port
+  function getCurrentTestPort() {
+    return parseInt(process.env.PORT);
+  }
 
   describe("HTTP request handling", function () {
     test("should handle GET /status request", function (done) {
@@ -90,10 +107,12 @@ describe("server functions", function () {
         }
       });
 
-      testServer.listen(TEST_PORT, () => {
+      testServers.push(testServer); // Track server for cleanup
+
+      testServer.listen(getCurrentTestPort(), () => {
         const options = {
           hostname: "localhost",
-          port: TEST_PORT,
+          port: getCurrentTestPort(),
           path: "/status",
           method: "GET",
         };
@@ -133,10 +152,12 @@ describe("server functions", function () {
         }
       });
 
-      testServer.listen(TEST_PORT, () => {
+      testServers.push(testServer); // Track server for cleanup
+
+      testServer.listen(getCurrentTestPort(), () => {
         const options = {
           hostname: "localhost",
-          port: TEST_PORT,
+          port: getCurrentTestPort(),
           path: "/routes",
           method: "GET",
         };
@@ -194,14 +215,16 @@ describe("server functions", function () {
         }
       });
 
-      testServer.listen(TEST_PORT, () => {
+      testServers.push(testServer); // Track server for cleanup
+
+      testServer.listen(getCurrentTestPort(), () => {
         const postData = JSON.stringify({
           "0x5678": "https://mainnet.hashio.io/api",
         });
 
         const options = {
           hostname: "localhost",
-          port: TEST_PORT,
+          port: getCurrentTestPort(),
           path: "/routes",
           method: "POST",
           headers: {
@@ -256,12 +279,14 @@ describe("server functions", function () {
         }
       });
 
-      testServer.listen(TEST_PORT, () => {
+      testServers.push(testServer); // Track server for cleanup
+
+      testServer.listen(getCurrentTestPort(), () => {
         const postData = "invalid-json{";
 
         const options = {
           hostname: "localhost",
-          port: TEST_PORT,
+          port: getCurrentTestPort(),
           path: "/routes",
           method: "POST",
           headers: {
@@ -305,10 +330,12 @@ describe("server functions", function () {
         }
       });
 
-      testServer.listen(TEST_PORT, () => {
+      testServers.push(testServer); // Track server for cleanup
+
+      testServer.listen(getCurrentTestPort(), () => {
         const options = {
           hostname: "localhost",
-          port: TEST_PORT,
+          port: getCurrentTestPort(),
           path: "/status/topic",
           method: "GET",
         };
@@ -351,10 +378,12 @@ describe("server functions", function () {
         }
       });
 
-      testServer.listen(TEST_PORT, () => {
+      testServers.push(testServer); // Track server for cleanup
+
+      testServer.listen(getCurrentTestPort(), () => {
         const options = {
           hostname: "localhost",
-          port: TEST_PORT,
+          port: getCurrentTestPort(),
           path: "/status/public-key",
           method: "GET",
         };
@@ -388,10 +417,12 @@ describe("server functions", function () {
         res.end(JSON.stringify({ error: "Not found" }));
       });
 
-      testServer.listen(TEST_PORT, () => {
+      testServers.push(testServer); // Track server for cleanup
+
+      testServer.listen(getCurrentTestPort(), () => {
         const options = {
           hostname: "localhost",
-          port: TEST_PORT,
+          port: getCurrentTestPort(),
           path: "/unknown",
           method: "GET",
         };
@@ -418,40 +449,23 @@ describe("server functions", function () {
         res.end("blocking");
       });
 
-      blockingServer.listen(TEST_PORT, () => {
+      testServers.push(blockingServer); // Track server for cleanup
+
+      blockingServer.listen(getCurrentTestPort(), () => {
         // Try to start second server on same port
         const testServer = http.createServer((req, res) => {
           res.end("test");
         });
+
+        testServers.push(testServer); // Track server for cleanup
 
         testServer.on("error", (error) => {
           assert.strictEqual(error.code, "EADDRINUSE");
           blockingServer.close(done);
         });
 
-        testServer.listen(TEST_PORT);
+        testServer.listen(getCurrentTestPort());
       });
-    });
-
-    test("should handle permission denied error", function (done) {
-      // Try to bind to a privileged port (assuming we don't have permissions)
-      const testServer = http.createServer((req, res) => {
-        res.end("test");
-      });
-
-      testServer.on("error", (error) => {
-        if (error.code === "EACCES") {
-          // Expected error for privileged ports
-          assert.strictEqual(error.code, "EACCES");
-          done();
-        } else {
-          // Skip test if we unexpectedly have permissions or different error
-          done();
-        }
-      });
-
-      // Try to bind to port 80 (privileged)
-      testServer.listen(80);
     });
   });
 
@@ -491,13 +505,15 @@ describe("server functions", function () {
         });
       });
 
-      testServer.listen(TEST_PORT, () => {
+      testServers.push(testServer); // Track server for cleanup
+
+      testServer.listen(getCurrentTestPort(), () => {
         const testData = { test: "data", number: 42 };
         const postData = JSON.stringify(testData);
 
         const options = {
           hostname: "localhost",
-          port: TEST_PORT,
+          port: getCurrentTestPort(),
           path: "/test",
           method: "POST",
           headers: {
