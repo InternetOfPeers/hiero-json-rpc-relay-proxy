@@ -212,9 +212,9 @@ class HederaManager {
     }
   }
 
-  // Submit public key message to topic
-  async submitPublicKeyToTopic(topicIdString, publicKey) {
-    if (!this.client || !topicIdString || !publicKey) {
+  // Submit message to topic
+  async submitMessageToTopic(topicIdString, message) {
+    if (!this.client || !topicIdString || !message) {
       throw new Error(
         "Missing required parameters for topic message submission"
       );
@@ -222,9 +222,6 @@ class HederaManager {
 
     try {
       console.log(`Submitting public key to topic ${topicIdString}...`);
-
-      // Send the plain text PEM public key directly
-      const message = publicKey;
 
       const transaction = new TopicMessageSubmitTransaction()
         .setTopicId(topicIdString)
@@ -303,7 +300,7 @@ class HederaManager {
       );
       // Add timeout wrapper for public key submission (server MUST stop on timeout)
       await Promise.race([
-        this.submitPublicKeyToTopic(this.currentTopicId, keyPair.publicKey),
+        this.submitMessageToTopic(this.currentTopicId, keyPair.publicKey),
         new Promise((_, reject) =>
           setTimeout(
             () =>

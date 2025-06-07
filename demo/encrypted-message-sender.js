@@ -71,28 +71,43 @@ function fetchStatus() {
   });
 }
 
-// Function to encrypt data using RSA public key
+// Function to encrypt data using hybrid encryption (RSA + AES)
 function encryptWithPublicKey(publicKeyPem, data) {
   try {
-    console.log("🔐 Encrypting payload with RSA public key...");
+    console.log("🔐 Encrypting payload with hybrid encryption (RSA + AES)...");
 
-    // Convert the data to a buffer
-    const dataBuffer = Buffer.from(data, "utf8");
+    // Generate a random AES key (256-bit) and IV
+    const aesKey = crypto.randomBytes(32);
+    const iv = crypto.randomBytes(16);
 
-    // Encrypt the data using the public key
-    const encrypted = crypto.publicEncrypt(
+    // Encrypt the data with AES-256-CBC
+    const aesCipher = crypto.createCipheriv("aes-256-cbc", aesKey, iv);
+    let encryptedData = aesCipher.update(data, "utf8", "base64");
+    encryptedData += aesCipher.final("base64");
+
+    // Encrypt the AES key with RSA
+    const encryptedAesKey = crypto.publicEncrypt(
       {
         key: publicKeyPem,
         padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
         oaepHash: "sha256",
       },
-      dataBuffer
+      aesKey
     );
 
-    // Return the encrypted data as base64
-    const encryptedBase64 = encrypted.toString("base64");
+    // Combine everything into a single payload
+    const hybridPayload = {
+      encryptedAesKey: encryptedAesKey.toString("base64"),
+      iv: iv.toString("base64"),
+      encryptedData: encryptedData,
+      algorithm: "hybrid-rsa-aes256",
+    };
+
+    const finalPayload = JSON.stringify(hybridPayload);
+    const encryptedBase64 = Buffer.from(finalPayload).toString("base64");
+
     console.log(
-      `✅ Payload encrypted successfully (${encryptedBase64.length} characters)`
+      `✅ Payload encrypted successfully with hybrid encryption (${encryptedBase64.length} characters)`
     );
 
     return encryptedBase64;
@@ -131,12 +146,14 @@ async function sendEncryptedMessage(topicId, encryptedPayload) {
     type: "encrypted",
     timestamp: new Date().toISOString(),
     encryptedPayload: encryptedPayload,
-    algorithm: "RSA-OAEP-SHA256",
+    algorithm: "hybrid-rsa-aes256",
     encoding: "base64",
+    description:
+      "Hybrid encryption: RSA-OAEP-SHA256 for AES key, AES-256-CBC for data",
   };
 
   // Submit the message to the topic
-  await hederaManager.submitPublicKeyToTopic(
+  await hederaManager.submitMessageToTopic(
     topicId,
     JSON.stringify(messageWithMetadata)
   );
@@ -157,10 +174,7 @@ async function demonstrateEncryptedMessaging() {
     console.log("📊 Status received:");
     console.log(`   Topic ID: ${status.topicId || "Not available"}`);
     console.log(`   Network: ${status.hederaNetwork}`);
-    console.log(`   Account ID: ${status.accountId}`);
-    console.log(`   Client Initialized: ${status.clientInitialized}`);
     console.log(`   Has Public Key: ${!!status.publicKey}`);
-    console.log(`   Has Private Key: ${status.hasPrivateKey}\n`);
 
     // Validate required data
     if (!status.topicId) {

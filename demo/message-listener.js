@@ -75,7 +75,7 @@ async function demonstrateMessageListener() {
     await new Promise((resolve) => setTimeout(resolve, 2000)); // Wait 2 seconds
 
     const testMessage = `Hello from demo script! Timestamp: ${new Date().toISOString()}`;
-    await hederaManager.submitPublicKeyToTopic(topicId, testMessage);
+    await hederaManager.submitMessageToTopic(topicId, testMessage);
 
     console.log("✅ Test message submitted!");
     console.log(

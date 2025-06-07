@@ -406,7 +406,7 @@ The **HederaManager** is a dedicated module that encapsulates all Hedera Consens
 - `initTopic(getRSAKeyPair)` - Complete topic initialization orchestration
 - `checkTopicExists(topicId)` - Verify topic accessibility
 - `createTopic()` - Create new Hedera topic with auto-generated memo
-- `submitPublicKeyToTopic(topicId, publicKey)` - Submit RSA public key to topic
+- `submitMessageToTopic(topicId, message)` - Submit message to topic
 - `checkTopicHasMessages(topicId)` - Check if topic has messages via mirror node
 - `getTopicInfo()` - Get topic status for API endpoints
 - `getTopicId()` - Get current topic ID
