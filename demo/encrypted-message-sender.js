@@ -9,6 +9,7 @@
 
 const { DemoHederaManager } = require("./demoHederaManager");
 const { loadEnvFile } = require("../src/envLoader");
+const { encryptHybridMessage } = require("../src/cryptoUtils");
 const http = require("http");
 const crypto = require("crypto");
 const path = require("path");
@@ -66,51 +67,6 @@ function fetchStatus() {
       reject(new Error("Request timeout"));
     });
   });
-}
-
-// Function to encrypt data using hybrid encryption (RSA + AES)
-function encryptWithPublicKey(publicKeyPem, data) {
-  try {
-    console.log("🔐 Encrypting payload with hybrid encryption (RSA + AES)...");
-
-    // Generate a random AES key (256-bit) and IV
-    const aesKey = crypto.randomBytes(32);
-    const iv = crypto.randomBytes(16);
-
-    // Encrypt the data with AES-256-CBC
-    const aesCipher = crypto.createCipheriv("aes-256-cbc", aesKey, iv);
-    let encryptedData = aesCipher.update(data, "utf8", "base64");
-    encryptedData += aesCipher.final("base64");
-
-    // Encrypt the AES key with RSA
-    const encryptedAesKey = crypto.publicEncrypt(
-      {
-        key: publicKeyPem,
-        padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
-        oaepHash: "sha256",
-      },
-      aesKey
-    );
-
-    // Combine everything into a single payload
-    const hybridPayload = {
-      encryptedAesKey: encryptedAesKey.toString("base64"),
-      iv: iv.toString("base64"),
-      encryptedData: encryptedData,
-      algorithm: "hybrid-rsa-aes256",
-    };
-
-    const finalPayload = JSON.stringify(hybridPayload);
-    const encryptedBase64 = Buffer.from(finalPayload).toString("base64");
-
-    console.log(
-      `✅ Payload encrypted successfully with hybrid encryption (${encryptedBase64.length} characters)`
-    );
-
-    return encryptedBase64;
-  } catch (error) {
-    throw new Error(`Encryption failed: ${error.message}`);
-  }
 }
 
 // Function to send encrypted message to Hedera topic
@@ -237,9 +193,10 @@ async function demonstrateEncryptedMessaging() {
 
     // Step 3: Encrypt the payload
     console.log("3️⃣  Encrypting payload...");
-    const encryptedPayload = encryptWithPublicKey(
+    const encryptedPayload = encryptHybridMessage(
       status.publicKey,
-      payloadJson
+      payloadJson,
+      true // verbose logging
     );
 
     // Step 4: Send encrypted message to topic
