@@ -7,7 +7,7 @@
 // 3. Encrypt a payload using the RSA public key
 // 4. Send the encrypted message to the Hedera topic
 
-const { HederaManager } = require("../src/hederaManager");
+const { DemoHederaManager } = require("./demoHederaManager");
 const { loadEnvFile } = require("../src/envLoader");
 const http = require("http");
 const crypto = require("crypto");
@@ -21,17 +21,14 @@ try {
   loadEnvFile(demoEnvPath);
   console.log("📁 Using demo-specific .env file");
 } catch (error) {
-  console.log("📁 Demo .env not found, falling back to project .env");
-  loadEnvFile(projectEnvPath);
+  console.log("📁 Demo .env not found, stopping the demo");
+  process.exit(0);
 }
 
 // Configuration
 const PROXY_SERVER_URL =
   process.env.PROXY_SERVER_URL || "http://localhost:3000";
 const HEDERA_NETWORK = process.env.HEDERA_NETWORK || "testnet";
-const DEMO_MESSAGE_INTERVAL =
-  parseInt(process.env.DEMO_MESSAGE_INTERVAL) || 5000;
-const DEMO_PAYLOAD_SIZE = process.env.DEMO_PAYLOAD_SIZE || "small";
 
 // Function to fetch status from the proxy server
 function fetchStatus() {
@@ -120,46 +117,51 @@ function encryptWithPublicKey(publicKeyPem, data) {
 async function sendEncryptedMessage(topicId, encryptedPayload) {
   console.log(`📤 Sending encrypted message to topic: ${topicId}`);
 
-  // Initialize Hedera Manager
-  const hederaManager = new HederaManager({
+  // Initialize Demo Hedera Manager with ECDSA support
+  const demoHederaManager = new DemoHederaManager({
     accountId: process.env.HEDERA_ACCOUNT_ID,
     privateKey: process.env.HEDERA_PRIVATE_KEY,
     network: HEDERA_NETWORK,
-    topicId: topicId,
+    keyType: process.env.HEDERA_KEY_TYPE || "ECDSA",
   });
 
-  if (!hederaManager.isEnabled()) {
+  if (!demoHederaManager.isEnabled()) {
     throw new Error(
       "Hedera credentials not configured. Please set HEDERA_ACCOUNT_ID and HEDERA_PRIVATE_KEY"
     );
   }
 
-  // Initialize the client
-  hederaManager.initClient();
-
-  if (!hederaManager.getClient()) {
-    throw new Error("Failed to initialize Hedera client");
-  }
+  // Initialize topic for demo
+  await demoHederaManager.initTopicForDemo(topicId);
 
   // Create a message with metadata
   const messageWithMetadata = {
-    type: "encrypted",
-    timestamp: new Date().toISOString(),
     encryptedPayload: encryptedPayload,
     algorithm: "hybrid-rsa-aes256",
     encoding: "base64",
-    description:
-      "Hybrid encryption: RSA-OAEP-SHA256 for AES key, AES-256-CBC for data",
+    keyType: process.env.HEDERA_KEY_TYPE || "ECDSA",
+    timestamp: new Date().toISOString(),
+    demo: true,
   };
 
-  // Submit the message to the topic
-  await hederaManager.submitMessageToTopic(
-    topicId,
-    JSON.stringify(messageWithMetadata)
-  );
+  try {
+    // Submit the message to the topic
+    const receipt = await demoHederaManager.submitMessageToTopic(
+      topicId,
+      JSON.stringify(messageWithMetadata)
+    );
 
-  console.log("✅ Encrypted message sent successfully!");
-  return messageWithMetadata;
+    console.log("✅ Encrypted message sent successfully!");
+    console.log(`   Sequence Number: ${receipt.topicSequenceNumber}`);
+    
+    // Close the client connection
+    demoHederaManager.close();
+    
+    return messageWithMetadata;
+  } catch (error) {
+    demoHederaManager.close();
+    throw error;
+  }
 }
 
 async function demonstrateEncryptedMessaging() {
@@ -172,7 +174,7 @@ async function demonstrateEncryptedMessaging() {
     const status = await fetchStatus();
 
     console.log("📊 Status received:");
-    console.log(`   Topic ID: ${status.topicId || "Not available"}`);
+    console.log(`   Topic ID: ${status.topicId}`);
     console.log(`   Network: ${status.hederaNetwork}`);
     console.log(`   Has Public Key: ${!!status.publicKey}`);
 
@@ -194,41 +196,15 @@ async function demonstrateEncryptedMessaging() {
 
     // Create payload based on configured size
     let testPayload = {
-      message: "Hello from encrypted message sender!",
-      timestamp: new Date().toISOString(),
-      sender: "demo-script",
-      config: {
-        payloadSize: DEMO_PAYLOAD_SIZE,
-        messageInterval: DEMO_MESSAGE_INTERVAL,
+      routes: {
+        "0x4f1a953df9df8d1c6073ce57f7493e50515fa73f": {
+          url: "https://pippo",
+          sig: "0x00000",
+        },
       },
     };
 
-    if (DEMO_PAYLOAD_SIZE === "large") {
-      testPayload.data = {
-        temperature: 25.5,
-        humidity: 60,
-        status: "active",
-        sensors: Array.from({ length: 10 }, (_, i) => ({
-          id: `sensor_${i}`,
-          value: Math.random() * 100,
-          timestamp: new Date().toISOString(),
-        })),
-        metadata: {
-          location: "Demo Location",
-          description:
-            "Large payload demonstration with multiple sensor readings",
-          tags: ["demo", "test", "encrypted", "large-payload"],
-        },
-      };
-    } else {
-      testPayload.data = {
-        temperature: 25.5,
-        humidity: 60,
-        status: "active",
-      };
-    }
-
-    const payloadJson = JSON.stringify(testPayload, null, 2);
+    const payloadJson = JSON.stringify(testPayload);
     console.log("📦 Test payload created:");
     console.log(payloadJson);
     console.log("");
@@ -254,13 +230,10 @@ async function demonstrateEncryptedMessaging() {
     console.log(
       `   - Encrypted payload size: ${encryptedPayload.length} bytes`
     );
-    console.log(`   - Message sent at: ${sentMessage.timestamp}`);
     console.log(
       "\n💡 The encrypted message has been sent to the Hedera topic."
     );
-    console.log(
-      "   You can verify it was received by checking the topic messages in the mirror node."
-    );
+    process.exit(0);
   } catch (error) {
     console.error("❌ Demo failed:", error.message);
     console.error("\n🔧 Troubleshooting:");

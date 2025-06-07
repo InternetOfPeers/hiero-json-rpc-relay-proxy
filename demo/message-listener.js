@@ -4,13 +4,8 @@
 // This script will submit a test message to the Hedera topic to demonstrate
 // the message listener detecting new messages
 
-const { HederaManager } = require("../src/hederaManager");
+const { DemoHederaManager } = require("./demoHederaManager");
 const { loadEnvFile } = require("../src/envLoader");
-const {
-  initDatabase,
-  getLastProcessedSequence,
-  storeLastProcessedSequence,
-} = require("../src/dbManager");
 const path = require("path");
 
 // Load environment variables from the demo folder first, then fallback to project root
@@ -29,73 +24,67 @@ async function demonstrateMessageListener() {
   console.log("🚀 Hedera Message Listener Demo");
   console.log("===============================\n");
 
-  // Initialize database for persistence (using demo data folder)
-  // This keeps demo data separate from production data
+  // Initialize demo database location (keep demo data separate)
   const HEDERA_NETWORK = process.env.HEDERA_NETWORK || "testnet";
-  const DEMO_DATA_FOLDER = path.join(__dirname, "data");
-  const dbFile = path.join(
-    DEMO_DATA_FOLDER,
-    `demo_routing_db_${HEDERA_NETWORK}.json`
-  );
 
-  console.log("0️⃣  Initializing demo database...");
-  console.log(`   Using demo database: ${dbFile}`);
-  await initDatabase(dbFile);
-
-  // Initialize Hedera Manager with database persistence
-  const hederaManager = new HederaManager({
+  // Initialize Demo Hedera Manager with ECDSA support (simplified demo version)
+  const demoHederaManager = new DemoHederaManager({
     accountId: process.env.HEDERA_ACCOUNT_ID,
     privateKey: process.env.HEDERA_PRIVATE_KEY,
     network: HEDERA_NETWORK,
-    topicId: process.env.HEDERA_TOPIC_ID,
-    getLastProcessedSequence,
-    storeLastProcessedSequence,
-    dbFile: dbFile,
+    keyType: process.env.HEDERA_KEY_TYPE || "ECDSA",
   });
 
-  if (!hederaManager.isEnabled()) {
+  if (!demoHederaManager.isEnabled()) {
     console.log("❌ Hedera credentials not configured. Please set:");
     console.log("   - HEDERA_ACCOUNT_ID");
     console.log("   - HEDERA_PRIVATE_KEY");
-    console.log("   - HEDERA_TOPIC_ID (optional, will create new topic)");
+    console.log("   - HEDERA_TOPIC_ID");
+    console.log("   - HEDERA_KEY_TYPE (optional, defaults to ECDSA)");
+    process.exit(1);
+  }
+
+  const topicId = process.env.HEDERA_TOPIC_ID;
+  if (!topicId) {
+    console.log("❌ HEDERA_TOPIC_ID is required for this demo");
+    console.log("   Please set HEDERA_TOPIC_ID in your demo/.env file");
+    console.log("   You can get a topic ID by running the main server first");
     process.exit(1);
   }
 
   try {
-    console.log("1️⃣  Initializing Hedera client and topic...");
-    await hederaManager.initTopic(() => ({ publicKey: "demo-key" }));
+    console.log("1️⃣  Initializing demo Hedera client and topic...");
+    await demoHederaManager.initTopicForDemo(topicId);
 
-    const topicId = hederaManager.getTopicId();
     console.log(`✅ Using topic: ${topicId}\n`);
 
-    console.log("2️⃣  Starting message listener...");
-    const intervalId = hederaManager.startMessageListener(); // Check every 5 seconds (default)
+    console.log("2️⃣  This demo uses a simplified approach without persistent message listening.");
+    console.log("   For full message listening functionality, use the main server.\n");
 
     console.log("3️⃣  Submitting test message...");
-    await new Promise((resolve) => setTimeout(resolve, 2000)); // Wait 2 seconds
-
     const testMessage = `Hello from demo script! Timestamp: ${new Date().toISOString()}`;
-    await hederaManager.submitMessageToTopic(topicId, testMessage);
+    const receipt = await demoHederaManager.submitMessageToTopic(topicId, testMessage);
 
     console.log("✅ Test message submitted!");
+    console.log(`   Sequence Number: ${receipt.topicSequenceNumber}`);
     console.log(
-      "⏳ Waiting for message to appear in mirror node (this may take a few seconds)..."
+      "⏳ Message submitted to Hedera network successfully!"
     );
     console.log(
-      "   The message listener will automatically detect and log the new message.\n"
+      "   The message will be available via mirror node within a few seconds.\n"
     );
 
-    console.log("🔍 Monitoring for new messages... (Press Ctrl+C to stop)");
+    console.log("✅ Demo completed successfully!");
+    console.log("💡 To see full message listening functionality, run the main server:");
+    console.log("   npm start");
+    console.log("   The server will automatically detect and log new messages.\n");
 
-    // Keep the script running to demonstrate the listener
-    process.on("SIGINT", () => {
-      console.log("\n\n🛑 Stopping message listener...");
-      hederaManager.stopMessageListener(intervalId);
-      console.log("👋 Demo completed!");
-      process.exit(0);
-    });
+    // Close the client connection
+    demoHederaManager.close();
+    
   } catch (error) {
     console.error("❌ Demo failed:", error.message);
+    demoHederaManager.close();
     process.exit(1);
   }
 }

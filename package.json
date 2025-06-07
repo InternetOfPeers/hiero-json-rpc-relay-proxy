@@ -10,6 +10,7 @@
     "start": "node src/server.js",
     "demo": "node demo/message-listener.js",
     "demo:encrypted": "node demo/encrypted-message-sender.js",
+    "demo:test-ecdsa": "node demo/test-ecdsa.js",
     "clean": "node scripts/clean-db.js"
   },
   "author": "Giuseppe Bertone <giuseppe.bertone@proton.me>",

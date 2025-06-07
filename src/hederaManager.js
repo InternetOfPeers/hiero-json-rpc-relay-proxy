@@ -221,7 +221,7 @@ class HederaManager {
     }
 
     try {
-      console.log(`Submitting public key to topic ${topicIdString}...`);
+      console.log(`Submitting message to topic ${topicIdString}...`);
 
       const transaction = new TopicMessageSubmitTransaction()
         .setTopicId(topicIdString)
@@ -232,13 +232,13 @@ class HederaManager {
       const receipt = await txResponse.getReceipt(this.client);
 
       console.log(
-        `✅ Public key submitted to topic ${topicIdString} successfully`
+        `✅ Message submitted to topic ${topicIdString} successfully`
       );
       console.log(`Transaction ID: ${txResponse.transactionId}`);
       return receipt;
     } catch (error) {
       console.error(
-        `Failed to submit public key to topic ${topicIdString}:`,
+        `Failed to submit message to topic ${topicIdString}:`,
         error.message
       );
       throw error;
