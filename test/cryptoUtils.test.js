@@ -1,6 +1,7 @@
 const { test, describe, beforeEach } = require("node:test");
 const assert = require("node:assert");
 const crypto = require("crypto");
+const { ethers } = require("ethers");
 
 // Import the crypto utilities to test
 const {
@@ -250,130 +251,147 @@ describe("cryptoUtils", function () {
   });
 
   describe("verifyECDSASignature", function () {
-    test("should verify correct ECDSA signature", function () {
+    test("should verify correct ECDSA signature using ethers.js", function () {
       const url = "https://example.com/api";
-      const publicKeyHex = "1234567890abcdef".repeat(4); // 64 hex chars (32 bytes)
+      // Create a random wallet
+      const wallet = ethers.Wallet.createRandom();
+      const signature = wallet.signMessageSync(url);
+      const address = wallet.address;
 
-      // Create expected signature using the same algorithm
-      const hash = crypto.createHash("sha256").update(url).digest();
-      const publicKeyBuffer = Buffer.from(publicKeyHex, "hex");
-      const combined = Buffer.concat([
-        publicKeyBuffer.slice(0, 16),
-        hash.slice(0, 16),
-      ]);
-      const expectedSignature = combined.toString("hex");
-
-      const result = verifyECDSASignature(url, expectedSignature, publicKeyHex);
+      const result = verifyECDSASignature(url, signature, address);
       assert.strictEqual(result, true);
     });
 
-    test("should handle public key with 0x prefix", function () {
+    test("should handle address with and without 0x prefix", function () {
       const url = "https://example.com/api";
-      const publicKeyHex = "1234567890abcdef".repeat(4);
-      const publicKeyWithPrefix = "0x" + publicKeyHex;
+      const wallet = ethers.Wallet.createRandom();
+      const signature = wallet.signMessageSync(url);
 
-      // Create expected signature
-      const hash = crypto.createHash("sha256").update(url).digest();
-      const publicKeyBuffer = Buffer.from(publicKeyHex, "hex");
-      const combined = Buffer.concat([
-        publicKeyBuffer.slice(0, 16),
-        hash.slice(0, 16),
-      ]);
-      const expectedSignature = combined.toString("hex");
-
-      const result = verifyECDSASignature(
+      // Test with 0x prefix
+      const addressWithPrefix = wallet.address;
+      const resultWithPrefix = verifyECDSASignature(
         url,
-        expectedSignature,
-        publicKeyWithPrefix
+        signature,
+        addressWithPrefix
       );
-      assert.strictEqual(result, true);
+      assert.strictEqual(resultWithPrefix, true);
+
+      // Test without 0x prefix
+      const addressWithoutPrefix = wallet.address.slice(2);
+      const resultWithoutPrefix = verifyECDSASignature(
+        url,
+        signature,
+        addressWithoutPrefix
+      );
+      assert.strictEqual(resultWithoutPrefix, true);
     });
 
-    test("should be case insensitive for signature comparison", function () {
+    test("should be case insensitive for address comparison", function () {
       const url = "https://example.com/api";
-      const publicKeyHex = "1234567890abcdef".repeat(4);
+      const wallet = ethers.Wallet.createRandom();
+      const signature = wallet.signMessageSync(url);
 
-      // Create expected signature
-      const hash = crypto.createHash("sha256").update(url).digest();
-      const publicKeyBuffer = Buffer.from(publicKeyHex, "hex");
-      const combined = Buffer.concat([
-        publicKeyBuffer.slice(0, 16),
-        hash.slice(0, 16),
-      ]);
-      const expectedSignature = combined.toString("hex").toUpperCase();
-
-      const result = verifyECDSASignature(url, expectedSignature, publicKeyHex);
+      // Test with uppercase address
+      const uppercaseAddress = wallet.address.toUpperCase();
+      const result = verifyECDSASignature(url, signature, uppercaseAddress);
       assert.strictEqual(result, true);
     });
 
     test("should return false for incorrect signature", function () {
       const url = "https://example.com/api";
-      const publicKeyHex = "1234567890abcdef".repeat(4);
-      const wrongSignature = "wrongsignature".repeat(4);
+      const wallet = ethers.Wallet.createRandom();
+      const wrongSignature = "0x1234567890abcdef".repeat(8); // Invalid signature format
+      const address = wallet.address;
 
-      const result = verifyECDSASignature(url, wrongSignature, publicKeyHex);
+      const result = verifyECDSASignature(url, wrongSignature, address);
       assert.strictEqual(result, false);
     });
 
     test("should return false for different URL", function () {
       const url1 = "https://example.com/api";
       const url2 = "https://different.com/api";
-      const publicKeyHex = "1234567890abcdef".repeat(4);
+      const wallet = ethers.Wallet.createRandom();
 
       // Create signature for url1
-      const hash = crypto.createHash("sha256").update(url1).digest();
-      const publicKeyBuffer = Buffer.from(publicKeyHex, "hex");
-      const combined = Buffer.concat([
-        publicKeyBuffer.slice(0, 16),
-        hash.slice(0, 16),
-      ]);
-      const signature = combined.toString("hex");
+      const signature = wallet.signMessageSync(url1);
+      const address = wallet.address;
 
-      // Try to verify with url2
-      const result = verifyECDSASignature(url2, signature, publicKeyHex);
+      // Try to verify with url2 - should fail
+      const result = verifyECDSASignature(url2, signature, address);
       assert.strictEqual(result, false);
     });
 
-    test("should handle invalid public key gracefully", function () {
+    test("should return false for wrong address", function () {
       const url = "https://example.com/api";
-      const invalidPublicKey = "invalid-hex-key";
-      const signature = "somesignature";
+      const wallet1 = ethers.Wallet.createRandom();
+      const wallet2 = ethers.Wallet.createRandom();
 
-      const result = verifyECDSASignature(url, signature, invalidPublicKey);
+      // Create signature with wallet1
+      const signature = wallet1.signMessageSync(url);
+      // Try to verify with wallet2's address
+      const wrongAddress = wallet2.address;
+
+      const result = verifyECDSASignature(url, signature, wrongAddress);
+      assert.strictEqual(result, false);
+    });
+
+    test("should handle invalid address gracefully", function () {
+      const url = "https://example.com/api";
+      const wallet = ethers.Wallet.createRandom();
+      const signature = wallet.signMessageSync(url);
+      const invalidAddress = "invalid-address";
+
+      const result = verifyECDSASignature(url, signature, invalidAddress);
       assert.strictEqual(result, false);
     });
 
     test("should handle empty inputs gracefully", function () {
       assert.strictEqual(verifyECDSASignature("", "", ""), false);
-      assert.strictEqual(verifyECDSASignature("url", "", "key"), false);
-      assert.strictEqual(verifyECDSASignature("", "sig", "key"), false);
-      assert.strictEqual(verifyECDSASignature("url", "sig", ""), false);
+      assert.strictEqual(
+        verifyECDSASignature(
+          "url",
+          "",
+          "0x1234567890123456789012345678901234567890"
+        ),
+        false
+      );
+      assert.strictEqual(
+        verifyECDSASignature(
+          "",
+          "0x123",
+          "0x1234567890123456789012345678901234567890"
+        ),
+        false
+      );
+      assert.strictEqual(verifyECDSASignature("url", "0x123", ""), false);
     });
 
-    test("should handle different URLs with same signature", function () {
-      const url = "https://api.testnet.hashio.io/api";
-      const publicKeyHex = "fedcba0987654321".repeat(4);
+    test("should handle testnet and mainnet URLs correctly", function () {
+      const testnetUrl = "https://api.testnet.hashio.io/api";
+      const mainnetUrl = "https://api.mainnet.hashio.io/api";
+      const wallet = ethers.Wallet.createRandom();
 
-      // Create signature for this URL
-      const hash = crypto.createHash("sha256").update(url).digest();
-      const publicKeyBuffer = Buffer.from(publicKeyHex, "hex");
-      const combined = Buffer.concat([
-        publicKeyBuffer.slice(0, 16),
-        hash.slice(0, 16),
-      ]);
-      const correctSignature = combined.toString("hex");
+      // Create signature for testnet URL
+      const testnetSignature = wallet.signMessageSync(testnetUrl);
+      const address = wallet.address;
 
-      // Should verify correctly
+      // Should verify correctly with testnet URL
       assert.strictEqual(
-        verifyECDSASignature(url, correctSignature, publicKeyHex),
+        verifyECDSASignature(testnetUrl, testnetSignature, address),
         true
       );
 
-      // Should fail with different URL
-      const differentUrl = "https://api.mainnet.hashio.io/api";
+      // Should fail with mainnet URL using testnet signature
       assert.strictEqual(
-        verifyECDSASignature(differentUrl, correctSignature, publicKeyHex),
+        verifyECDSASignature(mainnetUrl, testnetSignature, address),
         false
+      );
+
+      // Create signature for mainnet URL and verify it works
+      const mainnetSignature = wallet.signMessageSync(mainnetUrl);
+      assert.strictEqual(
+        verifyECDSASignature(mainnetUrl, mainnetSignature, address),
+        true
       );
     });
   });

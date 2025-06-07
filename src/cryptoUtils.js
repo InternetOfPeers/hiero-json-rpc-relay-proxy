@@ -156,36 +156,32 @@ function isEncryptedMessage(message) {
 }
 
 /**
- * Verify ECDSA signature for a URL using the same algorithm as the demo
+ * Verify ECDSA signature for a URL using ethers.js verifyMessage
  * @param {string} url - URL that was signed
- * @param {string} signature - Hex signature to verify
- * @param {string} publicKeyHex - ECDSA public key in hex format (without 0x prefix)
+ * @param {string} signature - Hex signature to verify (0x prefixed)
+ * @param {string} expectedAddress - Expected Ethereum address that should have signed the message
  * @returns {boolean} True if signature is valid
  */
-function verifyECDSASignature(url, signature, publicKeyHex) {
+function verifyECDSASignature(url, signature, expectedAddress) {
   try {
-    // Clean the public key (remove 0x prefix if present)
-    const cleanPublicKey = publicKeyHex.startsWith("0x")
-      ? publicKeyHex.slice(2)
-      : publicKeyHex;
+    const { ethers } = require("ethers");
 
-    // Hash the URL with SHA256
-    const hash = crypto.createHash("sha256").update(url).digest();
+    // Verify the message signature using ethers.js
+    const recoveredAddress = ethers.verifyMessage(url, signature);
 
-    // Get the first 16 bytes of the public key
-    const publicKeyBuffer = Buffer.from(cleanPublicKey, "hex");
+    // Clean addresses for comparison (ensure both are lowercase and properly formatted)
+    const cleanExpected = expectedAddress.toLowerCase().startsWith("0x")
+      ? expectedAddress.toLowerCase()
+      : `0x${expectedAddress.toLowerCase()}`;
+    const cleanRecovered = recoveredAddress.toLowerCase();
 
-    // Combine first 16 bytes of public key with first 16 bytes of URL hash
-    // This matches the signing algorithm in the demo
-    const combined = Buffer.concat([
-      publicKeyBuffer.slice(0, 16),
-      hash.slice(0, 16),
-    ]);
+    console.log(`🔐 Signature verification:`);
+    console.log(`   Message: ${url}`);
+    console.log(`   Expected: ${cleanExpected}`);
+    console.log(`   Recovered: ${cleanRecovered}`);
+    console.log(`   Valid: ${cleanRecovered === cleanExpected}`);
 
-    const expectedSignature = combined.toString("hex");
-
-    // Compare signatures (case-insensitive)
-    return expectedSignature.toLowerCase() === signature.toLowerCase();
+    return cleanRecovered === cleanExpected;
   } catch (error) {
     console.error("Error verifying ECDSA signature:", error.message);
     return false;

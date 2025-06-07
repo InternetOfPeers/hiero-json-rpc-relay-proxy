@@ -10,8 +10,8 @@
 const { DemoHederaManager } = require("./demoHederaManager");
 const { loadEnvFile } = require("../src/envLoader");
 const { encryptHybridMessage } = require("../src/cryptoUtils");
+const { ethers } = require("ethers");
 const http = require("http");
-const crypto = require("crypto");
 const path = require("path");
 
 // Load environment variables from the demo folder first, then fallback to project root
@@ -145,49 +145,51 @@ async function demonstrateEncryptedMessaging() {
       throw new Error("HEDERA_PRIVATE_KEY not set in environment");
     }
 
-    // Function to sign the URL
-    const signUrl = (url) => {
+    // Create wallet and get address for logging
+    const wallet = new ethers.Wallet(privateKey);
+    const signerAddress = wallet.address;
+    console.log(`🔑 Signer address: ${signerAddress}`);
+
+    // Function to sign the URL using ethers.js signMessage
+    const signUrl = async (url) => {
       try {
-        const cleanKey = privateKey.startsWith("0x")
-          ? privateKey.slice(2)
-          : privateKey;
-        const hash = crypto.createHash("sha256").update(url).digest();
-        const keyBuffer = Buffer.from(cleanKey, "hex");
-        const combined = Buffer.concat([
-          keyBuffer.slice(0, 16),
-          hash.slice(0, 16),
-        ]);
-        return combined.toString("hex");
+        // Create wallet from private key
+        const wallet = new ethers.Wallet(privateKey);
+
+        // Sign the URL using ethers signMessage (EIP-191 standard)
+        const signature = await wallet.signMessage(url);
+
+        console.log(`🔑 Signed URL: ${url}`);
+        console.log(`📝 Signature: ${signature.slice(0, 20)}...`);
+
+        return signature;
       } catch (error) {
-        const hash = crypto
-          .createHash("sha256")
-          .update(url + privateKey)
-          .digest("hex");
-        return hash.slice(0, 32);
+        console.error("Error signing URL:", error.message);
+        throw error;
       }
     };
 
     const testUrl = "http://localhost:7546";
 
-    // One signature per route
+    // One signature per route - now using async/await for signing
     const testPayload = {
       routes: {
         "0x4f1a953df9df8d1c6073ce57f7493e50515fa73f": {
           url: testUrl,
-          sig: signUrl(testUrl),
+          sig: await signUrl(testUrl),
         },
         "0x4f1a953df9df8d1c6073ce57f7493e50515fa73a": {
           url: testUrl,
-          sig: signUrl(testUrl),
+          sig: await signUrl(testUrl),
         },
       },
     };
 
-    console.log("🔑 Signed single URL with ECDSA private key...");
+    console.log("🔑 Signed URLs with ethers.js ECDSA...");
     console.log(
       `   ✅ Signed ${testUrl} -> ${testPayload.routes[
         "0x4f1a953df9df8d1c6073ce57f7493e50515fa73f"
-      ].sig.slice(0, 16)}...`
+      ].sig.slice(0, 20)}...`
     );
 
     const payloadJson = JSON.stringify(testPayload);

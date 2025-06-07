@@ -17,6 +17,7 @@
   "license": "Apache-2.0",
   "description": "Lightweight Ethereum transaction routing proxy with Hedera Consensus Service integration and RSA key management",
   "dependencies": {
-    "@hashgraph/sdk": "^2.65.1"
+    "@hashgraph/sdk": "^2.65.1",
+    "ethers": "^6.14.3"
   }
 }
