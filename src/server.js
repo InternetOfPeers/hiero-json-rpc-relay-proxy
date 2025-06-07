@@ -47,6 +47,7 @@ const hederaManager = new HederaManager({
   getLastProcessedSequence,
   storeLastProcessedSequence,
   dbFile: getDBFilePath(),
+  getRSAKeyPair,
 });
 
 // Parse request body
