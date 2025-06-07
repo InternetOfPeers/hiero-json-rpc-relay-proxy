@@ -5,7 +5,7 @@
   "scripts": {
     "test": "SKIP_INTEGRATION_TESTS=true node --test test/*.test.js",
     "test:all": "node --test test/*.test.js",
-    "test:unit": "SKIP_INTEGRATION_TESTS=true node --test test/ethTxDecoder.test.js test/dbManager.test.js test/hederaManager.test.js",
+    "test:unit": "SKIP_INTEGRATION_TESTS=true node --test test/ethTxDecoder.test.js test/dbManager.test.js test/hederaManager.test.js test/cryptoUtils.test.js test/envLoader.test.js test/server.test.js",
     "test:integration": "node --test test/integration.test.js",
     "start": "node src/server.js",
     "demo": "node demo/message-listener.js",
