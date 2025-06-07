@@ -153,14 +153,14 @@ const server = http.createServer(async (req, res) => {
     }
 
     // Handle Hedera topic info endpoint
-    if (req.url === "/hedera/topic" && req.method === "GET") {
+    if (req.url === "/status/topic" && req.method === "GET") {
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify(hederaManager.getTopicInfo(), null, 2));
       return;
     }
 
     // Handle RSA public key endpoint
-    if (req.url === "/rsa/public-key" && req.method === "GET") {
+    if (req.url === "/status/public-key" && req.method === "GET") {
       const keyPair = getRSAKeyPair();
       if (keyPair) {
         res.writeHead(200, { "Content-Type": "application/json" });
@@ -261,15 +261,17 @@ async function startServer() {
     console.log(`  GET  http://localhost:${PORT}/routes - View current routes`);
     console.log(`  POST http://localhost:${PORT}/routes - Update routes`);
     console.log(
-      `  GET  http://localhost:${PORT}/hedera/topic - Get Hedera topic info`
+      `  GET  http://localhost:${PORT}/status/topic - Get Hedera topic info`
     );
     console.log(
-      `  GET  http://localhost:${PORT}/rsa/public-key - Get RSA public key`
+      `  GET  http://localhost:${PORT}/status/public-key - Get RSA public key`
     );
     console.log("\nExample request:");
-    console.log(`  curl -X POST http://localhost:${PORT}/api/broadcast \\`);
+    console.log(`  curl -X POST http://localhost:${PORT} \\`);
     console.log(`    -H "Content-Type: application/json" \\`);
-    console.log(`    -d '{"rawTransaction": "0xf86c..."}'`);
+    console.log(
+      `    -d '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}'`
+    );
 
     // Start listening for new Hedera topic messages if topic is available
     if (hederaManager.isEnabled() && topicId) {

@@ -134,8 +134,8 @@ describe("server.js integration", function () {
     assert.strictEqual(data.routes["0xabc"], "https://new.example.com");
   });
 
-  test("should return Hedera topic info on GET /hedera/topic", async function () {
-    const res = await makeRequest(`${BASE_URL}/hedera/topic`);
+  test("should return Hedera topic info on GET /status/topic", async function () {
+    const res = await makeRequest(`${BASE_URL}/status/topic`);
     assert.strictEqual(res.status, 200);
     const data = await res.json();
     // Should have expected properties
@@ -156,8 +156,8 @@ describe("server.js integration", function () {
     assert.ok(/^0\.0\.\d+$/.test(data.accountId));
   });
 
-  test("should return RSA public key on GET /rsa/public-key", async function () {
-    const res = await makeRequest(`${BASE_URL}/rsa/public-key`);
+  test("should return RSA public key on GET /status/public-key", async function () {
+    const res = await makeRequest(`${BASE_URL}/status/public-key`);
     assert.strictEqual(res.status, 200);
     const data = await res.json();
 

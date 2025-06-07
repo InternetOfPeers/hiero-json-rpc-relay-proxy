@@ -116,7 +116,7 @@ This ensures that testnet and mainnet configurations remain completely isolated,
 
 ### Hedera Topic Management
 
-- `GET /hedera/topic` - Get topic information and status
+- `GET /status/topic` - Get topic information and status
 
 **Example Response:**
 
@@ -131,7 +131,7 @@ This ensures that testnet and mainnet configurations remain completely isolated,
 
 ### RSA Key Management
 
-- `GET /rsa/public-key` - Get RSA public key information
+- `GET /status/public-key` - Get RSA public key information
 
 **Example Response:**
 
@@ -489,10 +489,10 @@ const info = hederaManager.getTopicInfo();
 
 ```shell
 # Check Hedera topic status
-curl http://localhost:3000/hedera/topic
+curl http://localhost:3000/status/topic
 
 # Check RSA public key
-curl http://localhost:3000/rsa/public-key
+curl http://localhost:3000/status/public-key
 
 # View current routes
 curl http://localhost:3000/routes
