@@ -40,22 +40,20 @@ function encryptHybridMessage(publicKeyPem, data, verbose = false) {
 
     // Combine everything into a single payload
     const hybridPayload = {
-      encryptedAesKey: encryptedAesKey.toString("base64"),
+      key: encryptedAesKey.toString("base64"),
       iv: iv.toString("base64"),
-      encryptedData: encryptedData,
-      algorithm: "hybrid-rsa-aes256",
+      data: encryptedData,
     };
 
     const finalPayload = JSON.stringify(hybridPayload);
-    const encryptedBase64 = Buffer.from(finalPayload).toString("base64");
 
     if (verbose) {
       console.log(
-        `✅ Payload encrypted successfully with hybrid encryption (${encryptedBase64.length} characters)`
+        `✅ Payload encrypted successfully with hybrid encryption (${finalPayload.length} characters)`
       );
     }
 
-    return encryptedBase64;
+    return finalPayload;
   } catch (error) {
     throw new Error(`Encryption failed: ${error.message}`);
   }
@@ -82,25 +80,12 @@ function decryptHybridMessage(encryptedBase64, privateKeyPem) {
     const hybridPayload = JSON.parse(decodedPayload);
 
     // Validate payload structure
-    if (
-      !hybridPayload.encryptedAesKey ||
-      !hybridPayload.iv ||
-      !hybridPayload.encryptedData
-    ) {
+    if (!hybridPayload.key || !hybridPayload.iv || !hybridPayload.data) {
       throw new Error("Invalid hybrid payload structure");
     }
 
-    if (hybridPayload.algorithm !== "hybrid-rsa-aes256") {
-      throw new Error(
-        `Unsupported encryption algorithm: ${hybridPayload.algorithm}`
-      );
-    }
-
     // Decrypt the AES key using RSA private key
-    const encryptedAesKey = Buffer.from(
-      hybridPayload.encryptedAesKey,
-      "base64"
-    );
+    const encryptedAesKey = Buffer.from(hybridPayload.key, "base64");
     const aesKey = crypto.privateDecrypt(
       {
         key: privateKeyPem,
@@ -114,7 +99,7 @@ function decryptHybridMessage(encryptedBase64, privateKeyPem) {
     const iv = Buffer.from(hybridPayload.iv, "base64");
     const aesDecipher = crypto.createDecipheriv("aes-256-cbc", aesKey, iv);
     let decryptedData = aesDecipher.update(
-      hybridPayload.encryptedData,
+      hybridPayload.data,
       "base64",
       "utf8"
     );
