@@ -47,15 +47,14 @@ function encryptHybridMessage(publicKeyPem, data, verbose = false) {
 
     // Convert to JSON and then encode as base64 for final payload
     const jsonPayload = JSON.stringify(hybridPayload);
-    const finalPayload = Buffer.from(jsonPayload).toString("base64");
 
     if (verbose) {
       console.log(
-        `✅ Payload encrypted successfully with hybrid encryption (${finalPayload.length} characters)`
+        `✅ Payload encrypted successfully with hybrid encryption (${jsonPayload.length} characters)`
       );
     }
 
-    return finalPayload;
+    return jsonPayload;
   } catch (error) {
     throw new Error(`Encryption failed: ${error.message}`);
   }

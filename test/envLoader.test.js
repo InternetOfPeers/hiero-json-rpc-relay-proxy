@@ -221,7 +221,7 @@ key_with_no_value_and_no_equals`;
       } finally {
         // Restore original working directory
         process.chdir(originalCwd);
-        
+
         try {
           await fs.unlink(testEnvFile);
         } catch (error) {
