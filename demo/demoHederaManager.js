@@ -34,7 +34,7 @@ class DemoHederaManager {
 
     try {
       const accountId = AccountId.fromString(this.accountId);
-      
+
       // Support both ECDSA and Ed25519 private keys
       let privateKey;
       if (this.keyType === "ECDSA" || this.privateKey.startsWith("0x")) {
@@ -60,7 +60,10 @@ class DemoHederaManager {
       this.client = client;
       return client;
     } catch (error) {
-      console.error("❌ Failed to initialize demo Hedera client:", error.message);
+      console.error(
+        "❌ Failed to initialize demo Hedera client:",
+        error.message
+      );
       console.error("   Make sure your private key format is correct:");
       console.error("   - ECDSA keys should start with '0x' (hex format)");
       console.error("   - Ed25519 keys use the standard Hedera format");
@@ -111,7 +114,7 @@ class DemoHederaManager {
       console.log(`✅ Demo Hedera topic created successfully: ${newTopicId}`);
       console.log(`   Topic memo: ${memo}`);
       console.log(`   💡 You can use this topic ID: ${newTopicId}`);
-      
+
       return newTopicId.toString();
     } catch (error) {
       console.error("❌ Failed to create demo Hedera topic:", error.message);
@@ -181,7 +184,7 @@ class DemoHederaManager {
     }
 
     this.topicId = topicIdString;
-    
+
     // Initialize client
     const client = this.initClient();
     if (!client) {
@@ -191,7 +194,9 @@ class DemoHederaManager {
     // Verify topic exists
     const exists = await this.checkTopicExists(topicIdString);
     if (!exists) {
-      throw new Error(`Topic ${topicIdString} does not exist or is not accessible`);
+      throw new Error(
+        `Topic ${topicIdString} does not exist or is not accessible`
+      );
     }
 
     console.log(`✅ Demo topic initialized: ${topicIdString}`);

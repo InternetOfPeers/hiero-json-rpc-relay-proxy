@@ -58,30 +58,38 @@ async function demonstrateMessageListener() {
 
     console.log(`✅ Using topic: ${topicId}\n`);
 
-    console.log("2️⃣  This demo uses a simplified approach without persistent message listening.");
-    console.log("   For full message listening functionality, use the main server.\n");
+    console.log(
+      "2️⃣  This demo uses a simplified approach without persistent message listening."
+    );
+    console.log(
+      "   For full message listening functionality, use the main server.\n"
+    );
 
     console.log("3️⃣  Submitting test message...");
     const testMessage = `Hello from demo script! Timestamp: ${new Date().toISOString()}`;
-    const receipt = await demoHederaManager.submitMessageToTopic(topicId, testMessage);
+    const receipt = await demoHederaManager.submitMessageToTopic(
+      topicId,
+      testMessage
+    );
 
     console.log("✅ Test message submitted!");
     console.log(`   Sequence Number: ${receipt.topicSequenceNumber}`);
-    console.log(
-      "⏳ Message submitted to Hedera network successfully!"
-    );
+    console.log("⏳ Message submitted to Hedera network successfully!");
     console.log(
       "   The message will be available via mirror node within a few seconds.\n"
     );
 
     console.log("✅ Demo completed successfully!");
-    console.log("💡 To see full message listening functionality, run the main server:");
+    console.log(
+      "💡 To see full message listening functionality, run the main server:"
+    );
     console.log("   npm start");
-    console.log("   The server will automatically detect and log new messages.\n");
+    console.log(
+      "   The server will automatically detect and log new messages.\n"
+    );
 
     // Close the client connection
     demoHederaManager.close();
-    
   } catch (error) {
     console.error("❌ Demo failed:", error.message);
     demoHederaManager.close();

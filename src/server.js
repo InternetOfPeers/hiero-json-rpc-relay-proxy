@@ -302,6 +302,27 @@ async function startServer() {
       global.messageListenerInterval = hederaManager.startMessageListener(5000);
     }
   });
+
+  // Handle server listen errors (e.g., port already in use)
+  server.on("error", (error) => {
+    if (error.code === "EADDRINUSE") {
+      console.error(`❌ Error: Port ${PORT} is already in use`);
+      console.error(
+        "Please choose a different port or stop the process using this port."
+      );
+      console.error(`You can use: lsof -ti:${PORT} | xargs kill -9`);
+    } else if (error.code === "EACCES") {
+      console.error(`❌ Error: Permission denied to bind to port ${PORT}`);
+      console.error(
+        "Please try using a port number above 1024 or run with appropriate permissions."
+      );
+    } else {
+      console.error(`❌ Error binding to port ${PORT}:`, error.message);
+    }
+
+    console.error("Server startup failed. Exiting...");
+    process.exit(1);
+  });
 }
 
 // Graceful shutdown

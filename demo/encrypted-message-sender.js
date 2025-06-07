@@ -153,10 +153,10 @@ async function sendEncryptedMessage(topicId, encryptedPayload) {
 
     console.log("✅ Encrypted message sent successfully!");
     console.log(`   Sequence Number: ${receipt.topicSequenceNumber}`);
-    
+
     // Close the client connection
     demoHederaManager.close();
-    
+
     return messageWithMetadata;
   } catch (error) {
     demoHederaManager.close();
