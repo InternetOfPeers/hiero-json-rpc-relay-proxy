@@ -137,6 +137,22 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    // Handle combined status endpoint - shows both topic and public key info
+    if (req.url === "/status" && req.method === "GET") {
+      const topicInfo = hederaManager.getTopicInfo();
+      const keyPair = getRSAKeyPair();
+
+      const statusInfo = {
+        hederaNetwork: topicInfo.hederaNetwork,
+        topicId: topicInfo.topicId,
+        publicKey: keyPair ? keyPair.publicKey : null,
+      };
+
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify(statusInfo, null, 2));
+      return;
+    }
+
     if (req.url === "/routes" && req.method === "POST") {
       const { body, jsonData } = await parseRequestBody(req);
       if (jsonData) {
@@ -258,14 +274,17 @@ async function startServer() {
       }
     });
     console.log("\nManagement endpoints:");
-    console.log(`  GET  http://localhost:${PORT}/routes - View current routes`);
-    console.log(`  POST http://localhost:${PORT}/routes - Update routes`);
+    console.log(
+      `  GET  http://localhost:${PORT}/status - Topic id & public key)`
+    );
     console.log(
       `  GET  http://localhost:${PORT}/status/topic - Get Hedera topic info`
     );
     console.log(
       `  GET  http://localhost:${PORT}/status/public-key - Get RSA public key`
     );
+    console.log(`  GET  http://localhost:${PORT}/routes - View current routes`);
+    console.log(`  POST http://localhost:${PORT}/routes - Update routes`);
     console.log("\nExample request:");
     console.log(`  curl -X POST http://localhost:${PORT} \\`);
     console.log(`    -H "Content-Type: application/json" \\`);
