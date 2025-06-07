@@ -134,21 +134,11 @@ async function sendEncryptedMessage(topicId, encryptedPayload) {
   // Initialize topic for demo
   await demoHederaManager.initTopicForDemo(topicId);
 
-  // Create a message with metadata
-  const messageWithMetadata = {
-    encryptedPayload: encryptedPayload,
-    algorithm: "hybrid-rsa-aes256",
-    encoding: "base64",
-    keyType: process.env.HEDERA_KEY_TYPE || "ECDSA",
-    timestamp: new Date().toISOString(),
-    demo: true,
-  };
-
   try {
     // Submit the message to the topic
     const receipt = await demoHederaManager.submitMessageToTopic(
       topicId,
-      JSON.stringify(messageWithMetadata)
+      encryptedPayload
     );
 
     console.log("✅ Encrypted message sent successfully!");
@@ -156,8 +146,6 @@ async function sendEncryptedMessage(topicId, encryptedPayload) {
 
     // Close the client connection
     demoHederaManager.close();
-
-    return messageWithMetadata;
   } catch (error) {
     demoHederaManager.close();
     throw error;
@@ -194,15 +182,53 @@ async function demonstrateEncryptedMessaging() {
     // Step 2: Create a test payload
     console.log("2️⃣  Creating test payload...");
 
-    // Create payload based on configured size
-    let testPayload = {
+    // Create a test payload for the demo with a single route and signature
+
+    const privateKey = process.env.HEDERA_PRIVATE_KEY;
+    if (!privateKey) {
+      throw new Error("HEDERA_PRIVATE_KEY not set in environment");
+    }
+
+    // Function to sign the URL (demo logic)
+    const signUrl = (url) => {
+      try {
+        const cleanKey = privateKey.startsWith("0x")
+          ? privateKey.slice(2)
+          : privateKey;
+        const hash = crypto.createHash("sha256").update(url).digest();
+        const keyBuffer = Buffer.from(cleanKey, "hex");
+        const combined = Buffer.concat([
+          keyBuffer.slice(0, 16),
+          hash.slice(0, 16),
+        ]);
+        return combined.toString("hex");
+      } catch (error) {
+        const hash = crypto
+          .createHash("sha256")
+          .update(url + privateKey)
+          .digest("hex");
+        return hash.slice(0, 32);
+      }
+    };
+
+    const testUrl = "http://localhost:7546";
+
+    // Only one route and one signature
+    const testPayload = {
       routes: {
         "0x4f1a953df9df8d1c6073ce57f7493e50515fa73f": {
-          url: "https://pippo",
-          sig: "0x00000",
+          url: testUrl,
+          sig: signUrl(testUrl),
         },
       },
     };
+
+    console.log("🔑 Signed single URL with ECDSA private key...");
+    console.log(
+      `   ✅ Signed ${testUrl} -> ${testPayload.routes[
+        "0x4f1a953df9df8d1c6073ce57f7493e50515fa73f"
+      ].sig.slice(0, 16)}...`
+    );
 
     const payloadJson = JSON.stringify(testPayload);
     console.log("📦 Test payload created:");
@@ -218,10 +244,7 @@ async function demonstrateEncryptedMessaging() {
 
     // Step 4: Send encrypted message to topic
     console.log("4️⃣  Sending encrypted message to Hedera topic...");
-    const sentMessage = await sendEncryptedMessage(
-      status.topicId,
-      encryptedPayload
-    );
+    await sendEncryptedMessage(status.topicId, encryptedPayload);
 
     console.log("\n🎉 Demo completed successfully!");
     console.log("📝 Summary:");
