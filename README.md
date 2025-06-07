@@ -10,7 +10,7 @@ A lightweight Ethereum transaction routing proxy server with integrated Hedera C
 - [🔗 API Endpoints](#-api-endpoints)
 - [🌐 Hedera Integration](#-hedera-integration)
 - [🔔 Message Listener](#-message-listener)
-- [🗄️ Database Persistence](#️-database-persistence)
+- [🗄️ Database Persistence](#database-persistence)
 - [🧪 Testing](#-testing)
 - [🧹 Database Cleanup](#-database-cleanup)
 - [🚀 Demo Scripts](#-demo-scripts)
@@ -21,7 +21,7 @@ A lightweight Ethereum transaction routing proxy server with integrated Hedera C
 
 ## 🚀 Quick Start
 
-```bash
+```shell
 # Install dependencies
 npm install
 
@@ -49,7 +49,7 @@ npm start
 
 ## 📦 Installation & Setup
 
-```bash
+```shell
 git clone <repository-url>
 cd hiero-json-rpc-relay-proxy
 npm install
@@ -59,16 +59,19 @@ npm install
 
 Configure using a `.env` file (recommended) or environment variables:
 
-```bash
+```shell
 # Server Configuration
 PORT=3000
 DATA_FOLDER=data
 DEFAULT_SERVER=https://testnet.hashio.io/api
 
-# Hedera Configuration (optional but recommended)
+# Hedera Configuration
 HEDERA_ACCOUNT_ID=0.0.123456
 HEDERA_PRIVATE_KEY=302e020100300506...
 HEDERA_NETWORK=testnet
+
+# Hedera Topic Configuration
+# If not set, a new topic will be created automatically
 HEDERA_TOPIC_ID=0.0.654321
 ```
 
@@ -81,7 +84,7 @@ HEDERA_TOPIC_ID=0.0.654321
 
 **Network-Specific Database Files**:
 
-```bash
+```shell
 # Testnet configuration will use:
 data/routing_db_testnet.json
 
@@ -169,7 +172,7 @@ The proxy automatically handles comprehensive Hedera topic lifecycle with fail-s
 
 ### Usage Examples
 
-```bash
+```shell
 # Start with Hedera support (recommended)
 HEDERA_ACCOUNT_ID=0.0.123456 \
 HEDERA_PRIVATE_KEY=302e... \
@@ -184,7 +187,7 @@ npm start
 
 ### Available Scripts
 
-```bash
+```shell
 # Start the server
 npm start
 
@@ -236,7 +239,7 @@ The project includes a convenient script to clean up all database files created 
 
 ### Clean Command
 
-```bash
+```shell
 npm run clean
 ```
 
@@ -253,7 +256,8 @@ npm run clean
 - Git history and tracking
 
 **Example output:**
-```
+
+```shell
 🧹 Cleaning development database files...
 
 ℹ️  Production database files (data/) are preserved for safety
@@ -333,7 +337,7 @@ This project includes demonstration scripts for testing and showcasing functiona
 
 ### 🎯 Running the Demo
 
-```bash
+```shell
 # Run the message listener demo
 npm run demo
 
@@ -347,6 +351,7 @@ npm run demo
 ### 🗄️ Database Isolation
 
 The demo uses its own database files in `demo/data/` to keep demo data completely separate from:
+
 - Production data in `data/`
 - Test data in `test/data/`
 
@@ -482,7 +487,7 @@ const info = hederaManager.getTopicInfo();
 
 ### Debug Commands
 
-```bash
+```shell
 # Check Hedera topic status
 curl http://localhost:3000/hedera/topic
 
