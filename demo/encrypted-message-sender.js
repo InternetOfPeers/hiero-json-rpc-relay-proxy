@@ -169,10 +169,14 @@ async function demonstrateEncryptedMessaging() {
 
     const testUrl = "http://localhost:7546";
 
-    // Only one route and one signature
+    // One signature per route
     const testPayload = {
       routes: {
         "0x4f1a953df9df8d1c6073ce57f7493e50515fa73f": {
+          url: testUrl,
+          sig: signUrl(testUrl),
+        },
+        "0x4f1a953df9df8d1c6073ce57f7493e50515fa73a": {
           url: testUrl,
           sig: signUrl(testUrl),
         },
