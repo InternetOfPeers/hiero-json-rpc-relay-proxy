@@ -4,16 +4,31 @@ node_modules/
 # Environment variables
 .env
 demo/.env
+packages/prover/.env
+packages/proxy/.env
+# Test environment files
+packages/proxy/test/.env*
+!packages/proxy/test/.env.test
 
 # Database and configuration files
 data/*
 !data/.gitkeep
 
+# Proxy database files (new structure)
+packages/proxy/data/*.json
+!packages/proxy/data/.gitkeep
+
 # Test database files
 test/data/*
 !test/data/.gitkeep
+packages/proxy/test/data/*.json
+!packages/proxy/test/data/.gitkeep
 
-# Demo database files
+# Prover database files
+packages/prover/data/*.json
+!packages/prover/data/.gitkeep
+
+# Demo database files (legacy)
 demo/data/*
 !demo/data/.gitkeep
 

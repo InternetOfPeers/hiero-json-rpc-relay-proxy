@@ -1,17 +1,14 @@
 {
   "name": "hiero-json-rpc-relay-proxy",
   "version": "1.0.0",
-  "main": "src/server.js",
+  "main": "packages/proxy/src/proxy.js",
   "scripts": {
-    "test": "SKIP_INTEGRATION_TESTS=true node --test test/*.test.js",
-    "test:all": "node --test test/*.test.js",
-    "test:unit": "SKIP_INTEGRATION_TESTS=true node --test test/*.test.js",
-    "test:integration": "node --test test/integration.test.js",
-    "start": "node src/server.js",
-    "demo": "node demo/message-listener.js",
-    "demo:encrypted": "node demo/encrypted-message-sender.js",
-    "demo:test-ecdsa": "node demo/test-ecdsa.js",
-    "clean": "node scripts/clean-db.js"
+    "clean": "node scripts/clean-db.js",
+    "prover": "node packages/prover/src/prover.js",
+    "start": "node packages/proxy/src/proxy.js",
+    "test": "node --test packages/proxy/test/*.test.js",
+    "test:integration": "node --test packages/proxy/test/integration.test.js",
+    "test:unit": "SKIP_INTEGRATION_TESTS=true node --test packages/proxy/test/*.test.js"
   },
   "author": "Giuseppe Bertone <giuseppe.bertone@proton.me>",
   "license": "Apache-2.0",

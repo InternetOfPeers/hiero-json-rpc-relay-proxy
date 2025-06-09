@@ -47,7 +47,7 @@ Object.keys(mockDbManager).forEach((key) => {
 
 describe("server functions", function () {
   let portCounter = 3001;
-  const TEST_DATA_DIR = "test/data";
+  const TEST_DATA_DIR = path.resolve(__dirname, "data");
   let server;
   let testServers = []; // Track all test servers for cleanup
   let originalEnv;

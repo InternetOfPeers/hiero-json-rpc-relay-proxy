@@ -1,8 +1,7 @@
 const http = require("http");
 const https = require("https");
-const fs = require("fs");
 const path = require("path");
-const { rlpDecode, extractToFromTransaction } = require("./ethTxDecoder");
+const { extractToFromTransaction } = require("./ethTxDecoder");
 const {
   initDatabase,
   saveDatabase,
@@ -37,7 +36,11 @@ const HEDERA_TOPIC_ID = process.env.HEDERA_TOPIC_ID; // Optional: existing topic
 
 // Generate network-specific database file path
 function getDBFilePath() {
-  return path.join(DATA_FOLDER, `routing_db_${HEDERA_NETWORK}.json`);
+  // Resolve DATA_FOLDER relative to the proxy package directory (parent of src)
+  const dataPath = path.isAbsolute(DATA_FOLDER)
+    ? DATA_FOLDER
+    : path.join(__dirname, "..", DATA_FOLDER);
+  return path.join(dataPath, `routing_db_${HEDERA_NETWORK}.json`);
 }
 
 // Initialize Hedera manager

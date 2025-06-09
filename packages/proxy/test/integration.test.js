@@ -4,6 +4,7 @@ const http = require("node:http");
 const https = require("node:https");
 const { spawn } = require("node:child_process");
 const fs = require("node:fs").promises;
+const path = require("node:path");
 
 // Utility function to make HTTP requests without node-fetch
 function makeRequest(url, options = {}) {
@@ -51,7 +52,7 @@ function makeRequest(url, options = {}) {
 }
 
 // Integration tests
-describe("server.js integration", function () {
+describe("proxy.js integration", function () {
   // Skip integration tests if SKIP_INTEGRATION_TESTS environment variable is set
   if (process.env.SKIP_INTEGRATION_TESTS) {
     console.log("⏭️  Skipping integration tests (SKIP_INTEGRATION_TESTS=true)");
@@ -59,7 +60,7 @@ describe("server.js integration", function () {
   }
 
   let serverProcess;
-  const TEST_DATA_FOLDER = "test/data";
+  const TEST_DATA_FOLDER = path.resolve(__dirname, "data");
   const TEST_NETWORK = "testnet";
   const PORT = 3999;
   const BASE_URL = `http://localhost:${PORT}`;
@@ -85,9 +86,10 @@ describe("server.js integration", function () {
       NODE_ENV: process.env.NODE_ENV,
     };
 
-    serverProcess = spawn(process.execPath, ["src/server.js"], {
+    serverProcess = spawn(process.execPath, ["packages/proxy/src/proxy.js"], {
       env: env,
       stdio: ["ignore", "pipe", "pipe"],
+      cwd: path.resolve(__dirname, "../../../"), // Set working directory to project root
     });
 
     // Log server output for debugging

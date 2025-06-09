@@ -6,11 +6,13 @@ const path = require("path");
  * Loads environment variables from a .env file and sets them in process.env.
  * Values from the .env file override any existing environment variables.
  *
- * @param {string} envPath - Path to the .env file (default: ".env")
+ * @param {string} envPath - Path to the .env file (default: looks for .env in the parent directory of this module)
  */
-function loadEnvFile(envPath = ".env") {
+function loadEnvFile(envPath) {
   try {
-    const fullPath = path.resolve(envPath);
+    // If no path provided, look for .env in the packages/proxy directory (parent of this module)
+    const defaultPath = envPath || path.join(__dirname, "..", ".env");
+    const fullPath = path.resolve(defaultPath);
     if (fs.existsSync(fullPath)) {
       const envContent = fs.readFileSync(fullPath, "utf8");
       const lines = envContent.split("\n");
@@ -41,7 +43,7 @@ function loadEnvFile(envPath = ".env") {
           process.env[key] = value;
         }
       }
-      console.log(`Loaded environment variables from ${envPath}`);
+      console.log(`Loaded environment variables from ${defaultPath}`);
     }
   } catch (error) {
     // Silently fail if .env file doesn't exist or can't be read

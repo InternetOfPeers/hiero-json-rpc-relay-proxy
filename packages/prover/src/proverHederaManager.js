@@ -8,19 +8,19 @@ const {
   Hbar,
 } = require("@hashgraph/sdk");
 
-// Demo Hedera Manager Module
-// Dedicated manager for demo scripts with ECDSA key support
+// Prover Hedera Manager Module
+// Dedicated manager for prover scripts with ECDSA key support
 // This is separate from the main HederaManager to avoid dependencies
-// and to provide demo-specific functionality
+// and to provide prover-specific functionality
 
-class DemoHederaManager {
+class ProverHederaManager {
   constructor(config = {}) {
     this.accountId = config.accountId;
     this.privateKey = config.privateKey;
     this.network = config.network || "testnet";
     this.topicId = config.topicId;
     this.client = null;
-    this.keyType = config.keyType || "ECDSA"; // Default to ECDSA for demos
+    this.keyType = config.keyType || "ECDSA"; // Default to ECDSA
   }
 
   // Initialize Hedera client with ECDSA support
@@ -53,7 +53,7 @@ class DemoHederaManager {
 
       client.setOperator(accountId, privateKey);
 
-      console.log(`✅ Demo Hedera client initialized for ${this.network}`);
+      console.log(`✅ Prover Hedera client initialized for ${this.network}`);
       console.log(`   Using account: ${this.accountId}`);
       console.log(`   Key type: ${this.keyType}`);
 
@@ -61,7 +61,7 @@ class DemoHederaManager {
       return client;
     } catch (error) {
       console.error(
-        "❌ Failed to initialize demo Hedera client:",
+        "❌ Failed to initialize prover Hedera client:",
         error.message
       );
       console.error("   Make sure your private key format is correct:");
@@ -95,13 +95,13 @@ class DemoHederaManager {
   }
 
   // Create a new Hedera topic
-  async createTopic(memo = "Demo Topic for Encrypted Messages") {
+  async createTopic(memo = "Prover Topic for Encrypted Messages") {
     if (!this.client) {
       throw new Error("Hedera client not initialized");
     }
 
     try {
-      console.log("🏗️ Creating new demo Hedera topic...");
+      console.log("🏗️ Creating new prover Hedera topic...");
 
       const transaction = new TopicCreateTransaction()
         .setTopicMemo(memo)
@@ -111,13 +111,13 @@ class DemoHederaManager {
       const receipt = await txResponse.getReceipt(this.client);
       const newTopicId = receipt.topicId;
 
-      console.log(`✅ Demo Hedera topic created successfully: ${newTopicId}`);
+      console.log(`✅ Prover Hedera topic created successfully: ${newTopicId}`);
       console.log(`   Topic memo: ${memo}`);
       console.log(`   💡 You can use this topic ID: ${newTopicId}`);
 
       return newTopicId.toString();
     } catch (error) {
-      console.error("❌ Failed to create demo Hedera topic:", error.message);
+      console.error("❌ Failed to create prover Hedera topic:", error.message);
       throw error;
     }
   }
@@ -156,7 +156,7 @@ class DemoHederaManager {
     }
   }
 
-  // Get topic info for demos
+  // Get topic info for prover
   getTopicInfo() {
     return {
       topicId: this.topicId,
@@ -167,7 +167,7 @@ class DemoHederaManager {
     };
   }
 
-  // Check if Hedera is enabled for demos
+  // Check if Hedera is enabled for prover
   isEnabled() {
     return !!(this.accountId && this.privateKey);
   }
@@ -177,10 +177,10 @@ class DemoHederaManager {
     return this.client;
   }
 
-  // Initialize topic for demo (simplified version)
-  async initTopicForDemo(topicIdString) {
+  // Initialize topic for prover (simplified version)
+  async initTopicForProver(topicIdString) {
     if (!topicIdString) {
-      throw new Error("Topic ID is required for demo");
+      throw new Error("Topic ID is required for prover");
     }
 
     this.topicId = topicIdString;
@@ -199,7 +199,7 @@ class DemoHederaManager {
       );
     }
 
-    console.log(`✅ Demo topic initialized: ${topicIdString}`);
+    console.log(`✅ Prover topic initialized: ${topicIdString}`);
     return topicIdString;
   }
 
@@ -207,9 +207,9 @@ class DemoHederaManager {
   close() {
     if (this.client) {
       this.client.close();
-      console.log("🔌 Demo Hedera client connection closed");
+      console.log("🔌 Prover Hedera client connection closed");
     }
   }
 }
 
-module.exports = { DemoHederaManager };
+module.exports = { ProverHederaManager };

@@ -19,7 +19,7 @@ const {
 
 // dbManager tests
 describe("dbManager", function () {
-  const TEST_DATA_FOLDER = "test/data";
+  const TEST_DATA_FOLDER = path.resolve(__dirname, "data");
   const TEST_NETWORK = "testnet";
   const TEST_DB_FILE = path.join(
     TEST_DATA_FOLDER,

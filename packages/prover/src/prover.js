@@ -1,28 +1,27 @@
 #!/usr/bin/env node
 
-// Demo script to send encrypted messages to Hedera topic
+// Prover script to send encrypted messages to Hedera topic
 // This script will:
 // 1. Fetch the status from the /status endpoint
 // 2. Extract the topic ID and public key
 // 3. Encrypt a payload using the RSA public key
 // 4. Send the encrypted message to the Hedera topic
 
-const { DemoHederaManager } = require("./demoHederaManager");
-const { loadEnvFile } = require("../src/envLoader");
-const { encryptHybridMessage } = require("../src/cryptoUtils");
+const { ProverHederaManager } = require("./proverHederaManager");
+const { loadEnvFile } = require("../../proxy/src/envLoader");
+const { encryptHybridMessage } = require("../../proxy/src/cryptoUtils");
 const { ethers } = require("ethers");
 const http = require("http");
 const path = require("path");
 
-// Load environment variables from the demo folder first, then fallback to project root
-const demoEnvPath = path.join(__dirname, ".env");
-const projectEnvPath = path.join(__dirname, "../.env");
+// Load environment variables from the prover folder first, then fallback to packages/proxy
+const proverEnvPath = path.join(__dirname, "..", ".env");
 
 try {
-  loadEnvFile(demoEnvPath);
-  console.log("📁 Using demo-specific .env file");
+  loadEnvFile(proverEnvPath);
+  console.log("📁 Using prover-specific .env file");
 } catch (error) {
-  console.log("📁 Demo .env not found, stopping the demo");
+  console.log("📁 Prover .env not found, stopping the prover");
   process.exit(0);
 }
 
@@ -73,26 +72,26 @@ function fetchStatus() {
 async function sendEncryptedMessage(topicId, encryptedPayload) {
   console.log(`📤 Sending encrypted message to topic: ${topicId}`);
 
-  // Initialize Demo Hedera Manager with ECDSA support
-  const demoHederaManager = new DemoHederaManager({
+  // Initialize Prover Hedera Manager with ECDSA support
+  const proverHederaManager = new ProverHederaManager({
     accountId: process.env.HEDERA_ACCOUNT_ID,
     privateKey: process.env.HEDERA_PRIVATE_KEY,
     network: HEDERA_NETWORK,
     keyType: process.env.HEDERA_KEY_TYPE || "ECDSA",
   });
 
-  if (!demoHederaManager.isEnabled()) {
+  if (!proverHederaManager.isEnabled()) {
     throw new Error(
       "Hedera credentials not configured. Please set HEDERA_ACCOUNT_ID and HEDERA_PRIVATE_KEY"
     );
   }
 
-  // Initialize topic for demo
-  await demoHederaManager.initTopicForDemo(topicId);
+  // Initialize topic for prover
+  await proverHederaManager.initTopicForProver(topicId);
 
   try {
     // Submit the message to the topic
-    const receipt = await demoHederaManager.submitMessageToTopic(
+    const receipt = await proverHederaManager.submitMessageToTopic(
       topicId,
       encryptedPayload
     );
@@ -101,15 +100,15 @@ async function sendEncryptedMessage(topicId, encryptedPayload) {
     console.log(`   Sequence Number: ${receipt.topicSequenceNumber}`);
 
     // Close the client connection
-    demoHederaManager.close();
+    proverHederaManager.close();
   } catch (error) {
-    demoHederaManager.close();
+    proverHederaManager.close();
     throw error;
   }
 }
 
 async function demonstrateEncryptedMessaging() {
-  console.log("🔐 Encrypted Message Sender Demo");
+  console.log("🔐 Encrypted Message Sender Prover");
   console.log("=================================\n");
 
   try {
@@ -138,7 +137,7 @@ async function demonstrateEncryptedMessaging() {
     // Step 2: Create a test payload
     console.log("2️⃣  Creating test payload...");
 
-    // Create a test payload for the demo with a single route and signature
+    // Create a test payload for the prover with a single route and signature
 
     const privateKey = process.env.HEDERA_PRIVATE_KEY;
     if (!privateKey) {
@@ -209,7 +208,7 @@ async function demonstrateEncryptedMessaging() {
     console.log("4️⃣  Sending encrypted message to Hedera topic...");
     await sendEncryptedMessage(status.topicId, encryptedPayload);
 
-    console.log("\n🎉 Demo completed successfully!");
+    console.log("\n🎉 Prover completed successfully!");
     console.log("📝 Summary:");
     console.log(`   - Topic ID: ${status.topicId}`);
     console.log(`   - Original payload size: ${payloadJson.length} bytes`);
@@ -221,7 +220,7 @@ async function demonstrateEncryptedMessaging() {
     );
     process.exit(0);
   } catch (error) {
-    console.error("❌ Demo failed:", error.message);
+    console.error("❌ Prover failed:", error.message);
     console.error("\n🔧 Troubleshooting:");
     console.error("   1. Make sure the proxy server is running (npm start)");
     console.error("   2. Verify Hedera credentials are configured");
@@ -231,5 +230,5 @@ async function demonstrateEncryptedMessaging() {
   }
 }
 
-// Run the demo
+// Run the prover
 demonstrateEncryptedMessaging().catch(console.error);
