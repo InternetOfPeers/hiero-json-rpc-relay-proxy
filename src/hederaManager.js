@@ -9,7 +9,7 @@ const {
   TopicMessageSubmitTransaction,
   Hbar,
 } = require("@hashgraph/sdk");
-const { decryptHybridMessage, verifyECDSASignature } = require("./cryptoUtils");
+const { decryptHybridMessage } = require("./cryptoUtils");
 
 // Hedera Manager Module
 // Handles all Hedera Consensus Service functionality including:
@@ -22,9 +22,10 @@ class HederaManager {
   constructor(config = {}) {
     this.accountId = config.accountId;
     this.privateKey = config.privateKey;
-    this.network = config.network || "testnet";
+    this.network = config.network;
     this.topicId = config.topicId;
     this.client = null;
+    this.mirrorNodeUrl = null;
     this.currentTopicId = null;
     // Database persistence functions
     this.getLastProcessedSequence = config.getLastProcessedSequence;
@@ -45,22 +46,34 @@ class HederaManager {
 
     try {
       const accountId = AccountId.fromString(this.accountId);
-      const privateKey = PrivateKey.fromString(this.privateKey);
+      const privateKey = PrivateKey.fromStringED25519(this.privateKey);
 
-      // Create client for the appropriate network
-      const client =
-        this.network === "mainnet" ? Client.forMainnet() : Client.forTestnet();
+      let client;
+      if (this.network === "local") client = Client.forLocalNode();
+      else client = Client.forName(this.network);
 
       client.setOperator(accountId, privateKey);
 
-      console.log(`Hedera client initialized for ${this.network}`);
+      switch (this.network) {
+        case "local":
+          this.mirrorNodeUrl = "http://localhost:5551";
+          break;
+        default:
+          this.mirrorNodeUrl =
+            "https://" + this.network + ".mirrornode.hedera.com";
+          break;
+      }
+
+      console.log(
+        `Hedera client initialized for ${this.network} with mirror node ${this.mirrorNodeUrl}`
+      );
       console.log(`Using account: ${this.accountId}`);
 
       this.client = client;
       return client;
     } catch (error) {
       console.error("Failed to initialize Hedera client:", error.message);
-      return null;
+      process.exit(1);
     }
   }
 
@@ -123,14 +136,8 @@ class HederaManager {
         `Checking for messages in topic ${topicIdString} via mirror node...`
       );
 
-      // Determine the mirror node URL based on network
-      const mirrorNodeUrl =
-        this.network === "mainnet"
-          ? "https://mainnet.mirrornode.hedera.com"
-          : "https://testnet.mirrornode.hedera.com";
-
       // Try to get the first message (sequence number 1)
-      const url = `${mirrorNodeUrl}/api/v1/topics/${topicIdString}/messages/1`;
+      const url = `${this.mirrorNodeUrl}/api/v1/topics/${topicIdString}/messages/1`;
 
       console.log(`Fetching: ${url}`);
 
@@ -146,7 +153,9 @@ class HederaManager {
           );
         }, 5000);
 
-        const httpModule = mirrorNodeUrl.startsWith("https:") ? https : http;
+        const httpModule = this.mirrorNodeUrl.startsWith("https:")
+          ? https
+          : http;
 
         const req = httpModule.get(url, (res) => {
           clearTimeout(timeoutId);
@@ -525,8 +534,7 @@ class HederaManager {
 
                     // Verify ECDSA signatures if message contains routes
                     await this.verifyMessageSignatures(
-                      decryptionResult.decryptedData,
-                      message.payer_account_id
+                      decryptionResult.decryptedData
                     );
                   } else {
                     console.log(
@@ -600,14 +608,8 @@ class HederaManager {
     }
 
     try {
-      // Determine the mirror node URL based on network
-      const mirrorNodeUrl =
-        this.network === "mainnet"
-          ? "https://mainnet.mirrornode.hedera.com"
-          : "https://testnet.mirrornode.hedera.com";
-
       // Get messages from the topic (ordered by sequence number)
-      const url = `${mirrorNodeUrl}/api/v1/topics/${topicIdString}/messages?limit=${limit}&order=asc`;
+      const url = `${this.mirrorNodeUrl}/api/v1/topics/${topicIdString}/messages?limit=${limit}&order=asc`;
 
       return new Promise((resolve, reject) => {
         const timeoutId = setTimeout(() => {
@@ -616,7 +618,9 @@ class HederaManager {
           );
         }, 5000);
 
-        const httpModule = mirrorNodeUrl.startsWith("https:") ? https : http;
+        const httpModule = this.mirrorNodeUrl.startsWith("https:")
+          ? https
+          : http;
 
         const req = httpModule.get(url, (res) => {
           clearTimeout(timeoutId);
@@ -679,7 +683,7 @@ class HederaManager {
   }
 
   // Verify ECDSA signatures in decrypted message
-  async verifyMessageSignatures(decryptedData, payerAccountId) {
+  async verifyMessageSignatures(decryptedData) {
     try {
       // Parse the decrypted data as JSON
       const messageData = JSON.parse(decryptedData);

@@ -37,10 +37,7 @@ function loadEnvFile(envPath = ".env") {
             value = value.slice(1, -1);
           }
 
-          // Only set if not already defined in process.env
-          if (!process.env[key]) {
-            process.env[key] = value;
-          }
+          process.env[key] = value;
         }
       }
       console.log(`Loaded environment variables from ${envPath}`);

@@ -18,14 +18,6 @@ test("HederaManager - should initialize with correct configuration", () => {
   assert.strictEqual(hederaManager.currentTopicId, null);
 });
 
-test("HederaManager - should default to testnet if no network specified", () => {
-  const manager = new HederaManager({
-    accountId: "0.0.123456",
-    privateKey: "test-private-key",
-  });
-  assert.strictEqual(manager.network, "testnet");
-});
-
 test("HederaManager - should return topic info correctly", () => {
   const hederaManager = new HederaManager({
     accountId: "0.0.123456",
@@ -104,7 +96,7 @@ test("HederaManager - should handle mainnet network configuration", () => {
 });
 
 test("HederaManager - should return topic info with null values when not initialized", () => {
-  const uninitializedManager = new HederaManager({});
+  const uninitializedManager = new HederaManager({ network: "testnet" });
   const topicInfo = uninitializedManager.getTopicInfo();
 
   assert.deepStrictEqual(topicInfo, {

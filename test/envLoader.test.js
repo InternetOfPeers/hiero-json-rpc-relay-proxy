@@ -122,20 +122,15 @@ TEST_BASE64=dGVzdD1kYXRh`;
       assert.strictEqual(process.env.TEST_BASE64, "dGVzdD1kYXRh");
     });
 
-    test("should not override existing environment variables", async function () {
-      const envContent = `TEST_EXISTING=new_value
-TEST_NEW=new_value`;
-
+    test("should override existing environment variables", async function () {
+      const envContent = `TEST_EXISTING=new_value`;
       await fs.writeFile(TEST_ENV_FILE, envContent);
 
       // Set existing value
       process.env.TEST_EXISTING = "existing_value";
-      delete process.env.TEST_NEW;
-
       loadEnvFile(TEST_ENV_FILE);
 
-      assert.strictEqual(process.env.TEST_EXISTING, "existing_value"); // Should not change
-      assert.strictEqual(process.env.TEST_NEW, "new_value"); // Should be set
+      assert.strictEqual(process.env.TEST_EXISTING, "new_value"); // Should be set to new value
     });
 
     test("should handle whitespace around keys and values", async function () {
