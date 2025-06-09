@@ -7,7 +7,7 @@
 // 3. Encrypt a payload using the RSA public key
 // 4. Send the encrypted message to the Hedera topic
 
-const { ProverHederaManager } = require("./proverHederaManager");
+const { HederaManager } = require("./hederaManager");
 const { loadEnvFile } = require("../../proxy/src/envLoader");
 const { encryptHybridMessage } = require("../../proxy/src/cryptoUtils");
 const { ethers } = require("ethers");
@@ -73,25 +73,25 @@ async function sendEncryptedMessage(topicId, encryptedPayload) {
   console.log(`📤 Sending encrypted message to topic: ${topicId}`);
 
   // Initialize Prover Hedera Manager with ECDSA support
-  const proverHederaManager = new ProverHederaManager({
+  const hederaManager = new HederaManager({
     accountId: process.env.HEDERA_ACCOUNT_ID,
     privateKey: process.env.HEDERA_PRIVATE_KEY,
     network: HEDERA_NETWORK,
     keyType: process.env.HEDERA_KEY_TYPE || "ECDSA",
   });
 
-  if (!proverHederaManager.isEnabled()) {
+  if (!hederaManager.isEnabled()) {
     throw new Error(
       "Hedera credentials not configured. Please set HEDERA_ACCOUNT_ID and HEDERA_PRIVATE_KEY"
     );
   }
 
   // Initialize topic for prover
-  await proverHederaManager.initTopicForProver(topicId);
+  await hederaManager.initTopicForProver(topicId);
 
   try {
     // Submit the message to the topic
-    const receipt = await proverHederaManager.submitMessageToTopic(
+    const receipt = await hederaManager.submitMessageToTopic(
       topicId,
       encryptedPayload
     );
@@ -100,9 +100,9 @@ async function sendEncryptedMessage(topicId, encryptedPayload) {
     console.log(`   Sequence Number: ${receipt.topicSequenceNumber}`);
 
     // Close the client connection
-    proverHederaManager.close();
+    hederaManager.close();
   } catch (error) {
-    proverHederaManager.close();
+    hederaManager.close();
     throw error;
   }
 }

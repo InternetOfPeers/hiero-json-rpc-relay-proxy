@@ -13,7 +13,7 @@ const {
 // This is separate from the main HederaManager to avoid dependencies
 // and to provide prover-specific functionality
 
-class ProverHederaManager {
+class HederaManager {
   constructor(config = {}) {
     this.accountId = config.accountId;
     this.privateKey = config.privateKey;
@@ -212,4 +212,4 @@ class ProverHederaManager {
   }
 }
 
-module.exports = { ProverHederaManager };
+module.exports = { HederaManager };
