@@ -18,7 +18,7 @@ function rlpDecode(data) {
       },
       toString: function (encoding) {
         if (encoding === 'hex') {
-          return this.data.map((b) => b.toString(16).padStart(2, '0')).join('');
+          return this.data.map(b => b.toString(16).padStart(2, '0')).join('');
         }
         return this.data;
       },

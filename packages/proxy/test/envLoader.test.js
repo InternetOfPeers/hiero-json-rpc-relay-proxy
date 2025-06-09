@@ -295,7 +295,7 @@ TEST_MIXED5=value with "quotes in middle"`;
 
       loadEnvFile(TEST_ENV_FILE);
 
-      assert.strictEqual(process.env.TEST_MIXED1, 'value with \'single quotes\'');
+      assert.strictEqual(process.env.TEST_MIXED1, "value with 'single quotes'");
       assert.strictEqual(process.env.TEST_MIXED2, 'value with "double quotes"');
       assert.strictEqual(process.env.TEST_MIXED3, 'unquoted value');
       assert.strictEqual(process.env.TEST_MIXED4, '"partially quoted value'); // Should keep opening quote

@@ -108,6 +108,7 @@ curl http://localhost:3000/status
 ```
 
 Response:
+
 ```json
 {
   "status": "active",

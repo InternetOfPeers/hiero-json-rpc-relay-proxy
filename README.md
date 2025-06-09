@@ -23,7 +23,9 @@ A monorepo containing a lightweight Ethereum transaction routing proxy with Hede
 ## 📦 Packages
 
 ### [@hiero-json-rpc-relay/proxy](./packages/proxy)
+
 The main proxy server that:
+
 - Handles Ethereum JSON-RPC requests
 - Routes transactions based on sender addresses
 - Manages RSA encryption keys
@@ -31,7 +33,9 @@ The main proxy server that:
 - Provides status and configuration endpoints
 
 ### [@hiero-json-rpc-relay/prover](./packages/prover)
+
 A demonstration client that:
+
 - Fetches proxy configuration and public keys
 - Creates and signs routing payloads
 - Encrypts messages using RSA
@@ -62,6 +66,7 @@ npm install --workspaces
 ### Configuration
 
 1. **Configure the Proxy** (required):
+
    ```bash
    cd packages/proxy
    cp .env.example .env
@@ -78,6 +83,7 @@ npm install --workspaces
 ### Running the System
 
 1. **Start the Proxy Server**:
+
    ```bash
    npm run start
    # or
@@ -85,15 +91,17 @@ npm install --workspaces
    ```
 
 2. **Run the Prover** (in another terminal):
+
    ```bash
    npm run prover
    ```
 
 3. **Test the Proxy**:
+
    ```bash
    # Check status
    curl http://localhost:3000/status
-   
+
    # Test JSON-RPC
    curl -X POST http://localhost:3000 \
      -H "Content-Type: application/json" \
@@ -129,19 +137,19 @@ npm run test:coverage --workspace=packages/prover
 
 ## 📋 Available Scripts
 
-| Script | Description |
-|--------|-------------|
-| `npm start` | Start the proxy server |
-| `npm run proxy` | Start the proxy server |
-| `npm run prover` | Run the prover client |
-| `npm run dev` | Start proxy in development mode |
-| `npm test` | Run all package tests |
-| `npm run test:proxy` | Run proxy tests only |
-| `npm run test:prover` | Run prover tests only |
-| `npm run test:integration` | Run integration tests |
-| `npm run test:all` | Run all tests including integration |
-| `npm run clean` | Clean the routing database |
-| `npm run clean:all` | Clean all node_modules and databases |
+| Script                     | Description                          |
+| -------------------------- | ------------------------------------ |
+| `npm start`                | Start the proxy server               |
+| `npm run proxy`            | Start the proxy server               |
+| `npm run prover`           | Run the prover client                |
+| `npm run dev`              | Start proxy in development mode      |
+| `npm test`                 | Run all package tests                |
+| `npm run test:proxy`       | Run proxy tests only                 |
+| `npm run test:prover`      | Run prover tests only                |
+| `npm run test:integration` | Run integration tests                |
+| `npm run test:all`         | Run all tests including integration  |
+| `npm run clean`            | Clean the routing database           |
+| `npm run clean:all`        | Clean all node_modules and databases |
 
 ## 🔧 Development
 
@@ -168,6 +176,7 @@ hiero-json-rpc-relay-proxy/
 ### Adding New Features
 
 1. **For Proxy Features**:
+
    ```bash
    cd packages/proxy
    # Add your feature to src/
@@ -176,6 +185,7 @@ hiero-json-rpc-relay-proxy/
    ```
 
 2. **For Prover Features**:
+
    ```bash
    cd packages/prover
    # Add your feature to src/
@@ -189,27 +199,22 @@ hiero-json-rpc-relay-proxy/
    npm run test:integration
    ```
 
-### Code Style
-
-- Use Node.js built-in test runner for testing
-- Follow ESLint configuration (when available)
-- Maintain consistent error handling patterns
-- Document all public APIs
-- Add tests for new functionality
-
 ## 🔐 Security Considerations
 
 ### RSA Key Management
+
 - Private keys are generated automatically and stored securely
 - Public keys are exposed via the status endpoint
 - Key rotation is supported but requires manual intervention
 
 ### Message Validation
+
 - All routing messages must be signed with valid ECDSA signatures
 - Encryption ensures message confidentiality
 - Replay protection through timestamp validation
 
 ### Network Security
+
 - Use HTTPS in production environments
 - Implement proper firewall rules
 - Monitor Hedera topic access patterns
@@ -219,11 +224,13 @@ hiero-json-rpc-relay-proxy/
 ### Common Issues
 
 1. **Proxy won't start**:
+
    - Check Hedera credentials in `.env`
    - Verify network connectivity
    - Ensure port 3000 is available
 
 2. **Prover can't connect**:
+
    - Verify proxy is running (`curl http://localhost:3000/status`)
    - Check prover `.env` configuration
    - Confirm Hedera credentials are valid
@@ -258,6 +265,7 @@ Apache-2.0 - See [LICENSE](./LICENSE) file for details.
 ## 📞 Support
 
 For issues and questions:
+
 - Create an issue on GitHub
 - Check the troubleshooting section
 - Review package-specific READMEs

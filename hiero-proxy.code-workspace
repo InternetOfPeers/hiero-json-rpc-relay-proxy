@@ -2,46 +2,39 @@
   "folders": [
     {
       "name": "🏠 Root",
-      "path": "."
+      "path": ".",
     },
     {
       "name": "🔀 Proxy",
-      "path": "./packages/proxy"
+      "path": "./packages/proxy",
     },
     {
       "name": "🔐 Prover",
-      "path": "./packages/prover"
-    }
+      "path": "./packages/prover",
+    },
   ],
   "settings": {
-    "editor.tabSize": 2,
-    "editor.insertSpaces": true,
-    "editor.detectIndentation": false,
-    "files.trimTrailingWhitespace": true,
-    "files.insertFinalNewline": true,
-    "files.trimFinalNewlines": true,
-    "eslint.workingDirectories": [
-      "packages/proxy",
-      "packages/prover"
-    ],
-    "eslint.validate": [
-      "javascript"
-    ],
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.codeActionsOnSave": {
+      "source.formatDocument": "explicit",
+    },
+    "prettier.requireConfig": true,
     "files.associations": {
-      "*.env.example": "properties"
+      "*.env.example": "properties",
     },
     "search.exclude": {
       "**/node_modules": true,
       "**/data/*.json": true,
       "**/data/*.db": true,
-      "**/*.log": true
+      "**/*.log": true,
     },
     "files.exclude": {
       "**/node_modules": true,
-      "**/.DS_Store": true
+      "**/.DS_Store": true,
     },
     "terminal.integrated.cwd": "${workspaceFolder}",
-    "npm.packageManager": "npm"
+    "npm.packageManager": "npm",
   },
   "tasks": {
     "version": "2.0.0",
@@ -56,11 +49,11 @@
           "echo": true,
           "reveal": "always",
           "focus": false,
-          "panel": "shared"
+          "panel": "shared",
         },
         "options": {
-          "cwd": "${workspaceFolder}"
-        }
+          "cwd": "${workspaceFolder}",
+        },
       },
       {
         "label": "Test All Packages",
@@ -72,11 +65,11 @@
           "echo": true,
           "reveal": "always",
           "focus": false,
-          "panel": "shared"
+          "panel": "shared",
         },
         "options": {
-          "cwd": "${workspaceFolder}"
-        }
+          "cwd": "${workspaceFolder}",
+        },
       },
       {
         "label": "Start Proxy Server",
@@ -88,10 +81,10 @@
           "echo": true,
           "reveal": "always",
           "focus": false,
-          "panel": "dedicated"
+          "panel": "dedicated",
         },
         "isBackground": true,
-        "problemMatcher": []
+        "problemMatcher": [],
       },
       {
         "label": "Start Prover",
@@ -103,10 +96,10 @@
           "echo": true,
           "reveal": "always",
           "focus": false,
-          "panel": "dedicated"
+          "panel": "dedicated",
         },
         "isBackground": true,
-        "problemMatcher": []
+        "problemMatcher": [],
       },
       {
         "label": "Clean All",
@@ -118,10 +111,36 @@
           "echo": true,
           "reveal": "always",
           "focus": false,
-          "panel": "shared"
-        }
-      }
-    ]
+          "panel": "shared",
+        },
+      },
+      {
+        "label": "Format Code",
+        "type": "shell",
+        "command": "npm",
+        "args": ["run", "format"],
+        "group": "build",
+        "presentation": {
+          "echo": true,
+          "reveal": "always",
+          "focus": false,
+          "panel": "shared",
+        },
+      },
+      {
+        "label": "Check Formatting",
+        "type": "shell",
+        "command": "npm",
+        "args": ["run", "format:check"],
+        "group": "test",
+        "presentation": {
+          "echo": true,
+          "reveal": "always",
+          "focus": false,
+          "panel": "shared",
+        },
+      },
+    ],
   },
   "launch": {
     "version": "0.2.0",
@@ -133,7 +152,7 @@
         "program": "${workspaceFolder}/packages/proxy/test",
         "args": ["--test"],
         "cwd": "${workspaceFolder}/packages/proxy",
-        "console": "integratedTerminal"
+        "console": "integratedTerminal",
       },
       {
         "name": "Debug Prover Tests",
@@ -142,7 +161,7 @@
         "program": "${workspaceFolder}/packages/prover/test",
         "args": ["--test"],
         "cwd": "${workspaceFolder}/packages/prover",
-        "console": "integratedTerminal"
+        "console": "integratedTerminal",
       },
       {
         "name": "Debug Integration Tests",
@@ -151,16 +170,8 @@
         "program": "${workspaceFolder}/test",
         "args": ["--test"],
         "cwd": "${workspaceFolder}",
-        "console": "integratedTerminal"
-      }
-    ]
+        "console": "integratedTerminal",
+      },
+    ],
   },
-  "extensions": {
-    "recommendations": [
-      "ms-vscode.vscode-eslint",
-      "ms-vscode.vscode-json",
-      "bradlc.vscode-tailwindcss",
-      "ms-vscode.test-adapter-converter"
-    ]
-  }
 }

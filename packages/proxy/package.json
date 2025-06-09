@@ -31,9 +31,6 @@
     "@hashgraph/sdk": "^2.65.1",
     "ethers": "^6.14.3"
   },
-  "devDependencies": {
-    "sinon": "^17.0.1"
-  },
   "engines": {
     "node": ">=18.0.0"
   }

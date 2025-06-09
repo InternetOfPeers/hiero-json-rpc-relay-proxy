@@ -21,9 +21,9 @@ function makeRequest(url, options = {}) {
       timeout: 5000, // 5 second timeout
     };
 
-    const req = httpModule.request(reqOptions, (res) => {
+    const req = httpModule.request(reqOptions, res => {
       let data = '';
-      res.on('data', (chunk) => {
+      res.on('data', chunk => {
         data += chunk;
       });
       res.on('end', () => {
@@ -35,7 +35,7 @@ function makeRequest(url, options = {}) {
       });
     });
 
-    req.on('error', (error) => {
+    req.on('error', error => {
       reject(new Error(`Request failed: ${error.message} (${error.code})`));
     });
 
@@ -93,15 +93,15 @@ describe('proxy.js integration', function () {
     });
 
     // Log server output for debugging
-    serverProcess.stdout.on('data', (data) => {
+    serverProcess.stdout.on('data', data => {
       console.log('Server stdout:', data.toString());
     });
 
-    serverProcess.stderr.on('data', (data) => {
+    serverProcess.stderr.on('data', data => {
       console.error('Server stderr:', data.toString());
     });
 
-    serverProcess.on('error', (err) => {
+    serverProcess.on('error', err => {
       console.error('Server process error:', err);
     });
 
@@ -138,7 +138,7 @@ describe('proxy.js integration', function () {
       }
 
       // Wait 1 second between attempts
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await new Promise(resolve => setTimeout(resolve, 1000));
     }
 
     if (!healthCheckPassed) {

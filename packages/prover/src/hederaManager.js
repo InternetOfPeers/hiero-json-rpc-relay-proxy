@@ -65,7 +65,7 @@ class HederaManager {
         error.message
       );
       console.error('   Make sure your private key format is correct:');
-      console.error('   - ECDSA keys should start with \'0x\' (hex format)');
+      console.error("   - ECDSA keys should start with '0x' (hex format)");
       console.error('   - Ed25519 keys use the standard Hedera format');
       return null;
     }

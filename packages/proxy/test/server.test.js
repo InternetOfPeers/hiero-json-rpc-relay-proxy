@@ -39,7 +39,7 @@ require.cache[require.resolve('../src/hederaManager')] = {
   },
 };
 
-Object.keys(mockDbManager).forEach((key) => {
+Object.keys(mockDbManager).forEach(key => {
   require.cache[require.resolve('../src/dbManager')] = {
     exports: mockDbManager,
   };
@@ -68,7 +68,7 @@ describe('server functions', function () {
     // Close all test servers
     for (const testServer of testServers) {
       if (testServer && testServer.listening) {
-        await new Promise((resolve) => {
+        await new Promise(resolve => {
           testServer.close(resolve);
         });
       }
@@ -76,7 +76,7 @@ describe('server functions', function () {
     testServers = [];
 
     if (server && server.listening) {
-      await new Promise((resolve) => {
+      await new Promise(resolve => {
         server.close(resolve);
       });
     }
@@ -117,9 +117,9 @@ describe('server functions', function () {
           method: 'GET',
         };
 
-        const req = http.request(options, (res) => {
+        const req = http.request(options, res => {
           let data = '';
-          res.on('data', (chunk) => {
+          res.on('data', chunk => {
             data += chunk;
           });
           res.on('end', () => {
@@ -131,7 +131,7 @@ describe('server functions', function () {
           });
         });
 
-        req.on('error', (error) => {
+        req.on('error', error => {
           testServer.close();
           done(error);
         });
@@ -162,9 +162,9 @@ describe('server functions', function () {
           method: 'GET',
         };
 
-        const req = http.request(options, (res) => {
+        const req = http.request(options, res => {
           let data = '';
-          res.on('data', (chunk) => {
+          res.on('data', chunk => {
             data += chunk;
           });
           res.on('end', () => {
@@ -178,7 +178,7 @@ describe('server functions', function () {
           });
         });
 
-        req.on('error', (error) => {
+        req.on('error', error => {
           testServer.close();
           done(error);
         });
@@ -191,7 +191,7 @@ describe('server functions', function () {
       const testServer = http.createServer(async (req, res) => {
         if (req.url === '/routes' && req.method === 'POST') {
           let body = '';
-          req.on('data', (chunk) => {
+          req.on('data', chunk => {
             body += chunk.toString();
           });
           req.on('end', () => {
@@ -233,9 +233,9 @@ describe('server functions', function () {
           },
         };
 
-        const req = http.request(options, (res) => {
+        const req = http.request(options, res => {
           let data = '';
-          res.on('data', (chunk) => {
+          res.on('data', chunk => {
             data += chunk;
           });
           res.on('end', () => {
@@ -246,7 +246,7 @@ describe('server functions', function () {
           });
         });
 
-        req.on('error', (error) => {
+        req.on('error', error => {
           testServer.close();
           done(error);
         });
@@ -260,7 +260,7 @@ describe('server functions', function () {
       const testServer = http.createServer(async (req, res) => {
         if (req.url === '/routes' && req.method === 'POST') {
           let body = '';
-          req.on('data', (chunk) => {
+          req.on('data', chunk => {
             body += chunk.toString();
           });
           req.on('end', () => {
@@ -295,9 +295,9 @@ describe('server functions', function () {
           },
         };
 
-        const req = http.request(options, (res) => {
+        const req = http.request(options, res => {
           let data = '';
-          res.on('data', (chunk) => {
+          res.on('data', chunk => {
             data += chunk;
           });
           res.on('end', () => {
@@ -308,7 +308,7 @@ describe('server functions', function () {
           });
         });
 
-        req.on('error', (error) => {
+        req.on('error', error => {
           testServer.close();
           done(error);
         });
@@ -340,9 +340,9 @@ describe('server functions', function () {
           method: 'GET',
         };
 
-        const req = http.request(options, (res) => {
+        const req = http.request(options, res => {
           let data = '';
-          res.on('data', (chunk) => {
+          res.on('data', chunk => {
             data += chunk;
           });
           res.on('end', () => {
@@ -353,7 +353,7 @@ describe('server functions', function () {
           });
         });
 
-        req.on('error', (error) => {
+        req.on('error', error => {
           testServer.close();
           done(error);
         });
@@ -388,9 +388,9 @@ describe('server functions', function () {
           method: 'GET',
         };
 
-        const req = http.request(options, (res) => {
+        const req = http.request(options, res => {
           let data = '';
-          res.on('data', (chunk) => {
+          res.on('data', chunk => {
             data += chunk;
           });
           res.on('end', () => {
@@ -402,7 +402,7 @@ describe('server functions', function () {
           });
         });
 
-        req.on('error', (error) => {
+        req.on('error', error => {
           testServer.close();
           done(error);
         });
@@ -427,12 +427,12 @@ describe('server functions', function () {
           method: 'GET',
         };
 
-        const req = http.request(options, (res) => {
+        const req = http.request(options, res => {
           assert.strictEqual(res.statusCode, 404);
           testServer.close(done);
         });
 
-        req.on('error', (error) => {
+        req.on('error', error => {
           testServer.close();
           done(error);
         });
@@ -459,7 +459,7 @@ describe('server functions', function () {
 
         testServers.push(testServer); // Track server for cleanup
 
-        testServer.on('error', (error) => {
+        testServer.on('error', error => {
           assert.strictEqual(error.code, 'EADDRINUSE');
           blockingServer.close(done);
         });
@@ -490,7 +490,7 @@ describe('server functions', function () {
     test('should parse request body correctly', function (done) {
       const testServer = http.createServer(async (req, res) => {
         let body = '';
-        req.on('data', (chunk) => {
+        req.on('data', chunk => {
           body += chunk.toString();
         });
         req.on('end', () => {
@@ -522,9 +522,9 @@ describe('server functions', function () {
           },
         };
 
-        const req = http.request(options, (res) => {
+        const req = http.request(options, res => {
           let data = '';
-          res.on('data', (chunk) => {
+          res.on('data', chunk => {
             data += chunk;
           });
           res.on('end', () => {
@@ -534,7 +534,7 @@ describe('server functions', function () {
           });
         });
 
-        req.on('error', (error) => {
+        req.on('error', error => {
           testServer.close();
           done(error);
         });

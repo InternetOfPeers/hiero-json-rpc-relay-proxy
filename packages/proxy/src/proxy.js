@@ -60,7 +60,7 @@ function parseRequestBody(req) {
   return new Promise((resolve, reject) => {
     let body = '';
 
-    req.on('data', (chunk) => {
+    req.on('data', chunk => {
       body += chunk.toString();
     });
 
@@ -113,12 +113,12 @@ function forwardRequest(targetServer, req, res, requestBody) {
     },
   };
 
-  const proxyReq = httpModule.request(options, (proxyRes) => {
+  const proxyReq = httpModule.request(options, proxyRes => {
     res.writeHead(proxyRes.statusCode, proxyRes.headers);
     proxyRes.pipe(res);
   });
 
-  proxyReq.on('error', (err) => {
+  proxyReq.on('error', err => {
     console.error('Proxy request error:', err.message);
     res.writeHead(500, { 'Content-Type': 'application/json' });
     res.end(
@@ -243,7 +243,7 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.on('error', (err) => {
+server.on('error', err => {
   console.error('Server error:', err.message);
 });
 
@@ -310,7 +310,7 @@ async function startServer() {
   });
 
   // Handle server listen errors (e.g., port already in use)
-  server.on('error', (error) => {
+  server.on('error', error => {
     if (error.code === 'EADDRINUSE') {
       console.error(`❌ Error: Port ${PORT} is already in use`);
       console.error(

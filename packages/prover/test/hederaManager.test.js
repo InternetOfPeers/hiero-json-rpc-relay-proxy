@@ -235,14 +235,14 @@ describe('Prover HederaManager', () => {
       const validTopicIds = ['0.0.1234567', '0.0.123', '0.0.1'];
       const invalidTopicIds = ['invalid', '1.2.3.4', '', null, undefined];
 
-      validTopicIds.forEach((topicId) => {
+      validTopicIds.forEach(topicId => {
         assert.ok(
           /^\d+\.\d+\.\d+$/.test(topicId),
           `${topicId} should match Hedera topic ID format`
         );
       });
 
-      invalidTopicIds.forEach((topicId) => {
+      invalidTopicIds.forEach(topicId => {
         if (topicId) {
           assert.ok(
             !/^\d+\.\d+\.\d+$/.test(topicId),

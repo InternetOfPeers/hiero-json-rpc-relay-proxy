@@ -55,13 +55,13 @@ class HederaManager {
       client.setOperator(accountId, privateKey);
 
       switch (this.network) {
-      case 'local':
-        this.mirrorNodeUrl = 'http://localhost:5551';
-        break;
-      default:
-        this.mirrorNodeUrl =
+        case 'local':
+          this.mirrorNodeUrl = 'http://localhost:5551';
+          break;
+        default:
+          this.mirrorNodeUrl =
             'https://' + this.network + '.mirrornode.hedera.com';
-        break;
+          break;
       }
 
       console.log(
@@ -157,11 +157,11 @@ class HederaManager {
           ? https
           : http;
 
-        const req = httpModule.get(url, (res) => {
+        const req = httpModule.get(url, res => {
           clearTimeout(timeoutId);
 
           let data = '';
-          res.on('data', (chunk) => {
+          res.on('data', chunk => {
             data += chunk;
           });
 
@@ -202,7 +202,7 @@ class HederaManager {
           });
         });
 
-        req.on('error', (error) => {
+        req.on('error', error => {
           clearTimeout(timeoutId);
           console.error('Error calling mirror node API:', error.message);
           reject(new Error(`Failed to call mirror node API: ${error.message}`));
@@ -451,7 +451,7 @@ class HederaManager {
           if (isFirstCheck) {
             // On first check, filter out message #1 and set the last sequence number
             const filteredMessages = sortedMessages.filter(
-              (msg) => msg.sequence_number > 1
+              msg => msg.sequence_number > 1
             );
 
             if (filteredMessages.length > 0) {
@@ -487,7 +487,7 @@ class HederaManager {
           } else {
             // Check for new messages since last check (excluding message #1)
             const newMessages = sortedMessages.filter(
-              (msg) =>
+              msg =>
                 msg.sequence_number > lastSequenceNumber &&
                 msg.sequence_number > 1
             );
@@ -622,11 +622,11 @@ class HederaManager {
           ? https
           : http;
 
-        const req = httpModule.get(url, (res) => {
+        const req = httpModule.get(url, res => {
           clearTimeout(timeoutId);
 
           let data = '';
-          res.on('data', (chunk) => {
+          res.on('data', chunk => {
             data += chunk;
           });
 
@@ -655,7 +655,7 @@ class HederaManager {
           });
         });
 
-        req.on('error', (error) => {
+        req.on('error', error => {
           clearTimeout(timeoutId);
           reject(new Error(`Failed to call mirror node API: ${error.message}`));
         });

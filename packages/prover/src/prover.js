@@ -36,10 +36,10 @@ function fetchStatus() {
     const url = `${PROXY_SERVER_URL}/status`;
     console.log(`📡 Fetching status from: ${url}`);
 
-    const request = http.get(url, (response) => {
+    const request = http.get(url, response => {
       let data = '';
 
-      response.on('data', (chunk) => {
+      response.on('data', chunk => {
         data += chunk;
       });
 
@@ -57,7 +57,7 @@ function fetchStatus() {
       });
     });
 
-    request.on('error', (error) => {
+    request.on('error', error => {
       reject(new Error(`Request failed: ${error.message}`));
     });
 
@@ -150,7 +150,7 @@ async function demonstrateEncryptedMessaging() {
     console.log(`🔑 Signer address: ${signerAddress}`);
 
     // Function to sign the URL using ethers.js signMessage
-    const signUrl = async (url) => {
+    const signUrl = async url => {
       try {
         // Create wallet from private key
         const wallet = new ethers.Wallet(privateKey);

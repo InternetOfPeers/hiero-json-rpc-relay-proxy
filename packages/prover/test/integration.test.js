@@ -88,13 +88,13 @@ describe('Prover Integration Tests', () => {
 
       // Save original values
       const originalValues = {};
-      requiredVars.forEach((varName) => {
+      requiredVars.forEach(varName => {
         originalValues[varName] = process.env[varName];
       });
 
       try {
         // Test each required variable
-        requiredVars.forEach((varName) => {
+        requiredVars.forEach(varName => {
           delete process.env[varName];
 
           // Simulate prover checking for this variable
@@ -108,7 +108,7 @@ describe('Prover Integration Tests', () => {
         });
       } finally {
         // Restore all original values
-        requiredVars.forEach((varName) => {
+        requiredVars.forEach(varName => {
           if (originalValues[varName]) {
             process.env[varName] = originalValues[varName];
           }
@@ -129,7 +129,7 @@ describe('Prover Integration Tests', () => {
         '../../proxy/src/cryptoUtils',
       ];
 
-      proxyModules.forEach((modulePath) => {
+      proxyModules.forEach(modulePath => {
         try {
           // This should not throw if the file exists and is accessible
           const resolvedPath = require.resolve(modulePath);
@@ -221,14 +221,14 @@ describe('Prover Integration Tests', () => {
 
       const invalidKeyFormats = ['invalid-key-format', '', null, undefined];
 
-      validKeyFormats.forEach((key) => {
+      validKeyFormats.forEach(key => {
         assert.ok(
           key.includes('BEGIN') && key.includes('END'),
           'Valid key should have proper format'
         );
       });
 
-      invalidKeyFormats.forEach((key) => {
+      invalidKeyFormats.forEach(key => {
         if (key) {
           assert.ok(
             !key.includes('BEGIN') || !key.includes('END'),
@@ -248,14 +248,14 @@ describe('Prover Integration Tests', () => {
       const validTopicIds = ['0.0.1234567', '0.0.123'];
       const invalidTopicIds = ['invalid', '1.2.3.4', '', null, undefined];
 
-      validTopicIds.forEach((topicId) => {
+      validTopicIds.forEach(topicId => {
         assert.ok(
           /^\d+\.\d+\.\d+$/.test(topicId),
           `${topicId} should match Hedera topic ID format`
         );
       });
 
-      invalidTopicIds.forEach((topicId) => {
+      invalidTopicIds.forEach(topicId => {
         if (topicId) {
           assert.ok(
             !/^\d+\.\d+\.\d+$/.test(topicId),

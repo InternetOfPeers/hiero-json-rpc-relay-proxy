@@ -336,7 +336,7 @@ describe('Prover Main Functionality', () => {
       // Test that required environment variables are checked
       const requiredEnvVars = ['HEDERA_ACCOUNT_ID', 'HEDERA_PRIVATE_KEY'];
 
-      requiredEnvVars.forEach((envVar) => {
+      requiredEnvVars.forEach(envVar => {
         assert.ok(process.env[envVar], `${envVar} should be set`);
       });
     });

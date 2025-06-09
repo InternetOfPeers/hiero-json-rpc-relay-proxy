@@ -35,7 +35,7 @@ describe('HederaManager Message Listener', () => {
 
   afterEach(() => {
     // Clean up all active intervals
-    activeIntervals.forEach((intervalId) => {
+    activeIntervals.forEach(intervalId => {
       if (intervalId) {
         clearInterval(intervalId);
       }
@@ -53,7 +53,7 @@ describe('HederaManager Message Listener', () => {
     const intervalId = hederaManager.startMessageListener();
 
     assert.strictEqual(intervalId, null);
-    assert.ok(logOutput.some((log) => log.includes('No topic ID available')));
+    assert.ok(logOutput.some(log => log.includes('No topic ID available')));
   });
 
   it('should start message listener with correct configuration', () => {
@@ -64,11 +64,9 @@ describe('HederaManager Message Listener', () => {
     activeIntervals.push(intervalId);
 
     assert.ok(intervalId !== null);
+    assert.ok(logOutput.some(log => log.includes('Starting message listener')));
     assert.ok(
-      logOutput.some((log) => log.includes('Starting message listener'))
-    );
-    assert.ok(
-      logOutput.some((log) =>
+      logOutput.some(log =>
         log.includes('Checking for new messages every 5 seconds')
       )
     );
@@ -97,13 +95,11 @@ describe('HederaManager Message Listener', () => {
     activeIntervals.push(intervalId);
 
     // Wait a bit for the async call to complete
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    await new Promise(resolve => setTimeout(resolve, 100));
 
+    assert.ok(logOutput.some(log => log.includes('Found 2 existing messages')));
     assert.ok(
-      logOutput.some((log) => log.includes('Found 2 existing messages'))
-    );
-    assert.ok(
-      logOutput.some((log) =>
+      logOutput.some(log =>
         log.includes('skipped message #1, processed sequence 2 to 2')
       )
     );
@@ -140,17 +136,15 @@ describe('HederaManager Message Listener', () => {
     activeIntervals.push(intervalId);
 
     // Wait for initial check
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    await new Promise(resolve => setTimeout(resolve, 50));
 
     // Wait for second check
-    await new Promise((resolve) => setTimeout(resolve, 150));
+    await new Promise(resolve => setTimeout(resolve, 150));
 
-    assert.ok(
-      logOutput.some((log) => log.includes('Found 1 existing messages'))
-    );
-    assert.ok(logOutput.some((log) => log.includes('Found 1 new message(s)')));
-    assert.ok(logOutput.some((log) => log.includes('Message #2')));
-    assert.ok(logOutput.some((log) => log.includes('New message')));
+    assert.ok(logOutput.some(log => log.includes('Found 1 existing messages')));
+    assert.ok(logOutput.some(log => log.includes('Found 1 new message(s)')));
+    assert.ok(logOutput.some(log => log.includes('Message #2')));
+    assert.ok(logOutput.some(log => log.includes('New message')));
   });
 
   it('should handle API errors gracefully', async () => {
@@ -163,12 +157,12 @@ describe('HederaManager Message Listener', () => {
     activeIntervals.push(intervalId);
 
     // Wait for the error to occur
-    await new Promise((resolve) => setTimeout(resolve, 150));
+    await new Promise(resolve => setTimeout(resolve, 150));
 
     assert.ok(
-      logOutput.some((log) => log.includes('Error checking for new messages'))
+      logOutput.some(log => log.includes('Error checking for new messages'))
     );
-    assert.ok(logOutput.some((log) => log.includes('Mirror node API error')));
+    assert.ok(logOutput.some(log => log.includes('Mirror node API error')));
   });
 
   it('should stop message listener correctly', () => {
@@ -180,9 +174,7 @@ describe('HederaManager Message Listener', () => {
 
     hederaManager.stopMessageListener(intervalId);
 
-    assert.ok(
-      logOutput.some((log) => log.includes('Message listener stopped'))
-    );
+    assert.ok(logOutput.some(log => log.includes('Message listener stopped')));
   });
 
   it('should handle empty messages array', async () => {
@@ -193,10 +185,10 @@ describe('HederaManager Message Listener', () => {
     activeIntervals.push(intervalId);
 
     // Wait for initial check
-    await new Promise((resolve) => setTimeout(resolve, 150));
+    await new Promise(resolve => setTimeout(resolve, 150));
 
     assert.ok(
-      logOutput.some((log) => log.includes('No existing messages found'))
+      logOutput.some(log => log.includes('No existing messages found'))
     );
   });
 
@@ -231,13 +223,13 @@ describe('HederaManager Message Listener', () => {
     activeIntervals.push(intervalId);
 
     // Wait for both checks
-    await new Promise((resolve) => setTimeout(resolve, 250));
+    await new Promise(resolve => setTimeout(resolve, 250));
 
     // Should find a log entry with truncated content (ending with ...)
-    const contentLogs = logOutput.filter((log) => log.includes('Content:'));
+    const contentLogs = logOutput.filter(log => log.includes('Content:'));
     assert.ok(
       contentLogs.some(
-        (log) => log.includes('...') && log.length < longMessage.length + 100
+        log => log.includes('...') && log.length < longMessage.length + 100
       )
     );
   });
@@ -260,7 +252,7 @@ describe('HederaManager Message Listener', () => {
 
     // Should log restored sequence
     assert.ok(
-      logOutput.some((log) =>
+      logOutput.some(log =>
         log.includes('Restored last processed sequence: 42')
       )
     );
@@ -300,7 +292,7 @@ describe('HederaManager Message Listener', () => {
     activeIntervals.push(intervalId);
 
     // Wait for both checks to complete
-    await new Promise((resolve) => setTimeout(resolve, 250));
+    await new Promise(resolve => setTimeout(resolve, 250));
 
     // Should have saved the latest sequence number twice (initial check + new message)
     assert.ok(mockStoreLastProcessedSequence.mock.callCount() >= 1);
@@ -336,11 +328,11 @@ describe('HederaManager Message Listener', () => {
     activeIntervals.push(intervalId);
 
     // Wait for check to complete
-    await new Promise((resolve) => setTimeout(resolve, 150));
+    await new Promise(resolve => setTimeout(resolve, 150));
 
     // Should have attempted to save but logged the error
     assert.ok(mockStoreLastProcessedSequence.mock.callCount() >= 1);
-    assert.ok(logOutput.some((log) => log.includes('Failed to save')));
+    assert.ok(logOutput.some(log => log.includes('Failed to save')));
   });
 
   it('should work without database persistence functions', async () => {
@@ -360,11 +352,9 @@ describe('HederaManager Message Listener', () => {
     activeIntervals.push(intervalId);
 
     // Wait for check to complete
-    await new Promise((resolve) => setTimeout(resolve, 150));
+    await new Promise(resolve => setTimeout(resolve, 150));
 
     // Should still process messages normally
-    assert.ok(
-      logOutput.some((log) => log.includes('Found 1 existing messages'))
-    );
+    assert.ok(logOutput.some(log => log.includes('Found 1 existing messages')));
   });
 });

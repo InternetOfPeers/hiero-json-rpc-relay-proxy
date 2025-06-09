@@ -16,24 +16,23 @@
     "dev": "npm run dev --workspace=packages/proxy",
     "dev:proxy": "npm run dev --workspace=packages/proxy",
     "dev:prover": "npm run dev --workspace=packages/prover",
-    "test": "npm run test && npm run test:integration",
+    "test": "npm run test:workspaces && npm run test:integration",
     "test:proxy": "npm test --workspace=packages/proxy",
     "test:prover": "npm test --workspace=packages/prover",
     "test:integration": "node --test test/*.test.js",
     "test:workspaces": "npm test --workspaces",
-    "lint": "eslint packages/*/src packages/*/test --fix",
-    "lint:check": "eslint packages/*/src packages/*/test",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "install:all": "npm install --workspaces",
     "workspace:proxy": "npm --workspace=packages/proxy",
     "workspace:prover": "npm --workspace=packages/prover"
   },
   "author": "Giuseppe Bertone <giuseppe.bertone@proton.me>",
   "license": "Apache-2.0",
-  "devDependencies": {
-    "eslint": "^8.57.0",
-    "sinon": "^17.0.1"
-  },
   "engines": {
     "node": ">=18.0.0"
+  },
+  "devDependencies": {
+    "prettier": "^3.5.3"
   }
 }

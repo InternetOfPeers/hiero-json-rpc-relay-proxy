@@ -110,7 +110,7 @@ const manager = new HederaManager({
   accountId: '0.0.1545',
   privateKey: '0x...',
   network: 'testnet',
-  keyType: 'ECDSA'
+  keyType: 'ECDSA',
 });
 
 // Initialize for a specific topic
@@ -158,9 +158,8 @@ The package includes comprehensive tests:
 ### Contributing
 
 1. Ensure all tests pass: `npm test`
-2. Follow the existing code style
-3. Add tests for new functionality
-4. Update documentation as needed
+2. Add tests for new functionality
+3. Update documentation as needed
 
 ## License
 
