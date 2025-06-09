@@ -18,8 +18,10 @@ const {
 const { HederaManager } = require("./hederaManager");
 const { loadEnvFile } = require("./envLoader");
 
-// Load .env file before accessing environment variables
-loadEnvFile();
+// Load .env file before accessing environment variables (unless explicitly disabled)
+if (!process.env.SKIP_ENV_FILE) {
+  loadEnvFile();
+}
 
 // Configuration
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
@@ -276,7 +278,7 @@ async function startServer() {
     });
     console.log("\nManagement endpoints:");
     console.log(
-      `  GET  http://localhost:${PORT}/status - Topic id & public key)`
+      `  GET  http://localhost:${PORT}/status - Topic id & public key`
     );
     console.log(
       `  GET  http://localhost:${PORT}/status/topic - Get Hedera topic info`

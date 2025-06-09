@@ -130,7 +130,36 @@ TEST_BASE64=dGVzdD1kYXRh`;
       process.env.TEST_EXISTING = "existing_value";
       loadEnvFile(TEST_ENV_FILE);
 
-      assert.strictEqual(process.env.TEST_EXISTING, "new_value"); // Should be set to new value
+      assert.strictEqual(process.env.TEST_EXISTING, "new_value"); // Should override with new value
+    });
+
+    test("should handle sequential loading with last value winning", async function () {
+      const envContent1 = `TEST_SEQUENTIAL=first_value`;
+      const envFile1 = path.join(TEST_ENV_DIR, "test1.env");
+      await fs.writeFile(envFile1, envContent1);
+
+      const envContent2 = `TEST_SEQUENTIAL=second_value`;
+      const envFile2 = path.join(TEST_ENV_DIR, "test2.env");
+      await fs.writeFile(envFile2, envContent2);
+
+      // Clear the variable first
+      delete process.env.TEST_SEQUENTIAL;
+
+      // Load first file
+      loadEnvFile(envFile1);
+      assert.strictEqual(process.env.TEST_SEQUENTIAL, "first_value");
+
+      // Load second file - should override
+      loadEnvFile(envFile2);
+      assert.strictEqual(process.env.TEST_SEQUENTIAL, "second_value"); // Last loaded wins
+
+      // Clean up
+      try {
+        await fs.unlink(envFile1);
+        await fs.unlink(envFile2);
+      } catch (error) {
+        // Files might not exist
+      }
     });
 
     test("should handle whitespace around keys and values", async function () {

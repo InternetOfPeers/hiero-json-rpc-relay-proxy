@@ -3,8 +3,8 @@ const path = require("path");
 
 /**
  * Simple .env file parser (no external dependencies)
- * Loads environment variables from a .env file and sets them in process.env
- * if they are not already defined.
+ * Loads environment variables from a .env file and sets them in process.env.
+ * Values from the .env file override any existing environment variables.
  *
  * @param {string} envPath - Path to the .env file (default: ".env")
  */
@@ -37,6 +37,7 @@ function loadEnvFile(envPath = ".env") {
             value = value.slice(1, -1);
           }
 
+          // Override environment variable (last loaded value wins)
           process.env[key] = value;
         }
       }
