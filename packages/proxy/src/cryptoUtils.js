@@ -1,4 +1,4 @@
-const crypto = require("crypto");
+const crypto = require('crypto');
 
 // Crypto Utilities Module
 // Handles hybrid RSA+AES encryption and decryption functionality
@@ -15,7 +15,7 @@ function encryptHybridMessage(publicKeyPem, data, verbose = false) {
   try {
     if (verbose) {
       console.log(
-        "🔐 Encrypting payload with hybrid encryption (RSA + AES)..."
+        '🔐 Encrypting payload with hybrid encryption (RSA + AES)...'
       );
     }
 
@@ -24,24 +24,24 @@ function encryptHybridMessage(publicKeyPem, data, verbose = false) {
     const iv = crypto.randomBytes(16);
 
     // Encrypt the data with AES-256-CBC
-    const aesCipher = crypto.createCipheriv("aes-256-cbc", aesKey, iv);
-    let encryptedData = aesCipher.update(data, "utf8", "base64");
-    encryptedData += aesCipher.final("base64");
+    const aesCipher = crypto.createCipheriv('aes-256-cbc', aesKey, iv);
+    let encryptedData = aesCipher.update(data, 'utf8', 'base64');
+    encryptedData += aesCipher.final('base64');
 
     // Encrypt the AES key with RSA
     const encryptedAesKey = crypto.publicEncrypt(
       {
         key: publicKeyPem,
         padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
-        oaepHash: "sha256",
+        oaepHash: 'sha256',
       },
       aesKey
     );
 
     // Combine everything into a single payload
     const hybridPayload = {
-      key: encryptedAesKey.toString("base64"),
-      iv: iv.toString("base64"),
+      key: encryptedAesKey.toString('base64'),
+      iv: iv.toString('base64'),
       data: encryptedData,
     };
 
@@ -77,21 +77,21 @@ function decryptHybridMessage(encryptedData, privateKeyPem) {
       if (testPayload.key && testPayload.iv && testPayload.data) {
         decodedPayload = encryptedData;
       } else {
-        throw new Error("Not a valid hybrid payload");
+        throw new Error('Not a valid hybrid payload');
       }
     } catch (jsonError) {
       // If JSON parsing fails, try base64 decoding
       try {
-        decodedPayload = Buffer.from(encryptedData, "base64").toString("utf8");
+        decodedPayload = Buffer.from(encryptedData, 'base64').toString('utf8');
 
         // Check if the result is still base64 (double-encoded)
         if (/^[A-Za-z0-9+/]+=*$/.test(decodedPayload)) {
-          decodedPayload = Buffer.from(decodedPayload, "base64").toString(
-            "utf8"
+          decodedPayload = Buffer.from(decodedPayload, 'base64').toString(
+            'utf8'
           );
         }
       } catch (base64Error) {
-        throw new Error("Invalid input: not valid JSON or base64");
+        throw new Error('Invalid input: not valid JSON or base64');
       }
     }
 
@@ -99,34 +99,34 @@ function decryptHybridMessage(encryptedData, privateKeyPem) {
 
     // Validate payload structure
     if (!hybridPayload.key || !hybridPayload.iv || !hybridPayload.data) {
-      throw new Error("Invalid hybrid payload structure");
+      throw new Error('Invalid hybrid payload structure');
     }
 
     // Check for unsupported algorithm if specified
-    if (hybridPayload.algorithm && hybridPayload.algorithm !== "RSA+AES") {
-      throw new Error("Unsupported encryption algorithm");
+    if (hybridPayload.algorithm && hybridPayload.algorithm !== 'RSA+AES') {
+      throw new Error('Unsupported encryption algorithm');
     }
 
     // Decrypt the AES key using RSA private key
-    const encryptedAesKey = Buffer.from(hybridPayload.key, "base64");
+    const encryptedAesKey = Buffer.from(hybridPayload.key, 'base64');
     const aesKey = crypto.privateDecrypt(
       {
         key: privateKeyPem,
         padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
-        oaepHash: "sha256",
+        oaepHash: 'sha256',
       },
       encryptedAesKey
     );
 
     // Decrypt the data using AES
-    const iv = Buffer.from(hybridPayload.iv, "base64");
-    const aesDecipher = crypto.createDecipheriv("aes-256-cbc", aesKey, iv);
+    const iv = Buffer.from(hybridPayload.iv, 'base64');
+    const aesDecipher = crypto.createDecipheriv('aes-256-cbc', aesKey, iv);
     let decryptedData = aesDecipher.update(
       hybridPayload.data,
-      "base64",
-      "utf8"
+      'base64',
+      'utf8'
     );
-    decryptedData += aesDecipher.final("utf8");
+    decryptedData += aesDecipher.final('utf8');
 
     return {
       success: true,
@@ -149,7 +149,7 @@ function decryptHybridMessage(encryptedData, privateKeyPem) {
 function isEncryptedMessage(message) {
   // Check if the message is base64 encoded and has reasonable length for encrypted data
   return (
-    typeof message === "string" &&
+    typeof message === 'string' &&
     message.length > 100 && // Encrypted messages should be reasonably long
     /^[A-Za-z0-9+/]+=*$/.test(message) // Base64 pattern
   );
@@ -164,18 +164,18 @@ function isEncryptedMessage(message) {
  */
 function verifyECDSASignature(url, signature, expectedAddress) {
   try {
-    const { ethers } = require("ethers");
+    const { ethers } = require('ethers');
 
     // Verify the message signature using ethers.js
     const recoveredAddress = ethers.verifyMessage(url, signature);
 
     // Clean addresses for comparison (ensure both are lowercase and properly formatted)
-    const cleanExpected = expectedAddress.toLowerCase().startsWith("0x")
+    const cleanExpected = expectedAddress.toLowerCase().startsWith('0x')
       ? expectedAddress.toLowerCase()
       : `0x${expectedAddress.toLowerCase()}`;
     const cleanRecovered = recoveredAddress.toLowerCase();
 
-    console.log(`🔐 Signature verification:`);
+    console.log('🔐 Signature verification:');
     console.log(`   Message: ${url}`);
     console.log(`   Expected: ${cleanExpected}`);
     console.log(`   Recovered: ${cleanRecovered}`);
@@ -183,7 +183,7 @@ function verifyECDSASignature(url, signature, expectedAddress) {
 
     return cleanRecovered === cleanExpected;
   } catch (error) {
-    console.error("Error verifying ECDSA signature:", error.message);
+    console.error('Error verifying ECDSA signature:', error.message);
     return false;
   }
 }

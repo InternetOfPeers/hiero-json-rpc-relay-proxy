@@ -1,5 +1,5 @@
-const fs = require("fs");
-const path = require("path");
+const fs = require('fs');
+const path = require('path');
 
 /**
  * Simple .env file parser (no external dependencies)
@@ -11,22 +11,22 @@ const path = require("path");
 function loadEnvFile(envPath) {
   try {
     // If no path provided, look for .env in the packages/proxy directory (parent of this module)
-    const defaultPath = envPath || path.join(__dirname, "..", ".env");
+    const defaultPath = envPath || path.join(__dirname, '..', '.env');
     const fullPath = path.resolve(defaultPath);
     if (fs.existsSync(fullPath)) {
-      const envContent = fs.readFileSync(fullPath, "utf8");
-      const lines = envContent.split("\n");
+      const envContent = fs.readFileSync(fullPath, 'utf8');
+      const lines = envContent.split('\n');
 
       for (const line of lines) {
         const trimmedLine = line.trim();
 
         // Skip empty lines and comments
-        if (!trimmedLine || trimmedLine.startsWith("#")) {
+        if (!trimmedLine || trimmedLine.startsWith('#')) {
           continue;
         }
 
         // Parse key=value pairs
-        const equalIndex = trimmedLine.indexOf("=");
+        const equalIndex = trimmedLine.indexOf('=');
         if (equalIndex > 0) {
           const key = trimmedLine.substring(0, equalIndex).trim();
           let value = trimmedLine.substring(equalIndex + 1).trim();
@@ -34,7 +34,7 @@ function loadEnvFile(envPath) {
           // Remove quotes if present
           if (
             (value.startsWith('"') && value.endsWith('"')) ||
-            (value.startsWith("'") && value.endsWith("'"))
+            (value.startsWith('\'') && value.endsWith('\''))
           ) {
             value = value.slice(1, -1);
           }

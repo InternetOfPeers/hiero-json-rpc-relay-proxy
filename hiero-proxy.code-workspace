@@ -1,0 +1,166 @@
+{
+  "folders": [
+    {
+      "name": "🏠 Root",
+      "path": "."
+    },
+    {
+      "name": "🔀 Proxy",
+      "path": "./packages/proxy"
+    },
+    {
+      "name": "🔐 Prover",
+      "path": "./packages/prover"
+    }
+  ],
+  "settings": {
+    "editor.tabSize": 2,
+    "editor.insertSpaces": true,
+    "editor.detectIndentation": false,
+    "files.trimTrailingWhitespace": true,
+    "files.insertFinalNewline": true,
+    "files.trimFinalNewlines": true,
+    "eslint.workingDirectories": [
+      "packages/proxy",
+      "packages/prover"
+    ],
+    "eslint.validate": [
+      "javascript"
+    ],
+    "files.associations": {
+      "*.env.example": "properties"
+    },
+    "search.exclude": {
+      "**/node_modules": true,
+      "**/data/*.json": true,
+      "**/data/*.db": true,
+      "**/*.log": true
+    },
+    "files.exclude": {
+      "**/node_modules": true,
+      "**/.DS_Store": true
+    },
+    "terminal.integrated.cwd": "${workspaceFolder}",
+    "npm.packageManager": "npm"
+  },
+  "tasks": {
+    "version": "2.0.0",
+    "tasks": [
+      {
+        "label": "Install All Packages",
+        "type": "shell",
+        "command": "npm",
+        "args": ["install"],
+        "group": "build",
+        "presentation": {
+          "echo": true,
+          "reveal": "always",
+          "focus": false,
+          "panel": "shared"
+        },
+        "options": {
+          "cwd": "${workspaceFolder}"
+        }
+      },
+      {
+        "label": "Test All Packages",
+        "type": "shell",
+        "command": "npm",
+        "args": ["test"],
+        "group": "test",
+        "presentation": {
+          "echo": true,
+          "reveal": "always",
+          "focus": false,
+          "panel": "shared"
+        },
+        "options": {
+          "cwd": "${workspaceFolder}"
+        }
+      },
+      {
+        "label": "Start Proxy Server",
+        "type": "shell",
+        "command": "npm",
+        "args": ["run", "start:proxy"],
+        "group": "build",
+        "presentation": {
+          "echo": true,
+          "reveal": "always",
+          "focus": false,
+          "panel": "dedicated"
+        },
+        "isBackground": true,
+        "problemMatcher": []
+      },
+      {
+        "label": "Start Prover",
+        "type": "shell",
+        "command": "npm",
+        "args": ["run", "start:prover"],
+        "group": "build",
+        "presentation": {
+          "echo": true,
+          "reveal": "always",
+          "focus": false,
+          "panel": "dedicated"
+        },
+        "isBackground": true,
+        "problemMatcher": []
+      },
+      {
+        "label": "Clean All",
+        "type": "shell",
+        "command": "npm",
+        "args": ["run", "clean"],
+        "group": "build",
+        "presentation": {
+          "echo": true,
+          "reveal": "always",
+          "focus": false,
+          "panel": "shared"
+        }
+      }
+    ]
+  },
+  "launch": {
+    "version": "0.2.0",
+    "configurations": [
+      {
+        "name": "Debug Proxy Tests",
+        "type": "node",
+        "request": "launch",
+        "program": "${workspaceFolder}/packages/proxy/test",
+        "args": ["--test"],
+        "cwd": "${workspaceFolder}/packages/proxy",
+        "console": "integratedTerminal"
+      },
+      {
+        "name": "Debug Prover Tests",
+        "type": "node",
+        "request": "launch",
+        "program": "${workspaceFolder}/packages/prover/test",
+        "args": ["--test"],
+        "cwd": "${workspaceFolder}/packages/prover",
+        "console": "integratedTerminal"
+      },
+      {
+        "name": "Debug Integration Tests",
+        "type": "node",
+        "request": "launch",
+        "program": "${workspaceFolder}/test",
+        "args": ["--test"],
+        "cwd": "${workspaceFolder}",
+        "console": "integratedTerminal"
+      }
+    ]
+  },
+  "extensions": {
+    "recommendations": [
+      "ms-vscode.vscode-eslint",
+      "ms-vscode.vscode-json",
+      "bradlc.vscode-tailwindcss",
+      "ms-vscode.test-adapter-converter"
+    ]
+  }
+}

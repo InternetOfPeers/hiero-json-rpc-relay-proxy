@@ -1,7 +1,7 @@
-const http = require("http");
-const https = require("https");
-const path = require("path");
-const { extractToFromTransaction } = require("./ethTxDecoder");
+const http = require('http');
+const https = require('https');
+const path = require('path');
+const { extractToFromTransaction } = require('./ethTxDecoder');
 const {
   initDatabase,
   saveDatabase,
@@ -13,9 +13,9 @@ const {
   hasRSAKeyPair,
   getLastProcessedSequence,
   storeLastProcessedSequence,
-} = require("./dbManager");
-const { HederaManager } = require("./hederaManager");
-const { loadEnvFile } = require("./envLoader");
+} = require('./dbManager');
+const { HederaManager } = require('./hederaManager');
+const { loadEnvFile } = require('./envLoader');
 
 // Load .env file before accessing environment variables (unless explicitly disabled)
 if (!process.env.SKIP_ENV_FILE) {
@@ -24,14 +24,14 @@ if (!process.env.SKIP_ENV_FILE) {
 
 // Configuration
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
-const DATA_FOLDER = process.env.DATA_FOLDER || "data";
+const DATA_FOLDER = process.env.DATA_FOLDER || 'data';
 const DEFAULT_SERVER =
-  process.env.DEFAULT_SERVER || "https://testnet.hashio.io/api"; // Fallback server
+  process.env.DEFAULT_SERVER || 'https://testnet.hashio.io/api'; // Fallback server
 
 // Hedera configuration
 const HEDERA_ACCOUNT_ID = process.env.HEDERA_ACCOUNT_ID;
 const HEDERA_PRIVATE_KEY = process.env.HEDERA_PRIVATE_KEY;
-const HEDERA_NETWORK = process.env.HEDERA_NETWORK || "testnet"; // testnet or mainnet
+const HEDERA_NETWORK = process.env.HEDERA_NETWORK || 'testnet'; // testnet or mainnet
 const HEDERA_TOPIC_ID = process.env.HEDERA_TOPIC_ID; // Optional: existing topic ID
 
 // Generate network-specific database file path
@@ -39,7 +39,7 @@ function getDBFilePath() {
   // Resolve DATA_FOLDER relative to the proxy package directory (parent of src)
   const dataPath = path.isAbsolute(DATA_FOLDER)
     ? DATA_FOLDER
-    : path.join(__dirname, "..", DATA_FOLDER);
+    : path.join(__dirname, '..', DATA_FOLDER);
   return path.join(dataPath, `routing_db_${HEDERA_NETWORK}.json`);
 }
 
@@ -58,13 +58,13 @@ const hederaManager = new HederaManager({
 // Parse request body
 function parseRequestBody(req) {
   return new Promise((resolve, reject) => {
-    let body = "";
+    let body = '';
 
-    req.on("data", (chunk) => {
+    req.on('data', (chunk) => {
       body += chunk.toString();
     });
 
-    req.on("end", () => {
+    req.on('end', () => {
       try {
         let jsonData = null;
         if (body.trim()) {
@@ -72,33 +72,33 @@ function parseRequestBody(req) {
         }
         resolve({ body, jsonData });
       } catch (error) {
-        console.error("JSON parse error:", error.message);
+        console.error('JSON parse error:', error.message);
         resolve({ body, jsonData: null });
       }
     });
 
-    req.on("error", reject);
+    req.on('error', reject);
   });
 }
 
 // Forward request to target server
 function forwardRequest(targetServer, req, res, requestBody) {
   const targetUrl = new URL(targetServer);
-  const httpModule = targetUrl.protocol === "https:" ? https : http;
+  const httpModule = targetUrl.protocol === 'https:' ? https : http;
 
   // For JSON-RPC requests, we want to forward to the exact target server path
   // Don't append the original request path since we're proxying to a specific API endpoint
 
   // Filter headers to avoid conflicts with the target server
   const allowedHeaders = {};
-  if (req.headers["content-type"]) {
-    allowedHeaders["content-type"] = req.headers["content-type"];
+  if (req.headers['content-type']) {
+    allowedHeaders['content-type'] = req.headers['content-type'];
   }
-  if (req.headers["user-agent"]) {
-    allowedHeaders["user-agent"] = req.headers["user-agent"];
+  if (req.headers['user-agent']) {
+    allowedHeaders['user-agent'] = req.headers['user-agent'];
   }
-  if (req.headers["accept"]) {
-    allowedHeaders["accept"] = req.headers["accept"];
+  if (req.headers['accept']) {
+    allowedHeaders['accept'] = req.headers['accept'];
   }
 
   const options = {
@@ -109,7 +109,7 @@ function forwardRequest(targetServer, req, res, requestBody) {
     headers: {
       ...allowedHeaders,
       host: targetUrl.host,
-      "content-length": Buffer.byteLength(requestBody || ""),
+      'content-length': Buffer.byteLength(requestBody || ''),
     },
   };
 
@@ -118,12 +118,12 @@ function forwardRequest(targetServer, req, res, requestBody) {
     proxyRes.pipe(res);
   });
 
-  proxyReq.on("error", (err) => {
-    console.error("Proxy request error:", err.message);
-    res.writeHead(500, { "Content-Type": "application/json" });
+  proxyReq.on('error', (err) => {
+    console.error('Proxy request error:', err.message);
+    res.writeHead(500, { 'Content-Type': 'application/json' });
     res.end(
       JSON.stringify({
-        error: "Proxy Error: Unable to connect to target server",
+        error: 'Proxy Error: Unable to connect to target server',
       })
     );
   });
@@ -137,14 +137,14 @@ function forwardRequest(targetServer, req, res, requestBody) {
 const server = http.createServer(async (req, res) => {
   try {
     // Handle management routes
-    if (req.url === "/routes" && req.method === "GET") {
-      res.writeHead(200, { "Content-Type": "application/json" });
+    if (req.url === '/routes' && req.method === 'GET') {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(getRoutingDB(), null, 2));
       return;
     }
 
     // Handle combined status endpoint - shows both topic and public key info
-    if (req.url === "/status" && req.method === "GET") {
+    if (req.url === '/status' && req.method === 'GET') {
       const topicInfo = hederaManager.getTopicInfo();
       const keyPair = getRSAKeyPair();
 
@@ -154,38 +154,38 @@ const server = http.createServer(async (req, res) => {
         publicKey: keyPair ? keyPair.publicKey : null,
       };
 
-      res.writeHead(200, { "Content-Type": "application/json" });
+      res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(statusInfo, null, 2));
       return;
     }
 
-    if (req.url === "/routes" && req.method === "POST") {
+    if (req.url === '/routes' && req.method === 'POST') {
       const { body, jsonData } = await parseRequestBody(req);
       if (jsonData) {
         await updateRoutes(jsonData, saveDatabase, getDBFilePath());
-        res.writeHead(200, { "Content-Type": "application/json" });
+        res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(
-          JSON.stringify({ message: "Routes updated", routes: getRoutingDB() })
+          JSON.stringify({ message: 'Routes updated', routes: getRoutingDB() })
         );
       } else {
-        res.writeHead(400, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ error: "Invalid JSON payload" }));
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Invalid JSON payload' }));
       }
       return;
     }
 
     // Handle Hedera topic info endpoint
-    if (req.url === "/status/topic" && req.method === "GET") {
-      res.writeHead(200, { "Content-Type": "application/json" });
+    if (req.url === '/status/topic' && req.method === 'GET') {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(hederaManager.getTopicInfo(), null, 2));
       return;
     }
 
     // Handle RSA public key endpoint
-    if (req.url === "/status/public-key" && req.method === "GET") {
+    if (req.url === '/status/public-key' && req.method === 'GET') {
       const keyPair = getRSAKeyPair();
       if (keyPair) {
-        res.writeHead(200, { "Content-Type": "application/json" });
+        res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(
           JSON.stringify(
             {
@@ -198,8 +198,8 @@ const server = http.createServer(async (req, res) => {
           )
         );
       } else {
-        res.writeHead(500, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ error: "RSA key pair not initialized" }));
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'RSA key pair not initialized' }));
       }
       return;
     }
@@ -211,7 +211,7 @@ const server = http.createServer(async (req, res) => {
     let targetServer = DEFAULT_SERVER;
 
     // Only analyze transactions for eth_sendRawTransaction method
-    if (jsonData && jsonData.method === "eth_sendRawTransaction") {
+    if (jsonData && jsonData.method === 'eth_sendRawTransaction') {
       const rawTx = jsonData.params;
 
       if (rawTx && rawTx.length > 0) {
@@ -228,7 +228,7 @@ const server = http.createServer(async (req, res) => {
       }
     } else {
       // For all other methods, use default server
-      const method = jsonData ? jsonData.method : "unknown";
+      const method = jsonData ? jsonData.method : 'unknown';
       console.log(
         `${req.method} ${req.url} - method: ${method} -> ${DEFAULT_SERVER} (default)`
       );
@@ -237,14 +237,14 @@ const server = http.createServer(async (req, res) => {
     // Forward the request
     forwardRequest(targetServer, req, res, requestBody);
   } catch (error) {
-    console.error("Server error:", error.message);
-    res.writeHead(500, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({ error: "Internal server error" }));
+    console.error('Server error:', error.message);
+    res.writeHead(500, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'Internal server error' }));
   }
 });
 
-server.on("error", (err) => {
-  console.error("Server error:", err.message);
+server.on('error', (err) => {
+  console.error('Server error:', err.message);
 });
 
 // Start server
@@ -254,7 +254,7 @@ async function startServer() {
     await initRSAKeyPair(getDBFilePath());
     await hederaManager.initTopic(getRSAKeyPair);
   } catch (error) {
-    console.error("Failed to initialize server:", error.message);
+    console.error('Failed to initialize server:', error.message);
     process.exit(1);
   }
 
@@ -269,17 +269,17 @@ async function startServer() {
 
     // Display RSA key pair status
     if (hasRSAKeyPair()) {
-      console.log("✅ RSA key pair initialized");
+      console.log('✅ RSA key pair initialized');
     }
 
-    console.log("\nAvailable routes:");
+    console.log('\nAvailable routes:');
     Object.entries(getRoutingDB()).forEach(([address, server]) => {
       // Skip displaying RSA keys in routes listing
-      if (address !== "rsaKeys") {
+      if (address !== 'rsaKeys') {
         console.log(`  ${address} -> ${server}`);
       }
     });
-    console.log("\nManagement endpoints:");
+    console.log('\nManagement endpoints:');
     console.log(
       `  GET  http://localhost:${PORT}/status - Topic id & public key`
     );
@@ -291,18 +291,18 @@ async function startServer() {
     );
     console.log(`  GET  http://localhost:${PORT}/routes - View current routes`);
     console.log(`  POST http://localhost:${PORT}/routes - Update routes`);
-    console.log("\nExample request:");
+    console.log('\nExample request:');
     console.log(`  curl -X POST http://localhost:${PORT} \\`);
-    console.log(`    -H "Content-Type: application/json" \\`);
+    console.log('    -H "Content-Type: application/json" \\');
     console.log(
-      `    -d '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}'`
+      '    -d \'{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}\''
     );
 
     // Start listening for new Hedera topic messages if topic is available
     if (hederaManager.isEnabled() && topicId) {
-      console.log("\n" + "=".repeat(60));
-      console.log("🎯 STARTING HEDERA MESSAGE LISTENER");
-      console.log("=".repeat(60));
+      console.log('\n' + '='.repeat(60));
+      console.log('🎯 STARTING HEDERA MESSAGE LISTENER');
+      console.log('='.repeat(60));
 
       // Start message listener with 5-second intervals
       global.messageListenerInterval = hederaManager.startMessageListener(5000);
@@ -310,30 +310,30 @@ async function startServer() {
   });
 
   // Handle server listen errors (e.g., port already in use)
-  server.on("error", (error) => {
-    if (error.code === "EADDRINUSE") {
+  server.on('error', (error) => {
+    if (error.code === 'EADDRINUSE') {
       console.error(`❌ Error: Port ${PORT} is already in use`);
       console.error(
-        "Please choose a different port or stop the process using this port."
+        'Please choose a different port or stop the process using this port.'
       );
       console.error(`You can use: lsof -ti:${PORT} | xargs kill -9`);
-    } else if (error.code === "EACCES") {
+    } else if (error.code === 'EACCES') {
       console.error(`❌ Error: Permission denied to bind to port ${PORT}`);
       console.error(
-        "Please try using a port number above 1024 or run with appropriate permissions."
+        'Please try using a port number above 1024 or run with appropriate permissions.'
       );
     } else {
       console.error(`❌ Error binding to port ${PORT}:`, error.message);
     }
 
-    console.error("Server startup failed. Exiting...");
+    console.error('Server startup failed. Exiting...');
     process.exit(1);
   });
 }
 
 // Graceful shutdown
-process.on("SIGINT", () => {
-  console.log("\nShutting down server...");
+process.on('SIGINT', () => {
+  console.log('\nShutting down server...');
 
   // Stop message listener if running
   if (global.messageListenerInterval) {
@@ -341,7 +341,7 @@ process.on("SIGINT", () => {
   }
 
   server.close(() => {
-    console.log("Server closed");
+    console.log('Server closed');
     process.exit(0);
   });
 });

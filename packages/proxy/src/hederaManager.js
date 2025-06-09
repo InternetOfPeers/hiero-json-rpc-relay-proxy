@@ -1,5 +1,5 @@
-const http = require("http");
-const https = require("https");
+const http = require('http');
+const https = require('https');
 const {
   Client,
   PrivateKey,
@@ -8,8 +8,8 @@ const {
   TopicInfoQuery,
   TopicMessageSubmitTransaction,
   Hbar,
-} = require("@hashgraph/sdk");
-const { decryptHybridMessage } = require("./cryptoUtils");
+} = require('@hashgraph/sdk');
+const { decryptHybridMessage } = require('./cryptoUtils');
 
 // Hedera Manager Module
 // Handles all Hedera Consensus Service functionality including:
@@ -39,7 +39,7 @@ class HederaManager {
   initClient() {
     if (!this.accountId || !this.privateKey) {
       console.log(
-        "Hedera credentials not provided. Skipping Hedera topic setup."
+        'Hedera credentials not provided. Skipping Hedera topic setup.'
       );
       return null;
     }
@@ -49,19 +49,19 @@ class HederaManager {
       const privateKey = PrivateKey.fromStringED25519(this.privateKey);
 
       let client;
-      if (this.network === "local") client = Client.forLocalNode();
+      if (this.network === 'local') client = Client.forLocalNode();
       else client = Client.forName(this.network);
 
       client.setOperator(accountId, privateKey);
 
       switch (this.network) {
-        case "local":
-          this.mirrorNodeUrl = "http://localhost:5551";
-          break;
-        default:
-          this.mirrorNodeUrl =
-            "https://" + this.network + ".mirrornode.hedera.com";
-          break;
+      case 'local':
+        this.mirrorNodeUrl = 'http://localhost:5551';
+        break;
+      default:
+        this.mirrorNodeUrl =
+            'https://' + this.network + '.mirrornode.hedera.com';
+        break;
       }
 
       console.log(
@@ -72,7 +72,7 @@ class HederaManager {
       this.client = client;
       return client;
     } catch (error) {
-      console.error("Failed to initialize Hedera client:", error.message);
+      console.error('Failed to initialize Hedera client:', error.message);
       process.exit(1);
     }
   }
@@ -102,14 +102,14 @@ class HederaManager {
   // Create a new Hedera topic
   async createTopic() {
     if (!this.client) {
-      throw new Error("Hedera client not initialized");
+      throw new Error('Hedera client not initialized');
     }
 
     try {
-      console.log("Creating new Hedera topic...");
+      console.log('Creating new Hedera topic...');
 
       const transaction = new TopicCreateTransaction()
-        .setTopicMemo("Hiero JSON-RPC Relay Proxy Topic")
+        .setTopicMemo('Hiero JSON-RPC Relay Proxy Topic')
         .setMaxTransactionFee(new Hbar(2)); // Set max fee to 2 HBAR
 
       const txResponse = await transaction.execute(this.client);
@@ -120,7 +120,7 @@ class HederaManager {
       this.currentTopicId = newTopicId.toString();
       return this.currentTopicId;
     } catch (error) {
-      console.error("Failed to create Hedera topic:", error.message);
+      console.error('Failed to create Hedera topic:', error.message);
       throw error;
     }
   }
@@ -144,28 +144,28 @@ class HederaManager {
       return new Promise((resolve, reject) => {
         const timeoutId = setTimeout(() => {
           console.log(
-            `Timeout: Failed to check topic messages within 5 seconds`
+            'Timeout: Failed to check topic messages within 5 seconds'
           );
           reject(
             new Error(
-              `Timeout: Failed to check topic messages within 5 seconds`
+              'Timeout: Failed to check topic messages within 5 seconds'
             )
           );
         }, 5000);
 
-        const httpModule = this.mirrorNodeUrl.startsWith("https:")
+        const httpModule = this.mirrorNodeUrl.startsWith('https:')
           ? https
           : http;
 
         const req = httpModule.get(url, (res) => {
           clearTimeout(timeoutId);
 
-          let data = "";
-          res.on("data", (chunk) => {
+          let data = '';
+          res.on('data', (chunk) => {
             data += chunk;
           });
 
-          res.on("end", () => {
+          res.on('end', () => {
             try {
               if (res.statusCode === 200) {
                 const response = JSON.parse(data);
@@ -190,7 +190,7 @@ class HederaManager {
               }
             } catch (parseError) {
               console.error(
-                `Error parsing mirror node response:`,
+                'Error parsing mirror node response:',
                 parseError.message
               );
               reject(
@@ -202,16 +202,16 @@ class HederaManager {
           });
         });
 
-        req.on("error", (error) => {
+        req.on('error', (error) => {
           clearTimeout(timeoutId);
-          console.error(`Error calling mirror node API:`, error.message);
+          console.error('Error calling mirror node API:', error.message);
           reject(new Error(`Failed to call mirror node API: ${error.message}`));
         });
 
         req.setTimeout(5000, () => {
           req.destroy();
           reject(
-            new Error(`Mirror node API request timed out after 5 seconds`)
+            new Error('Mirror node API request timed out after 5 seconds')
           );
         });
       });
@@ -228,7 +228,7 @@ class HederaManager {
   async submitMessageToTopic(topicIdString, message) {
     if (!this.client || !topicIdString || !message) {
       throw new Error(
-        "Missing required parameters for topic message submission"
+        'Missing required parameters for topic message submission'
       );
     }
 
@@ -261,7 +261,7 @@ class HederaManager {
   async checkAndSubmitPublicKey(isNewTopic = false, getRSAKeyPair) {
     if (!this.client || !this.currentTopicId) {
       console.log(
-        "Hedera client or topic not initialized, skipping public key submission"
+        'Hedera client or topic not initialized, skipping public key submission'
       );
       return;
     }
@@ -269,7 +269,7 @@ class HederaManager {
     // Get the RSA public key
     const keyPair = getRSAKeyPair();
     if (!keyPair || !keyPair.publicKey) {
-      console.log("RSA key pair not available, skipping public key submission");
+      console.log('RSA key pair not available, skipping public key submission');
       return;
     }
 
@@ -278,7 +278,7 @@ class HederaManager {
     let shouldSubmitKey = isNewTopic;
 
     if (!isNewTopic) {
-      console.log("Checking if topic has existing messages...");
+      console.log('Checking if topic has existing messages...');
       // Add timeout wrapper that throws error on timeout (server MUST stop)
       try {
         const hasMessages = await Promise.race([
@@ -288,7 +288,7 @@ class HederaManager {
               () =>
                 reject(
                   new Error(
-                    "Timeout: Failed to check topic messages within 5 seconds"
+                    'Timeout: Failed to check topic messages within 5 seconds'
                   )
                 ),
               5000
@@ -298,8 +298,8 @@ class HederaManager {
         shouldSubmitKey = !hasMessages;
         console.log(`Topic message check result: hasMessages=${hasMessages}`);
       } catch (error) {
-        console.error("Critical error checking topic messages:", error.message);
-        console.error("Server must stop - cannot verify topic state");
+        console.error('Critical error checking topic messages:', error.message);
+        console.error('Server must stop - cannot verify topic state');
         process.exit(1);
       }
     }
@@ -307,8 +307,8 @@ class HederaManager {
     if (shouldSubmitKey) {
       console.log(
         isNewTopic
-          ? "Sending public key as first message to new topic..."
-          : "Topic has no messages, sending public key as first message..."
+          ? 'Sending public key as first message to new topic...'
+          : 'Topic has no messages, sending public key as first message...'
       );
       // Add timeout wrapper for public key submission (server MUST stop on timeout)
       await Promise.race([
@@ -318,7 +318,7 @@ class HederaManager {
             () =>
               reject(
                 new Error(
-                  "Timeout: Failed to submit public key within 10 seconds"
+                  'Timeout: Failed to submit public key within 10 seconds'
                 )
               ),
             10000
@@ -326,7 +326,7 @@ class HederaManager {
         ),
       ]);
     } else {
-      console.log("Topic already has messages, skipping public key submission");
+      console.log('Topic already has messages, skipping public key submission');
     }
   }
 
@@ -335,7 +335,7 @@ class HederaManager {
     this.client = this.initClient();
 
     if (!this.client) {
-      console.log("Hedera functionality disabled - no credentials provided");
+      console.log('Hedera functionality disabled - no credentials provided');
       return;
     }
 
@@ -369,8 +369,8 @@ class HederaManager {
       // Server MUST stop if this operation fails or times out
       await this.checkAndSubmitPublicKey(true, getRSAKeyPair);
     } catch (error) {
-      console.error("Failed to initialize Hedera topic:", error.message);
-      console.error("Server MUST stop - Hedera topic initialization failed");
+      console.error('Failed to initialize Hedera topic:', error.message);
+      console.error('Server MUST stop - Hedera topic initialization failed');
       process.exit(1);
     }
   }
@@ -403,7 +403,7 @@ class HederaManager {
   // Start listening for new messages on the topic
   startMessageListener(intervalMs = 5000) {
     if (!this.currentTopicId) {
-      console.log("No topic ID available, cannot start message listener");
+      console.log('No topic ID available, cannot start message listener');
       return null;
     }
 
@@ -479,7 +479,7 @@ class HederaManager {
                 );
               } catch (error) {
                 console.error(
-                  `Failed to save initial sequence to database:`,
+                  'Failed to save initial sequence to database:',
                   error.message
                 );
               }
@@ -501,8 +501,8 @@ class HederaManager {
                 const timestamp = new Date(
                   message.consensus_timestamp * 1000
                 ).toISOString();
-                const content = Buffer.from(message.message, "base64").toString(
-                  "utf8"
+                const content = Buffer.from(message.message, 'base64').toString(
+                  'utf8'
                 );
 
                 console.log(
@@ -510,7 +510,7 @@ class HederaManager {
                 );
 
                 console.log(
-                  "      🔐 Encrypted message detected, attempting decryption..."
+                  '      🔐 Encrypted message detected, attempting decryption...'
                 );
 
                 // Get RSA private key for decryption
@@ -524,7 +524,7 @@ class HederaManager {
                   );
 
                   if (decryptionResult.success) {
-                    console.log("      ✅ Message decrypted successfully!");
+                    console.log('      ✅ Message decrypted successfully!');
                     console.log(
                       `      📄 Decrypted Content: ${decryptionResult.decryptedData}`
                     );
@@ -538,22 +538,22 @@ class HederaManager {
                     );
                   } else {
                     console.log(
-                      "      ❌ Decryption failed:",
+                      '      ❌ Decryption failed:',
                       decryptionResult.error
                     );
                     console.log(
                       `      📄 Raw Content: ${content.substring(0, 200)}${
-                        content.length > 200 ? "..." : ""
+                        content.length > 200 ? '...' : ''
                       }`
                     );
                   }
                 } else {
                   console.log(
-                    "      ⚠️  No RSA private key available for decryption"
+                    '      ⚠️  No RSA private key available for decryption'
                   );
                   console.log(
                     `      📄 Raw Content: ${content.substring(0, 200)}${
-                      content.length > 200 ? "..." : ""
+                      content.length > 200 ? '...' : ''
                     }`
                   );
                 }
@@ -576,7 +576,7 @@ class HederaManager {
                   );
                 } catch (error) {
                   console.error(
-                    `Failed to save sequence to database:`,
+                    'Failed to save sequence to database:',
                     error.message
                   );
                 }
@@ -584,11 +584,11 @@ class HederaManager {
             }
           }
         } else if (isFirstCheck) {
-          console.log("📊 No existing messages found in topic");
+          console.log('📊 No existing messages found in topic');
           isFirstCheck = false;
         }
       } catch (error) {
-        console.error(`❌ Error checking for new messages:`, error.message);
+        console.error('❌ Error checking for new messages:', error.message);
       }
     };
 
@@ -614,23 +614,23 @@ class HederaManager {
       return new Promise((resolve, reject) => {
         const timeoutId = setTimeout(() => {
           reject(
-            new Error(`Mirror node API request timed out after 5 seconds`)
+            new Error('Mirror node API request timed out after 5 seconds')
           );
         }, 5000);
 
-        const httpModule = this.mirrorNodeUrl.startsWith("https:")
+        const httpModule = this.mirrorNodeUrl.startsWith('https:')
           ? https
           : http;
 
         const req = httpModule.get(url, (res) => {
           clearTimeout(timeoutId);
 
-          let data = "";
-          res.on("data", (chunk) => {
+          let data = '';
+          res.on('data', (chunk) => {
             data += chunk;
           });
 
-          res.on("end", () => {
+          res.on('end', () => {
             try {
               if (res.statusCode === 200) {
                 const response = JSON.parse(data);
@@ -655,14 +655,14 @@ class HederaManager {
           });
         });
 
-        req.on("error", (error) => {
+        req.on('error', (error) => {
           clearTimeout(timeoutId);
           reject(new Error(`Failed to call mirror node API: ${error.message}`));
         });
 
         req.setTimeout(5000, () => {
           req.destroy();
-          reject(new Error(`Mirror node API request timed out`));
+          reject(new Error('Mirror node API request timed out'));
         });
       });
     } catch (error) {
@@ -678,7 +678,7 @@ class HederaManager {
   stopMessageListener(intervalId) {
     if (intervalId) {
       clearInterval(intervalId);
-      console.log("🛑 Message listener stopped");
+      console.log('🛑 Message listener stopped');
     }
   }
 
@@ -689,13 +689,13 @@ class HederaManager {
       const messageData = JSON.parse(decryptedData);
 
       // Check if the message contains routes with signatures
-      if (!messageData.routes || typeof messageData.routes !== "object") {
+      if (!messageData.routes || typeof messageData.routes !== 'object') {
         console.log(
-          "      📝 No routes found in message - skipping signature verification"
+          '      📝 No routes found in message - skipping signature verification'
         );
         return;
       }
-      console.log("      🔍 Verifying ECDSA signatures...");
+      console.log('      🔍 Verifying ECDSA signatures...');
 
       let totalSignatures = 0;
       let validSignatures = 0;
@@ -707,7 +707,7 @@ class HederaManager {
           totalSignatures++;
 
           try {
-            const { ethers } = require("ethers");
+            const { ethers } = require('ethers');
 
             // Derive the signer address from the signature
             const signerFromThisSignature = ethers.verifyMessage(
@@ -769,24 +769,24 @@ class HederaManager {
         const success = validSignatures === totalSignatures;
         console.log(
           `      🎯 Signature verification: ${validSignatures}/${totalSignatures} signatures valid ${
-            success ? "✅" : "❌"
+            success ? '✅' : '❌'
           }`
         );
 
         if (!success) {
           console.log(
-            "      ⚠️  Message contains invalid signatures - potential security risk!"
+            '      ⚠️  Message contains invalid signatures - potential security risk!'
           );
         }
       } else {
         console.log(
-          "      📝 No signatures found in routes - skipping verification"
+          '      📝 No signatures found in routes - skipping verification'
         );
       }
     } catch (error) {
-      console.log("      ❌ Signature verification failed:", error.message);
+      console.log('      ❌ Signature verification failed:', error.message);
       console.log(
-        "      📝 Message may not be in expected format or contain valid JSON"
+        '      📝 Message may not be in expected format or contain valid JSON'
       );
     }
   }

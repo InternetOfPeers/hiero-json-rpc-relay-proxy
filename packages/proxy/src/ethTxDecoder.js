@@ -2,7 +2,7 @@
 function rlpDecode(data) {
   function hexToBytes(hex) {
     const bytes = [];
-    const cleanHex = hex.replace("0x", "");
+    const cleanHex = hex.replace('0x', '');
     for (let i = 0; i < cleanHex.length; i += 2) {
       bytes.push(parseInt(cleanHex.substr(i, 2), 16));
     }
@@ -17,8 +17,8 @@ function rlpDecode(data) {
         return createBuffer(this.data.slice(start, end));
       },
       toString: function (encoding) {
-        if (encoding === "hex") {
-          return this.data.map((b) => b.toString(16).padStart(2, "0")).join("");
+        if (encoding === 'hex') {
+          return this.data.map((b) => b.toString(16).padStart(2, '0')).join('');
         }
         return this.data;
       },
@@ -82,7 +82,7 @@ function rlpDecode(data) {
       }
       return [result, endOffset];
     }
-    throw new Error("Invalid RLP encoding");
+    throw new Error('Invalid RLP encoding');
   }
   const [result] = decode(buffer);
   return result;
@@ -90,26 +90,26 @@ function rlpDecode(data) {
 
 function extractToFromTransaction(rawTx) {
   try {
-    let cleanTx = rawTx.replace(/^0x/, "");
+    let cleanTx = rawTx.replace(/^0x/, '');
     let decoded;
-    if (cleanTx.startsWith("02")) {
+    if (cleanTx.startsWith('02')) {
       cleanTx = cleanTx.slice(2);
-      decoded = rlpDecode("0x" + cleanTx);
+      decoded = rlpDecode('0x' + cleanTx);
       if (!Array.isArray(decoded) || decoded.length < 6) {
-        throw new Error("Invalid EIP-1559 transaction format");
+        throw new Error('Invalid EIP-1559 transaction format');
       }
       var toField = decoded[5];
     } else {
-      decoded = rlpDecode("0x" + cleanTx);
+      decoded = rlpDecode('0x' + cleanTx);
       if (!Array.isArray(decoded) || decoded.length < 6) {
-        throw new Error("Invalid legacy transaction format");
+        throw new Error('Invalid legacy transaction format');
       }
       var toField = decoded[3];
     }
     if (!toField || toField.length === 0) {
       return null;
     }
-    const toAddress = "0x" + toField.toString("hex");
+    const toAddress = '0x' + toField.toString('hex');
     return toAddress.toLowerCase();
   } catch (error) {
     return null;

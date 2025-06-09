@@ -1,6 +1,6 @@
-const fs = require("fs").promises;
-const path = require("path");
-const crypto = require("crypto");
+const fs = require('fs').promises;
+const path = require('path');
+const crypto = require('crypto');
 
 let database = {
   routes: {},
@@ -13,23 +13,23 @@ let database = {
 // Generate RSA key pair
 function generateRSAKeyPair() {
   try {
-    console.log("Generating new RSA key pair...");
-    const { publicKey, privateKey } = crypto.generateKeyPairSync("rsa", {
+    console.log('Generating new RSA key pair...');
+    const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', {
       modulusLength: 2048, // Key size in bits
       publicKeyEncoding: {
-        type: "spki", // Subject Public Key Info
-        format: "pem",
+        type: 'spki', // Subject Public Key Info
+        format: 'pem',
       },
       privateKeyEncoding: {
-        type: "pkcs8", // Public Key Cryptography Standards #8
-        format: "pem",
+        type: 'pkcs8', // Public Key Cryptography Standards #8
+        format: 'pem',
       },
     });
 
-    console.log("✅ RSA key pair generated successfully");
+    console.log('✅ RSA key pair generated successfully');
     return { publicKey, privateKey };
   } catch (error) {
-    console.error("Failed to generate RSA key pair:", error.message);
+    console.error('Failed to generate RSA key pair:', error.message);
     throw error;
   }
 }
@@ -64,9 +64,9 @@ async function storeRSAKeyPair(keyPair, DB_FILE) {
       await saveDatabase(DB_FILE);
     }
 
-    console.log("RSA key pair stored in database");
+    console.log('RSA key pair stored in database');
   } catch (error) {
-    console.error("Failed to store RSA key pair:", error.message);
+    console.error('Failed to store RSA key pair:', error.message);
     throw error;
   }
 }
@@ -74,13 +74,13 @@ async function storeRSAKeyPair(keyPair, DB_FILE) {
 // Initialize RSA key pair (generate if not exists)
 async function initRSAKeyPair(DB_FILE) {
   if (hasRSAKeyPair()) {
-    console.log("Using existing RSA key pair from database");
+    console.log('Using existing RSA key pair from database');
     const keyPair = getRSAKeyPair();
     console.log(`RSA key pair created: ${keyPair.createdAt}`);
     return keyPair;
   }
 
-  console.log("No RSA key pair found, generating new one...");
+  console.log('No RSA key pair found, generating new one...');
   const keyPair = generateRSAKeyPair();
   await storeRSAKeyPair(keyPair, DB_FILE);
 
@@ -93,8 +93,8 @@ async function initDatabase(DB_FILE) {
     // Handle both absolute and relative paths
     const dbPath = path.isAbsolute(DB_FILE)
       ? DB_FILE
-      : path.join(__dirname, "..", DB_FILE);
-    const data = await fs.readFile(dbPath, "utf8");
+      : path.join(__dirname, '..', DB_FILE);
+    const data = await fs.readFile(dbPath, 'utf8');
     const loadedData = JSON.parse(data);
 
     // Handle migration from old format to new format
@@ -107,9 +107,9 @@ async function initDatabase(DB_FILE) {
       database.metadata = { rsaKeys: null, sequences: {} };
 
       for (const [key, value] of Object.entries(loadedData)) {
-        if (key === "rsaKeys") {
+        if (key === 'rsaKeys') {
           database.metadata.rsaKeys = value;
-        } else if (key.startsWith("lastSequence_")) {
+        } else if (key.startsWith('lastSequence_')) {
           database.metadata.sequences[key] = value;
         } else {
           // Assume it's a route
@@ -119,22 +119,22 @@ async function initDatabase(DB_FILE) {
 
       // Save migrated data
       await saveDatabase(DB_FILE);
-      console.log("Migrated database to new structured format");
+      console.log('Migrated database to new structured format');
     }
 
     console.log(
-      "Database loaded:",
+      'Database loaded:',
       Object.keys(database.routes).length,
-      "routes"
+      'routes'
     );
   } catch (error) {
     // Create default database with new structure
     database = {
       routes: {
-        "0x4f1a953df9df8d1c6073ce57f7493e50515fa73f":
-          "https://testnet.hashio.io/api",
-        "0x0000000000000000000000000000000000000000":
-          "https://testnet.hashio.io/api",
+        '0x4f1a953df9df8d1c6073ce57f7493e50515fa73f':
+          'https://testnet.hashio.io/api',
+        '0x0000000000000000000000000000000000000000':
+          'https://testnet.hashio.io/api',
       },
       metadata: {
         rsaKeys: null,
@@ -143,9 +143,9 @@ async function initDatabase(DB_FILE) {
     };
     await saveDatabase(DB_FILE);
     console.log(
-      "Created default database with",
+      'Created default database with',
       Object.keys(database.routes).length,
-      "routes"
+      'routes'
     );
   }
 }
@@ -155,16 +155,16 @@ async function saveDatabase(DB_FILE) {
     // Handle both absolute and relative paths
     const dbPath = path.isAbsolute(DB_FILE)
       ? DB_FILE
-      : path.join(__dirname, "..", DB_FILE);
+      : path.join(__dirname, '..', DB_FILE);
     await fs.writeFile(dbPath, JSON.stringify(database, null, 2));
   } catch (error) {
-    console.error("Error saving database:", error.message);
+    console.error('Error saving database:', error.message);
   }
 }
 
 function getTargetServer(address, DEFAULT_SERVER) {
   if (!address) {
-    console.log("No address found, using default server");
+    console.log('No address found, using default server');
     return DEFAULT_SERVER;
   }
   const normalizedAddress = address.toLowerCase();
@@ -189,7 +189,7 @@ function getLastProcessedSequence(topicId) {
 
 // Store the last processed message sequence number for a topic
 async function storeLastProcessedSequence(topicId, sequenceNumber, DB_FILE) {
-  if (!topicId || typeof sequenceNumber !== "number") {
+  if (!topicId || typeof sequenceNumber !== 'number') {
     return;
   }
 
@@ -205,7 +205,7 @@ async function storeLastProcessedSequence(topicId, sequenceNumber, DB_FILE) {
       `📝 Saved last processed sequence ${sequenceNumber} for topic ${topicId}`
     );
   } catch (error) {
-    console.error("Failed to store last processed sequence:", error.message);
+    console.error('Failed to store last processed sequence:', error.message);
     throw error;
   }
 }

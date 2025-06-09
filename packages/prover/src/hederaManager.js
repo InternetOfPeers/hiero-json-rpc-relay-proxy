@@ -6,7 +6,7 @@ const {
   TopicInfoQuery,
   TopicMessageSubmitTransaction,
   Hbar,
-} = require("@hashgraph/sdk");
+} = require('@hashgraph/sdk');
 
 // Prover Hedera Manager Module
 // Dedicated manager for prover scripts with ECDSA key support
@@ -17,17 +17,17 @@ class HederaManager {
   constructor(config = {}) {
     this.accountId = config.accountId;
     this.privateKey = config.privateKey;
-    this.network = config.network || "testnet";
+    this.network = config.network || 'testnet';
     this.topicId = config.topicId;
     this.client = null;
-    this.keyType = config.keyType || "ECDSA"; // Default to ECDSA
+    this.keyType = config.keyType || 'ECDSA'; // Default to ECDSA
   }
 
   // Initialize Hedera client with ECDSA support
   initClient() {
     if (!this.accountId || !this.privateKey) {
       console.log(
-        "❌ Hedera credentials not provided. Please set HEDERA_ACCOUNT_ID and HEDERA_PRIVATE_KEY"
+        '❌ Hedera credentials not provided. Please set HEDERA_ACCOUNT_ID and HEDERA_PRIVATE_KEY'
       );
       return null;
     }
@@ -37,19 +37,19 @@ class HederaManager {
 
       // Support both ECDSA and Ed25519 private keys
       let privateKey;
-      if (this.keyType === "ECDSA" || this.privateKey.startsWith("0x")) {
+      if (this.keyType === 'ECDSA' || this.privateKey.startsWith('0x')) {
         // ECDSA private key (hex format)
         privateKey = PrivateKey.fromStringECDSA(this.privateKey);
-        console.log("🔐 Using ECDSA private key");
+        console.log('🔐 Using ECDSA private key');
       } else {
         // Ed25519 private key (original format)
         privateKey = PrivateKey.fromString(this.privateKey);
-        console.log("🔐 Using Ed25519 private key");
+        console.log('🔐 Using Ed25519 private key');
       }
 
       // Create client for the appropriate network
       const client =
-        this.network === "mainnet" ? Client.forMainnet() : Client.forTestnet();
+        this.network === 'mainnet' ? Client.forMainnet() : Client.forTestnet();
 
       client.setOperator(accountId, privateKey);
 
@@ -61,12 +61,12 @@ class HederaManager {
       return client;
     } catch (error) {
       console.error(
-        "❌ Failed to initialize prover Hedera client:",
+        '❌ Failed to initialize prover Hedera client:',
         error.message
       );
-      console.error("   Make sure your private key format is correct:");
-      console.error("   - ECDSA keys should start with '0x' (hex format)");
-      console.error("   - Ed25519 keys use the standard Hedera format");
+      console.error('   Make sure your private key format is correct:');
+      console.error('   - ECDSA keys should start with \'0x\' (hex format)');
+      console.error('   - Ed25519 keys use the standard Hedera format');
       return null;
     }
   }
@@ -95,13 +95,13 @@ class HederaManager {
   }
 
   // Create a new Hedera topic
-  async createTopic(memo = "Prover Topic for Encrypted Messages") {
+  async createTopic(memo = 'Prover Topic for Encrypted Messages') {
     if (!this.client) {
-      throw new Error("Hedera client not initialized");
+      throw new Error('Hedera client not initialized');
     }
 
     try {
-      console.log("🏗️ Creating new prover Hedera topic...");
+      console.log('🏗️ Creating new prover Hedera topic...');
 
       const transaction = new TopicCreateTransaction()
         .setTopicMemo(memo)
@@ -117,7 +117,7 @@ class HederaManager {
 
       return newTopicId.toString();
     } catch (error) {
-      console.error("❌ Failed to create prover Hedera topic:", error.message);
+      console.error('❌ Failed to create prover Hedera topic:', error.message);
       throw error;
     }
   }
@@ -126,7 +126,7 @@ class HederaManager {
   async submitMessageToTopic(topicIdString, message) {
     if (!this.client || !topicIdString || !message) {
       throw new Error(
-        "Missing required parameters for topic message submission"
+        'Missing required parameters for topic message submission'
       );
     }
 
@@ -180,7 +180,7 @@ class HederaManager {
   // Initialize topic for prover (simplified version)
   async initTopicForProver(topicIdString) {
     if (!topicIdString) {
-      throw new Error("Topic ID is required for prover");
+      throw new Error('Topic ID is required for prover');
     }
 
     this.topicId = topicIdString;
@@ -188,7 +188,7 @@ class HederaManager {
     // Initialize client
     const client = this.initClient();
     if (!client) {
-      throw new Error("Failed to initialize Hedera client");
+      throw new Error('Failed to initialize Hedera client');
     }
 
     // Verify topic exists
@@ -207,7 +207,7 @@ class HederaManager {
   close() {
     if (this.client) {
       this.client.close();
-      console.log("🔌 Prover Hedera client connection closed");
+      console.log('🔌 Prover Hedera client connection closed');
     }
   }
 }

@@ -1,8 +1,8 @@
-const { describe, it, mock, beforeEach, afterEach } = require("node:test");
-const assert = require("node:assert");
-const { HederaManager } = require("../src/hederaManager");
+const { describe, it, mock, beforeEach, afterEach } = require('node:test');
+const assert = require('node:assert');
+const { HederaManager } = require('../src/hederaManager');
 
-describe("HederaManager Message Listener", () => {
+describe('HederaManager Message Listener', () => {
   let hederaManager;
   let originalConsoleLog;
   let originalConsoleError;
@@ -16,20 +16,20 @@ describe("HederaManager Message Listener", () => {
     originalConsoleError = console.error;
 
     console.log = (...args) => {
-      logOutput.push(args.join(" "));
+      logOutput.push(args.join(' '));
     };
 
     console.error = (...args) => {
-      logOutput.push("ERROR: " + args.join(" "));
+      logOutput.push('ERROR: ' + args.join(' '));
     };
 
     hederaManager = new HederaManager({
-      accountId: "0.0.123456",
-      privateKey: "302e020100300506032b657004220420" + "a".repeat(64),
-      network: "testnet",
-      topicId: "0.0.789012",
+      accountId: '0.0.123456',
+      privateKey: '302e020100300506032b657004220420' + 'a'.repeat(64),
+      network: 'testnet',
+      topicId: '0.0.789012',
     });
-    hederaManager.currentTopicId = "0.0.789012";
+    hederaManager.currentTopicId = '0.0.789012';
     activeIntervals = [];
   });
 
@@ -47,16 +47,16 @@ describe("HederaManager Message Listener", () => {
     console.error = originalConsoleError;
   });
 
-  it("should not start listener without topic ID", () => {
+  it('should not start listener without topic ID', () => {
     hederaManager.currentTopicId = null;
 
     const intervalId = hederaManager.startMessageListener();
 
     assert.strictEqual(intervalId, null);
-    assert.ok(logOutput.some((log) => log.includes("No topic ID available")));
+    assert.ok(logOutput.some((log) => log.includes('No topic ID available')));
   });
 
-  it("should start message listener with correct configuration", () => {
+  it('should start message listener with correct configuration', () => {
     // Mock getTopicMessages to return empty array
     hederaManager.getTopicMessages = mock.fn(async () => []);
 
@@ -65,28 +65,28 @@ describe("HederaManager Message Listener", () => {
 
     assert.ok(intervalId !== null);
     assert.ok(
-      logOutput.some((log) => log.includes("Starting message listener"))
+      logOutput.some((log) => log.includes('Starting message listener'))
     );
     assert.ok(
       logOutput.some((log) =>
-        log.includes("Checking for new messages every 5 seconds")
+        log.includes('Checking for new messages every 5 seconds')
       )
     );
   });
 
-  it("should detect existing messages on first check", async () => {
+  it('should detect existing messages on first check', async () => {
     const mockMessages = [
       {
         sequence_number: 1,
         consensus_timestamp: Math.floor(Date.now() / 1000) - 3600, // 1 hour ago
-        message: Buffer.from("Hello World").toString("base64"),
-        payer_account_id: "0.0.123456",
+        message: Buffer.from('Hello World').toString('base64'),
+        payer_account_id: '0.0.123456',
       },
       {
         sequence_number: 2,
         consensus_timestamp: Math.floor(Date.now() / 1000) - 1800, // 30 minutes ago
-        message: Buffer.from("Second message").toString("base64"),
-        payer_account_id: "0.0.123456",
+        message: Buffer.from('Second message').toString('base64'),
+        payer_account_id: '0.0.123456',
       },
     ];
 
@@ -100,23 +100,23 @@ describe("HederaManager Message Listener", () => {
     await new Promise((resolve) => setTimeout(resolve, 100));
 
     assert.ok(
-      logOutput.some((log) => log.includes("Found 2 existing messages"))
+      logOutput.some((log) => log.includes('Found 2 existing messages'))
     );
     assert.ok(
       logOutput.some((log) =>
-        log.includes("skipped message #1, processed sequence 2 to 2")
+        log.includes('skipped message #1, processed sequence 2 to 2')
       )
     );
   });
 
-  it("should detect new messages after initial check", async () => {
+  it('should detect new messages after initial check', async () => {
     let callCount = 0;
     const initialMessages = [
       {
         sequence_number: 1,
         consensus_timestamp: Math.floor(Date.now() / 1000) - 3600,
-        message: Buffer.from("Initial message").toString("base64"),
-        payer_account_id: "0.0.123456",
+        message: Buffer.from('Initial message').toString('base64'),
+        payer_account_id: '0.0.123456',
       },
     ];
 
@@ -125,8 +125,8 @@ describe("HederaManager Message Listener", () => {
       {
         sequence_number: 2,
         consensus_timestamp: Math.floor(Date.now() / 1000) - 60,
-        message: Buffer.from("New message").toString("base64"),
-        payer_account_id: "0.0.789012",
+        message: Buffer.from('New message').toString('base64'),
+        payer_account_id: '0.0.789012',
       },
     ];
 
@@ -146,17 +146,17 @@ describe("HederaManager Message Listener", () => {
     await new Promise((resolve) => setTimeout(resolve, 150));
 
     assert.ok(
-      logOutput.some((log) => log.includes("Found 1 existing messages"))
+      logOutput.some((log) => log.includes('Found 1 existing messages'))
     );
-    assert.ok(logOutput.some((log) => log.includes("Found 1 new message(s)")));
-    assert.ok(logOutput.some((log) => log.includes("Message #2")));
-    assert.ok(logOutput.some((log) => log.includes("New message")));
+    assert.ok(logOutput.some((log) => log.includes('Found 1 new message(s)')));
+    assert.ok(logOutput.some((log) => log.includes('Message #2')));
+    assert.ok(logOutput.some((log) => log.includes('New message')));
   });
 
-  it("should handle API errors gracefully", async () => {
+  it('should handle API errors gracefully', async () => {
     // Mock getTopicMessages to throw an error
     hederaManager.getTopicMessages = mock.fn(async () => {
-      throw new Error("Mirror node API error");
+      throw new Error('Mirror node API error');
     });
 
     const intervalId = hederaManager.startMessageListener(100);
@@ -166,12 +166,12 @@ describe("HederaManager Message Listener", () => {
     await new Promise((resolve) => setTimeout(resolve, 150));
 
     assert.ok(
-      logOutput.some((log) => log.includes("Error checking for new messages"))
+      logOutput.some((log) => log.includes('Error checking for new messages'))
     );
-    assert.ok(logOutput.some((log) => log.includes("Mirror node API error")));
+    assert.ok(logOutput.some((log) => log.includes('Mirror node API error')));
   });
 
-  it("should stop message listener correctly", () => {
+  it('should stop message listener correctly', () => {
     // Mock getTopicMessages
     hederaManager.getTopicMessages = mock.fn(async () => []);
 
@@ -181,11 +181,11 @@ describe("HederaManager Message Listener", () => {
     hederaManager.stopMessageListener(intervalId);
 
     assert.ok(
-      logOutput.some((log) => log.includes("Message listener stopped"))
+      logOutput.some((log) => log.includes('Message listener stopped'))
     );
   });
 
-  it("should handle empty messages array", async () => {
+  it('should handle empty messages array', async () => {
     // Mock getTopicMessages to return empty array
     hederaManager.getTopicMessages = mock.fn(async () => []);
 
@@ -196,18 +196,18 @@ describe("HederaManager Message Listener", () => {
     await new Promise((resolve) => setTimeout(resolve, 150));
 
     assert.ok(
-      logOutput.some((log) => log.includes("No existing messages found"))
+      logOutput.some((log) => log.includes('No existing messages found'))
     );
   });
 
-  it("should truncate long message content in logs", async () => {
-    const longMessage = "A".repeat(300); // 300 character message
+  it('should truncate long message content in logs', async () => {
+    const longMessage = 'A'.repeat(300); // 300 character message
     const mockMessages = [
       {
         sequence_number: 1,
         consensus_timestamp: Math.floor(Date.now() / 1000) - 3600,
-        message: Buffer.from("Initial").toString("base64"),
-        payer_account_id: "0.0.123456",
+        message: Buffer.from('Initial').toString('base64'),
+        payer_account_id: '0.0.123456',
       },
     ];
 
@@ -216,8 +216,8 @@ describe("HederaManager Message Listener", () => {
       {
         sequence_number: 2,
         consensus_timestamp: Math.floor(Date.now() / 1000) - 60,
-        message: Buffer.from(longMessage).toString("base64"),
-        payer_account_id: "0.0.789012",
+        message: Buffer.from(longMessage).toString('base64'),
+        payer_account_id: '0.0.789012',
       },
     ];
 
@@ -234,15 +234,15 @@ describe("HederaManager Message Listener", () => {
     await new Promise((resolve) => setTimeout(resolve, 250));
 
     // Should find a log entry with truncated content (ending with ...)
-    const contentLogs = logOutput.filter((log) => log.includes("Content:"));
+    const contentLogs = logOutput.filter((log) => log.includes('Content:'));
     assert.ok(
       contentLogs.some(
-        (log) => log.includes("...") && log.length < longMessage.length + 100
+        (log) => log.includes('...') && log.length < longMessage.length + 100
       )
     );
   });
 
-  it("should restore last processed sequence from database on startup", () => {
+  it('should restore last processed sequence from database on startup', () => {
     const mockGetLastProcessedSequence = mock.fn(() => 42);
 
     hederaManager.getLastProcessedSequence = mockGetLastProcessedSequence;
@@ -255,25 +255,25 @@ describe("HederaManager Message Listener", () => {
     assert.strictEqual(mockGetLastProcessedSequence.mock.callCount(), 1);
     assert.strictEqual(
       mockGetLastProcessedSequence.mock.calls[0].arguments[0],
-      "0.0.789012"
+      '0.0.789012'
     );
 
     // Should log restored sequence
     assert.ok(
       logOutput.some((log) =>
-        log.includes("Restored last processed sequence: 42")
+        log.includes('Restored last processed sequence: 42')
       )
     );
   });
 
-  it("should save processed messages to database", async () => {
+  it('should save processed messages to database', async () => {
     const mockStoreLastProcessedSequence = mock.fn();
     const mockMessages = [
       {
         sequence_number: 1,
         consensus_timestamp: Math.floor(Date.now() / 1000) - 3600,
-        message: Buffer.from("Initial message").toString("base64"),
-        payer_account_id: "0.0.123456",
+        message: Buffer.from('Initial message').toString('base64'),
+        payer_account_id: '0.0.123456',
       },
     ];
 
@@ -282,8 +282,8 @@ describe("HederaManager Message Listener", () => {
       {
         sequence_number: 2,
         consensus_timestamp: Math.floor(Date.now() / 1000) - 60,
-        message: Buffer.from("New message").toString("base64"),
-        payer_account_id: "0.0.789012",
+        message: Buffer.from('New message').toString('base64'),
+        payer_account_id: '0.0.789012',
       },
     ];
 
@@ -294,7 +294,7 @@ describe("HederaManager Message Listener", () => {
     });
 
     hederaManager.storeLastProcessedSequence = mockStoreLastProcessedSequence;
-    hederaManager.dbFile = "test.db";
+    hederaManager.dbFile = 'test.db';
 
     const intervalId = hederaManager.startMessageListener(100);
     activeIntervals.push(intervalId);
@@ -309,28 +309,28 @@ describe("HederaManager Message Listener", () => {
       mockStoreLastProcessedSequence.mock.calls[
         mockStoreLastProcessedSequence.mock.callCount() - 1
       ];
-    assert.strictEqual(lastCall.arguments[0], "0.0.789012"); // topic ID
+    assert.strictEqual(lastCall.arguments[0], '0.0.789012'); // topic ID
     assert.strictEqual(lastCall.arguments[1], 2); // sequence number
-    assert.strictEqual(lastCall.arguments[2], "test.db"); // db file
+    assert.strictEqual(lastCall.arguments[2], 'test.db'); // db file
   });
 
-  it("should handle database save errors gracefully", async () => {
+  it('should handle database save errors gracefully', async () => {
     const mockStoreLastProcessedSequence = mock.fn(async () => {
-      throw new Error("Database save failed");
+      throw new Error('Database save failed');
     });
 
     const mockMessages = [
       {
         sequence_number: 1,
         consensus_timestamp: Math.floor(Date.now() / 1000) - 3600,
-        message: Buffer.from("Test message").toString("base64"),
-        payer_account_id: "0.0.123456",
+        message: Buffer.from('Test message').toString('base64'),
+        payer_account_id: '0.0.123456',
       },
     ];
 
     hederaManager.getTopicMessages = mock.fn(async () => mockMessages);
     hederaManager.storeLastProcessedSequence = mockStoreLastProcessedSequence;
-    hederaManager.dbFile = "test.db";
+    hederaManager.dbFile = 'test.db';
 
     const intervalId = hederaManager.startMessageListener(100);
     activeIntervals.push(intervalId);
@@ -340,16 +340,16 @@ describe("HederaManager Message Listener", () => {
 
     // Should have attempted to save but logged the error
     assert.ok(mockStoreLastProcessedSequence.mock.callCount() >= 1);
-    assert.ok(logOutput.some((log) => log.includes("Failed to save")));
+    assert.ok(logOutput.some((log) => log.includes('Failed to save')));
   });
 
-  it("should work without database persistence functions", async () => {
+  it('should work without database persistence functions', async () => {
     const mockMessages = [
       {
         sequence_number: 1,
         consensus_timestamp: Math.floor(Date.now() / 1000) - 3600,
-        message: Buffer.from("Test message").toString("base64"),
-        payer_account_id: "0.0.123456",
+        message: Buffer.from('Test message').toString('base64'),
+        payer_account_id: '0.0.123456',
       },
     ];
 
@@ -364,7 +364,7 @@ describe("HederaManager Message Listener", () => {
 
     // Should still process messages normally
     assert.ok(
-      logOutput.some((log) => log.includes("Found 1 existing messages"))
+      logOutput.some((log) => log.includes('Found 1 existing messages'))
     );
   });
 });
