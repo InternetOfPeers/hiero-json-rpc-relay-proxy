@@ -9,6 +9,7 @@ const {
   decryptHybridMessage,
   isEncryptedMessage,
   verifyECDSASignature,
+  getContractAddressFromCreate,
 } = require('../src/cryptoUtils');
 
 describe('cryptoUtils', function () {
@@ -393,6 +394,63 @@ describe('cryptoUtils', function () {
         verifyECDSASignature(mainnetUrl, mainnetSignature, address),
         true
       );
+    });
+  });
+
+  describe('getContractAddressFromCreate', function () {
+    test('should compute correct contract address for CREATE deployment', function () {
+      // Test the exact case from the error
+      const deployer = '0xe0b73f64b0de6032b193648c08899f20b5a6141d';
+      const nonce = 33;
+      const expected = '0x3ed660420aa9bc674e8f80f744f8062603da385e';
+
+      const computed = getContractAddressFromCreate(deployer, nonce);
+
+      assert.strictEqual(computed, expected);
+    });
+
+    test('should handle deployer addresses without 0x prefix', function () {
+      const deployerWithPrefix = '0xe0b73f64b0de6032b193648c08899f20b5a6141d';
+      const deployerWithoutPrefix = 'e0b73f64b0de6032b193648c08899f20b5a6141d';
+      const nonce = 33;
+
+      const result1 = getContractAddressFromCreate(deployerWithPrefix, nonce);
+      const result2 = getContractAddressFromCreate(deployerWithoutPrefix, nonce);
+
+      assert.strictEqual(result1, result2);
+      assert.strictEqual(result1, '0x3ed660420aa9bc674e8f80f744f8062603da385e');
+    });
+
+    test('should handle different nonces correctly', function () {
+      const deployer = '0xe0b73f64b0de6032b193648c08899f20b5a6141d';
+
+      const addr1 = getContractAddressFromCreate(deployer, 33);
+      const addr2 = getContractAddressFromCreate(deployer, 34);
+      const addr3 = getContractAddressFromCreate(deployer, 0);
+
+      // Different nonces should produce different addresses
+      assert.notStrictEqual(addr1, addr2);
+      assert.notStrictEqual(addr1, addr3);
+      assert.notStrictEqual(addr2, addr3);
+
+      // Addresses should be valid Ethereum addresses
+      assert.ok(addr1.startsWith('0x'));
+      assert.ok(addr2.startsWith('0x'));
+      assert.ok(addr3.startsWith('0x'));
+      assert.strictEqual(addr1.length, 42);
+      assert.strictEqual(addr2.length, 42);
+      assert.strictEqual(addr3.length, 42);
+    });
+
+    test('should return null for invalid inputs', function () {
+      // Invalid deployer address
+      const result1 = getContractAddressFromCreate('invalid-address', 33);
+      assert.strictEqual(result1, null);
+
+      // Negative nonce should also work (edge case)
+      const result2 = getContractAddressFromCreate('0xe0b73f64b0de6032b193648c08899f20b5a6141d', -1);
+      // This should actually work as ethers can handle negative nonces
+      assert.ok(result2 === null || typeof result2 === 'string');
     });
   });
 

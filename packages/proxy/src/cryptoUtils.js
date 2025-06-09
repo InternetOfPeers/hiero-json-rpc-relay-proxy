@@ -188,9 +188,42 @@ function verifyECDSASignature(url, signature, expectedAddress) {
   }
 }
 
+/**
+ * Compute the deterministic contract address for a CREATE deployment
+ * @param {string} deployerAddress - Address of the deployer account
+ * @param {number} nonce - Nonce of the deployer account
+ * @returns {string} The computed contract address (lowercase, 0x prefixed)
+ */
+function getContractAddressFromCreate(deployerAddress, nonce) {
+  try {
+    const { ethers } = require('ethers');
+
+    // Clean the deployer address
+    const cleanAddress = deployerAddress.toLowerCase().startsWith('0x')
+      ? deployerAddress.toLowerCase()
+      : `0x${deployerAddress.toLowerCase()}`;
+
+    // Use ethers.js getCreateAddress to compute the deterministic address
+    // In ethers v6, it's ethers.getCreateAddress, not ethers.getContractAddress
+    const contractAddress = ethers.getCreateAddress({
+      from: cleanAddress,
+      nonce: nonce
+    });
+
+    return contractAddress.toLowerCase();
+  } catch (error) {
+    console.error('Error computing contract address:', error.message);
+    return null;
+  }
+}
+
+// Note: CREATE2 support will be added in the future
+// TODO: Add getContractAddressFromCreate2(deployerAddress, salt, initCodeHash)
+
 module.exports = {
   encryptHybridMessage,
   decryptHybridMessage,
   isEncryptedMessage,
   verifyECDSASignature,
+  getContractAddressFromCreate,
 };

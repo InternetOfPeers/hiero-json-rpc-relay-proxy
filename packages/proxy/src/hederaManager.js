@@ -542,8 +542,7 @@ class HederaManager {
                       decryptionResult.error
                     );
                     console.log(
-                      `      📄 Raw Content: ${content.substring(0, 200)}${
-                        content.length > 200 ? '...' : ''
+                      `      📄 Raw Content: ${content.substring(0, 200)}${content.length > 200 ? '...' : ''
                       }`
                     );
                   }
@@ -552,8 +551,7 @@ class HederaManager {
                     '      ⚠️  No RSA private key available for decryption'
                   );
                   console.log(
-                    `      📄 Raw Content: ${content.substring(0, 200)}${
-                      content.length > 200 ? '...' : ''
+                    `      📄 Raw Content: ${content.substring(0, 200)}${content.length > 200 ? '...' : ''
                     }`
                   );
                 }
@@ -682,36 +680,41 @@ class HederaManager {
     }
   }
 
-  // Verify ECDSA signatures in decrypted message
+  // Verify ECDSA signatures and contract ownership in decrypted message
   async verifyMessageSignatures(decryptedData) {
     try {
       // Parse the decrypted data as JSON
       const messageData = JSON.parse(decryptedData);
 
       // Check if the message contains routes with signatures
-      if (!messageData.routes || typeof messageData.routes !== 'object') {
+      if (!messageData.routes || !Array.isArray(messageData.routes)) {
         console.log(
-          '      📝 No routes found in message - skipping signature verification'
+          '      📝 No routes array found in message - skipping signature verification'
         );
         return;
       }
-      console.log('      🔍 Verifying ECDSA signatures...');
+      console.log('      🔍 Verifying ECDSA signatures and contract ownership...');
 
       let totalSignatures = 0;
       let validSignatures = 0;
       let derivedSignerAddress = null;
 
-      // Verify each route's signature and derive signer address
-      for (const [address, route] of Object.entries(messageData.routes)) {
-        if (route.url && route.sig) {
+      const { getContractAddressFromCreate } = require('./cryptoUtils');
+
+      // Verify each route's signature and contract ownership
+      for (const route of messageData.routes) {
+        if (route.addr && route.proofType && route.nonce !== undefined && route.url && route.sig) {
           totalSignatures++;
 
           try {
             const { ethers } = require('ethers');
 
+            // Create the message that was signed (addr+proofType+nonce+url)
+            const signedMessage = route.addr + route.proofType + route.nonce + route.url;
+
             // Derive the signer address from the signature
             const signerFromThisSignature = ethers.verifyMessage(
-              route.url,
+              signedMessage,
               route.sig
             );
 
@@ -728,19 +731,46 @@ class HederaManager {
               signerFromThisSignature.toLowerCase() === derivedSignerAddress;
 
             if (isValidSigner) {
-              validSignatures++;
-              console.log(
-                `      ✅ Valid signature for ${route.url} (${address.slice(
-                  0,
-                  10
-                )}...) from ${signerFromThisSignature.slice(0, 10)}...`
-              );
+              // Additional check: verify that the signer is the owner of the contract at the specified address
+              let isValidOwnership = false;
+
+              if (route.proofType === 'create') {
+                // For CREATE, compute the deterministic contract address
+                const computedAddress = getContractAddressFromCreate(derivedSignerAddress, route.nonce);
+                isValidOwnership = computedAddress && computedAddress.toLowerCase() === route.addr.toLowerCase();
+
+                console.log(
+                  `      🏗️ Contract address verification (CREATE): computed=${computedAddress}, expected=${route.addr}, valid=${isValidOwnership}`
+                );
+              } else if (route.proofType === 'create2') {
+                // TODO: Implement CREATE2 verification when added
+                console.log(
+                  `      ⚠️ CREATE2 verification not yet implemented - skipping ownership check`
+                );
+                isValidOwnership = true; // Temporary - allow CREATE2 for now
+              } else {
+                console.log(
+                  `      ❌ Unknown proof type: ${route.proofType}`
+                );
+                isValidOwnership = false;
+              }
+
+              if (isValidOwnership) {
+                validSignatures++;
+                console.log(
+                  `      ✅ Valid signature and ownership for ${route.addr} (${route.proofType}, nonce ${route.nonce}) from ${signerFromThisSignature.slice(0, 10)}...`
+                );
+              } else {
+                console.log(
+                  `      ❌ Valid signature but invalid ownership for ${route.addr} (${route.proofType}, nonce ${route.nonce})`
+                );
+                console.log(
+                  `         Signer ${derivedSignerAddress.slice(0, 10)}... is not the owner of contract at ${route.addr}`
+                );
+              }
             } else {
               console.log(
-                `      ❌ Invalid signature for ${route.url} (${address.slice(
-                  0,
-                  10
-                )}...)`
+                `      ❌ Invalid signature for ${route.addr} (${route.proofType}, nonce ${route.nonce})`
               );
               console.log(
                 `         Expected signer: ${derivedSignerAddress.slice(
@@ -757,9 +787,8 @@ class HederaManager {
             }
           } catch (error) {
             console.log(
-              `      ❌ Failed to verify signature for ${
-                route.url
-              } (${address.slice(0, 10)}...): ${error.message}`
+              `      ❌ Failed to verify signature for ${route.addr
+              } (${route.proofType}, nonce ${route.nonce}): ${error.message}`
             );
           }
         }
@@ -768,14 +797,13 @@ class HederaManager {
       if (totalSignatures > 0) {
         const success = validSignatures === totalSignatures;
         console.log(
-          `      🎯 Signature verification: ${validSignatures}/${totalSignatures} signatures valid ${
-            success ? '✅' : '❌'
+          `      🎯 Signature and ownership verification: ${validSignatures}/${totalSignatures} routes valid ${success ? '✅' : '❌'
           }`
         );
 
         if (!success) {
           console.log(
-            '      ⚠️  Message contains invalid signatures - potential security risk!'
+            '      ⚠️  Message contains invalid signatures or ownership proofs - potential security risk!'
           );
         }
       } else {

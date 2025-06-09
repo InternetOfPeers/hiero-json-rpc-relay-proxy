@@ -66,10 +66,37 @@ npm run test:coverage
 ## How It Works
 
 1. **Fetch Status**: Connects to the proxy server to get topic ID and RSA public key
-2. **Create Payload**: Generates a test payload with route signatures
-3. **Sign Routes**: Uses ECDSA to sign routing URLs for authentication
+2. **Create Payload**: Generates a test payload with route signatures using the new format
+3. **Sign Routes**: Uses ECDSA to sign concatenated `addr+proofType+nonce+url` for authentication
 4. **Encrypt Payload**: Encrypts the JSON payload using the proxy's RSA public key
 5. **Submit to Hedera**: Sends the encrypted message to the specified Hedera topic
+
+### Payload Format
+
+The prover now uses a new array-based routes format with contract ownership verification:
+
+```json
+{
+  "routes": [
+    {
+      "addr": "0x3ed660420aa9bc674e8f80f744f8062603da385e",
+      "proofType": "create",
+      "nonce": 33,
+      "url": "http://localhost:7546",
+      "sig": "0x1234567890abcdef..."
+    }
+  ]
+}
+```
+
+Where:
+- `addr`: Contract address that should route to the URL
+- `proofType`: Type of contract deployment proof (`create` or `create2`)
+- `nonce`: Deployment nonce used for deterministic address computation
+- `url`: JSON-RPC endpoint URL for this address
+- `sig`: ECDSA signature of `addr+proofType+nonce+url`
+
+The signature verification ensures that only the deployer of the contract at `addr` can register routes for it.
 
 ## Example Output
 

@@ -418,35 +418,40 @@ describe('Proxy-Prover Integration Tests', () => {
         return;
       }
 
-      // Test the expected prover payload format
+      // Test the expected prover payload format with new array structure
       const mockProverPayload = {
-        routes: {
-          '0x4f1a953df9df8d1c6073ce57f7493e50515fa73f': {
+        routes: [
+          {
+            addr: '0x4f1a953df9df8d1c6073ce57f7493e50515fa73f',
+            proofType: 'create',
+            nonce: 33,
             url: 'http://localhost:7546',
             sig: '0x1234567890abcdef...',
           },
-          '0x4f1a953df9df8d1c6073ce57f7493e50515fa73a': {
+          {
+            addr: '0x4f1a953df9df8d1c6073ce57f7493e50515fa73a',
+            proofType: 'create',
+            nonce: 60,
             url: 'http://localhost:7546',
             sig: '0x1234567890abcdef...',
           },
-        },
+        ],
       };
 
       // Validate payload structure
       assert.ok(mockProverPayload.routes, 'Payload should have routes');
-      assert.strictEqual(
-        typeof mockProverPayload.routes,
-        'object',
-        'Routes should be an object'
+      assert.ok(
+        Array.isArray(mockProverPayload.routes),
+        'Routes should be an array'
       );
 
-      Object.keys(mockProverPayload.routes).forEach(address => {
+      mockProverPayload.routes.forEach(route => {
         assert.ok(
-          /^0x[a-fA-F0-9]{40}$/.test(address),
-          `${address} should be valid Ethereum address`
+          /^0x[a-fA-F0-9]{40}$/.test(route.addr),
+          `${route.addr} should be valid Ethereum address`
         );
-
-        const route = mockProverPayload.routes[address];
+        assert.ok(route.proofType, 'Route should have proofType');
+        assert.ok(typeof route.nonce === 'number', 'Route should have nonce');
         assert.ok(route.url, 'Route should have URL');
         assert.ok(route.sig, 'Route should have signature');
         assert.ok(route.url.startsWith('http'), 'URL should be HTTP/HTTPS');
@@ -568,18 +573,21 @@ MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA1234567890abcdef...
         return;
       }
 
-      // Simulate memory-intensive operations
+      // Simulate memory-intensive operations with new array format
       const largePayload = {
-        routes: {},
+        routes: [],
       };
 
       // Create many routes to test memory handling
       for (let i = 0; i < 1000; i++) {
         const address = `0x${i.toString(16).padStart(40, '0')}`;
-        largePayload.routes[address] = {
+        largePayload.routes.push({
+          addr: address,
+          proofType: 'create',
+          nonce: i,
           url: 'http://localhost:7546',
           sig: '0x' + 'a'.repeat(130),
-        };
+        });
       }
 
       const payloadSize = JSON.stringify(largePayload).length;

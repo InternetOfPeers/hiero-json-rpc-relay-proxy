@@ -141,30 +141,32 @@ describe('Prover Main Functionality', () => {
         Promise.resolve(expectedSignature)
       );
 
-      // Simulate the payload creation logic
+      // Simulate the payload creation logic with new array format
       const testPayload = {
-        routes: {
-          '0x4f1a953df9df8d1c6073ce57f7493e50515fa73f': {
+        routes: [
+          {
+            addr: '0x4f1a953df9df8d1c6073ce57f7493e50515fa73f',
+            proofType: 'create',
+            nonce: 33,
             url: testUrl,
             sig: await mockWallet.signMessage(testUrl),
           },
-          '0x4f1a953df9df8d1c6073ce57f7493e50515fa73a': {
+          {
+            addr: '0x4f1a953df9df8d1c6073ce57f7493e50515fa73a',
+            proofType: 'create',
+            nonce: 60,
             url: testUrl,
             sig: await mockWallet.signMessage(testUrl),
           },
-        },
+        ],
       };
 
       assert.ok(testPayload.routes);
-      assert.strictEqual(Object.keys(testPayload.routes).length, 2);
-      assert.strictEqual(
-        testPayload.routes['0x4f1a953df9df8d1c6073ce57f7493e50515fa73f'].url,
-        testUrl
-      );
-      assert.strictEqual(
-        testPayload.routes['0x4f1a953df9df8d1c6073ce57f7493e50515fa73f'].sig,
-        expectedSignature
-      );
+      assert.ok(Array.isArray(testPayload.routes));
+      assert.strictEqual(testPayload.routes.length, 2);
+      assert.strictEqual(testPayload.routes[0].addr, '0x4f1a953df9df8d1c6073ce57f7493e50515fa73f');
+      assert.strictEqual(testPayload.routes[0].url, testUrl);
+      assert.strictEqual(testPayload.routes[0].sig, expectedSignature);
       assert.strictEqual(mockWallet.signMessage.mock.calls.length, 2);
     });
 

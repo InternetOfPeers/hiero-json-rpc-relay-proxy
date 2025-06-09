@@ -149,49 +149,62 @@ async function demonstrateEncryptedMessaging() {
     const signerAddress = wallet.address;
     console.log(`🔑 Signer address: ${signerAddress}`);
 
-    // Function to sign the URL using ethers.js signMessage
-    const signUrl = async url => {
+    // Function to sign the route data (addr+proofType+nonce+url)
+    const signRouteData = async (addr, proofType, nonce, url) => {
       try {
         // Create wallet from private key
         const wallet = new ethers.Wallet(privateKey);
 
-        // Sign the URL using ethers signMessage (EIP-191 standard)
-        const signature = await wallet.signMessage(url);
+        // Create the message to sign by concatenating addr+proofType+nonce+url
+        const message = addr + proofType + nonce + url;
 
-        console.log(`🔑 Signed URL: ${url}`);
+        // Sign the message using ethers signMessage (EIP-191 standard)
+        const signature = await wallet.signMessage(message);
+
+        console.log(`🔑 Signed data: ${addr}+${proofType}+${nonce}+${url}`);
         console.log(`📝 Signature: ${signature.slice(0, 20)}...`);
 
         return signature;
       } catch (error) {
-        console.error('Error signing URL:', error.message);
+        console.error('Error signing route data:', error.message);
         throw error;
       }
     };
 
     const testUrl = 'http://localhost:7546';
 
-    // One signature per route - now using async/await for signing
-    const testPayload = {
-      routes: {
-        '0x4f1a953df9df8d1c6073ce57f7493e50515fa73f': {
-          url: testUrl,
-          sig: await signUrl(testUrl),
-        },
-        '0x4f1a953df9df8d1c6073ce57f7493e50515fa73a': {
-          url: testUrl,
-          sig: await signUrl(testUrl),
-        },
-      },
+    // Create test routes with new format - routes array with addr, proofType, nonce, url, sig
+    const route1 = {
+      addr: '0x3ed660420aa9bc674e8f80f744f8062603da385e',
+      proofType: 'create',
+      nonce: 33,
+      url: testUrl,
     };
 
-    console.log('🔑 Signed URLs with ethers.js ECDSA...');
+    const route2 = {
+      addr: '0x9300681e2745d5071d0f1fd6c80ad64c6b28e970',
+      proofType: 'create',
+      nonce: 60,
+      url: testUrl,
+    };
+
+    // Sign each route
+    route1.sig = await signRouteData(route1.addr, route1.proofType, route1.nonce, route1.url);
+    route2.sig = await signRouteData(route2.addr, route2.proofType, route2.nonce, route2.url);
+
+    const payload = {
+      routes: [route1],
+    };
+
+    console.log('🔑 Signed route data with ethers.js ECDSA...');
     console.log(
-      `   ✅ Signed ${testUrl} -> ${testPayload.routes[
-        '0x4f1a953df9df8d1c6073ce57f7493e50515fa73f'
-      ].sig.slice(0, 20)}...`
+      `   ✅ Route 1: ${route1.addr} (nonce ${route1.nonce}) -> ${route1.sig.slice(0, 20)}...`
+    );
+    console.log(
+      `   ✅ Route 2: ${route2.addr} (nonce ${route2.nonce}) -> ${route2.sig.slice(0, 20)}...`
     );
 
-    const payloadJson = JSON.stringify(testPayload);
+    const payloadJson = JSON.stringify(payload);
     console.log('📦 Test payload created:');
     console.log(payloadJson);
     console.log('');

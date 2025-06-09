@@ -30,6 +30,8 @@ The main proxy server that:
 - Routes transactions based on sender addresses
 - Manages RSA encryption keys
 - Listens to Hedera topics for routing updates
+- **Verifies contract ownership through deterministic address computation**
+- **Validates ECDSA signatures for route registration**
 - Provides status and configuration endpoints
 
 ### [@hiero-json-rpc-relay/prover](./packages/prover)
@@ -37,7 +39,9 @@ The main proxy server that:
 A demonstration client that:
 
 - Fetches proxy configuration and public keys
-- Creates and signs routing payloads
+- Creates and signs routing payloads with contract ownership proof
+- **Generates deterministic contract addresses using CREATE deployment**
+- **Signs route data with ECDSA for ownership verification**
 - Encrypts messages using RSA
 - Submits encrypted data to Hedera topics
 
@@ -212,6 +216,41 @@ hiero-json-rpc-relay-proxy/
 - All routing messages must be signed with valid ECDSA signatures
 - Encryption ensures message confidentiality
 - Replay protection through timestamp validation
+
+## 🔐 Security Features
+
+### Contract Ownership Verification
+
+The proxy now includes robust security features to ensure only legitimate contract owners can register routing endpoints:
+
+#### 1. Deterministic Address Computation
+- Uses CREATE deployment pattern with `deployer_address + nonce`
+- Computes expected contract addresses using `ethers.getContractAddress()`
+- Verifies that the provided address matches the computed address
+
+#### 2. ECDSA Signature Verification
+- Route registrations must be signed by the contract deployer
+- Signature covers: `addr + proofType + nonce + url`
+- Uses `ethers.verifyMessage()` for signature recovery and validation
+
+#### 3. New Payload Format
+```json
+{
+  "routes": [
+    {
+      "addr": "0x3ed660420aa9bc674e8f80f744f8062603da385e",
+      "proofType": "create",
+      "nonce": 33,
+      "url": "http://localhost:7546",
+      "sig": "0x1234567890abcdef..."
+    }
+  ]
+}
+```
+
+#### 4. Supported Proof Types
+- **CREATE**: Standard contract deployment (implemented)
+- **CREATE2**: Deterministic deployment (planned - see TODO.md)
 
 ### Network Security
 

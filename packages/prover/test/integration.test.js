@@ -274,18 +274,21 @@ describe('Prover Integration Tests', () => {
         return;
       }
 
-      // Test payload size limits
+      // Test payload size limits with new array format
       const smallPayload = { test: 'data' };
       const largePayload = {
-        routes: {},
+        routes: [],
       };
 
       // Create a large payload with many routes
       for (let i = 0; i < 100; i++) {
-        largePayload.routes[`0x${i.toString(16).padStart(40, '0')}`] = {
+        largePayload.routes.push({
+          addr: `0x${i.toString(16).padStart(40, '0')}`,
+          proofType: 'create',
+          nonce: i,
           url: 'http://localhost:7546',
           sig: '0x' + 'a'.repeat(130), // Mock signature
-        };
+        });
       }
 
       const smallJson = JSON.stringify(smallPayload);
