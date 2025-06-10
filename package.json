@@ -14,7 +14,7 @@
     "test:common": "npm test --workspace=packages/common",
     "test:proxy": "npm test --workspace=packages/proxy",
     "test:prover": "npm test --workspace=packages/prover",
-    "test:integration": "node --test test/*.test.js",
+    "test:integration": "node scripts/test-runner.js test",
     "test:workspaces": "npm test --workspaces",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

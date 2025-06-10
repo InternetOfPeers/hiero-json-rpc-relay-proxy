@@ -8,9 +8,9 @@
   },
   "scripts": {
     "start": "node src/prover.js",
-    "test": "node --test test/*.test.js",
-    "test:watch": "node --test --watch test/*.test.js",
-    "test:coverage": "node --test --experimental-test-coverage test/*.test.js"
+    "test": "node ../../scripts/test-runner.js test",
+    "test:watch": "node ../../scripts/test-runner.js test --watch",
+    "test:coverage": "node ../../scripts/test-runner.js test --experimental-test-coverage"
   },
   "keywords": [
     "hedera",
