@@ -1,12 +1,4 @@
 #!/usr/bin/env node
-
-// Prover script to send encrypted messages to Hedera topic
-// This script will:
-// 1. Fetch the status from the /status endpoint
-// 2. Extract the topic ID and public key
-// 3. Encrypt a payload using the RSA public key
-// 4. Send the encrypted message to the Hedera topic
-
 const { HederaManager } = require('./hederaManager');
 const {
   loadEnvFile,
@@ -769,21 +761,23 @@ async function initPairingWithProxy() {
 
   try {
     // Get configured topic ID if available
-    const configuredTopicId =
-      process.env.PROVER_HEDERA_TOPIC_ID || process.env.HEDERA_TOPIC_ID;
+    const configuredTopicId = process.env.PROVER_HEDERA_TOPIC_ID;
 
     let topicId, publicKey, hederaNetwork;
 
     if (configuredTopicId) {
       console.log(
-        '1️⃣  Using configured topic ID, fetching status for public key...'
+        '1️⃣  Using configured topic ID, fetching public key from HCS topic...'
       );
       console.log(`   📋 Configured Topic ID: ${configuredTopicId}`);
 
       try {
         // Fetch status to get the public key (we'll use our configured topic instead of the one from status)
-        const status = await fetchStatus();
-        publicKey = status.publicKey;
+        // Use HederaManager to fetch the public key from the first message in the topic
+        publicKey = await HederaManager.fetchPublicKeyFromTopicFirstMessage(
+          configuredTopicId,
+          PROVER_HEDERA_NETWORK
+        );
         topicId = configuredTopicId; // Use our configured topic ID
         hederaNetwork = PROVER_HEDERA_NETWORK; // Use configured network
 
@@ -792,7 +786,6 @@ async function initPairingWithProxy() {
         );
         console.log(`   🔑 Public Key: ${publicKey.substring(0, 50)}...`);
         console.log(`   📋 Using Topic ID: ${topicId} (configured)`);
-        console.log(`   📋 Proxy Topic ID: ${status.topicId} (ignored)`);
         console.log(`   🌐 Network: ${hederaNetwork}`);
 
         // Track status info for configured topic scenario

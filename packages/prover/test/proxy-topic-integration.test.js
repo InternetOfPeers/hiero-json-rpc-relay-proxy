@@ -9,7 +9,6 @@ describe('Prover - Topic Configuration with Proxy Public Key Reading', () => {
   beforeEach(() => {
     // Set up a clean environment for each test
     delete process.env.PROVER_HEDERA_TOPIC_ID;
-    delete process.env.HEDERA_TOPIC_ID;
     mockProxyPort = 3998; // Use a different port to avoid conflicts
   });
 

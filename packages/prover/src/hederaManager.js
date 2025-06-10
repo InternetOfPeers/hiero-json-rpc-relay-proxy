@@ -195,6 +195,146 @@ class HederaManager {
       console.log('🔌 Prover Hedera client connection closed');
     }
   }
+
+  /**
+   * Fetch public key from the first message in a Hedera topic using mirror node API
+   * @param {string} topicId - The topic ID (e.g., "0.0.6139083")
+   * @param {string} network - The Hedera network ("testnet", "mainnet", "previewnet")
+   * @returns {Promise<string>} The RSA public key in PEM format
+   */
+  static async fetchPublicKeyFromTopicFirstMessage(
+    topicId,
+    network = 'testnet'
+  ) {
+    const http = require('http');
+    const https = require('https');
+
+    try {
+      console.log(
+        `🔍 Fetching public key from topic ${topicId} on ${network}...`
+      );
+
+      // Determine mirror node URL based on network
+      let mirrorNodeUrl;
+      switch (network.toLowerCase()) {
+        case 'mainnet':
+          mirrorNodeUrl = 'https://mainnet-public.mirrornode.hedera.com';
+          break;
+        case 'previewnet':
+          mirrorNodeUrl = 'https://previewnet.mirrornode.hedera.com';
+          break;
+        case 'testnet':
+        default:
+          mirrorNodeUrl = 'https://testnet.mirrornode.hedera.com';
+          break;
+      }
+
+      const url = `${mirrorNodeUrl}/api/v1/topics/${topicId}/messages/1`;
+      console.log(`📡 Calling mirror node: ${url}`);
+
+      return new Promise((resolve, reject) => {
+        const client = url.startsWith('https') ? https : http;
+
+        const request = client.get(url, response => {
+          let data = '';
+
+          response.on('data', chunk => {
+            data += chunk;
+          });
+
+          response.on('end', () => {
+            try {
+              if (response.statusCode !== 200) {
+                throw new Error(`HTTP ${response.statusCode}: ${data}`);
+              }
+
+              const messageData = JSON.parse(data);
+              console.log(`📨 Received message data from mirror node`);
+
+              // Extract the message content (base64 encoded)
+              if (!messageData.message) {
+                throw new Error(
+                  'No message content found in mirror node response'
+                );
+              }
+
+              // Decode the base64 message
+              const messageContent = Buffer.from(
+                messageData.message,
+                'base64'
+              ).toString('utf8');
+              console.log(
+                `📄 Decoded message content (${messageContent.length} chars)`
+              );
+
+              // Try to parse as JSON to extract public key
+              let publicKey;
+              try {
+                const messageJson = JSON.parse(messageContent);
+
+                // Look for public key in common fields
+                if (messageJson.publicKey) {
+                  publicKey = messageJson.publicKey;
+                } else if (messageJson.public_key) {
+                  publicKey = messageJson.public_key;
+                } else if (messageJson.rsaPublicKey) {
+                  publicKey = messageJson.rsaPublicKey;
+                } else if (messageJson.key) {
+                  publicKey = messageJson.key;
+                } else {
+                  throw new Error('No public key field found in message JSON');
+                }
+              } catch (jsonError) {
+                // If not JSON, assume the entire message content is the public key
+                console.log(
+                  `⚠️  Message is not JSON, treating entire content as public key`
+                );
+                publicKey = messageContent.trim();
+              }
+
+              // Validate public key format (should start with -----BEGIN and end with -----END)
+              if (
+                !publicKey.includes('-----BEGIN') ||
+                !publicKey.includes('-----END')
+              ) {
+                throw new Error(
+                  'Invalid public key format - missing PEM headers'
+                );
+              }
+
+              console.log(
+                `✅ Successfully extracted public key from topic first message`
+              );
+              console.log(
+                `🔑 Public key preview: ${publicKey.substring(0, 50)}...`
+              );
+
+              resolve(publicKey);
+            } catch (error) {
+              reject(
+                new Error(
+                  `Failed to parse mirror node response: ${error.message}`
+                )
+              );
+            }
+          });
+        });
+
+        request.on('error', error => {
+          reject(new Error(`Mirror node request failed: ${error.message}`));
+        });
+
+        request.setTimeout(10000, () => {
+          request.destroy();
+          reject(new Error('Mirror node request timeout'));
+        });
+      });
+    } catch (error) {
+      throw new Error(
+        `Failed to fetch public key from topic: ${error.message}`
+      );
+    }
+  }
 }
 
 module.exports = { HederaManager };
