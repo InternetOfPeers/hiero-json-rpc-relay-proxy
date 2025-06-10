@@ -9,6 +9,15 @@ const {
   CustomFixedFee,
   Hbar,
 } = require('@hashgraph/sdk');
+const {
+  hedera: {
+    initHederaClient,
+    getMirrorNodeUrl,
+    isValidAccountId,
+    isValidTopicId,
+    validatePrivateKey,
+  },
+} = require('@hiero-json-rpc-relay/common');
 
 // Prover Hedera Manager Module
 // Dedicated manager for prover scripts with ECDSA key support
@@ -35,32 +44,24 @@ class HederaManager {
     }
 
     try {
-      const accountId = AccountId.fromString(this.accountId);
+      const config = {
+        accountId: this.accountId,
+        privateKey: this.privateKey,
+        network: this.network,
+        keyType: this.keyType,
+      };
 
-      // Support both ECDSA and Ed25519 private keys
-      let privateKey;
-      if (this.keyType === 'ECDSA' || this.privateKey.startsWith('0x')) {
-        // ECDSA private key (hex format)
-        privateKey = PrivateKey.fromStringECDSA(this.privateKey);
-        console.log('🔐 Using ECDSA private key');
-      } else {
-        // Ed25519 private key (original format)
-        privateKey = PrivateKey.fromString(this.privateKey);
-        console.log('🔐 Using Ed25519 private key');
+      const result = initHederaClient(config);
+      if (!result || !result.client) {
+        throw new Error('Failed to initialize Hedera client');
       }
-
-      // Create client for the appropriate network
-      const client =
-        this.network === 'mainnet' ? Client.forMainnet() : Client.forTestnet();
-
-      client.setOperator(accountId, privateKey);
 
       console.log(`✅ Prover Hedera client initialized for ${this.network}`);
       console.log(`   Using account: ${this.accountId}`);
-      console.log(`   Key type: ${this.keyType}`);
+      console.log(`   Key type: ${result.keyType}`);
 
-      this.client = client;
-      return client;
+      this.client = result.client;
+      return result.client;
     } catch (error) {
       console.error(
         '❌ Failed to initialize prover Hedera client:',
@@ -214,20 +215,8 @@ class HederaManager {
         `🔍 Fetching public key from topic ${topicId} on ${network}...`
       );
 
-      // Determine mirror node URL based on network
-      let mirrorNodeUrl;
-      switch (network.toLowerCase()) {
-        case 'mainnet':
-          mirrorNodeUrl = 'https://mainnet.mirrornode.hedera.com';
-          break;
-        case 'previewnet':
-          mirrorNodeUrl = 'https://previewnet.mirrornode.hedera.com';
-          break;
-        case 'testnet':
-        default:
-          mirrorNodeUrl = 'https://testnet.mirrornode.hedera.com';
-          break;
-      }
+      // Get mirror node URL using common utility
+      const mirrorNodeUrl = getMirrorNodeUrl(network);
 
       const url = `${mirrorNodeUrl}/api/v1/topics/${topicId}/messages/1`;
       console.log(`📡 Calling mirror node: ${url}`);

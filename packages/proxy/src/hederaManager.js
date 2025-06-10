@@ -12,15 +12,19 @@ const {
   Hbar,
 } = require('@hashgraph/sdk');
 const {
-  decryptHybridMessage,
   decryptHybridMessageWithKey,
   generateChallenge,
   verifyChallengeResponse,
   encryptAES,
   decryptAES,
   validateRouteSignatures,
-  ErrorTypes,
-  createError,
+  message: {
+    isChunkedMessage: isChunkedMessageCommon,
+    getChunkGroupKey: getChunkGroupKeyCommon,
+    combineChunkedMessages: combineChunkedMessagesCommon,
+    parseMessageContent,
+  },
+  hedera: { getMirrorNodeUrl, isValidAccountId, isValidTopicId },
 } = require('@hiero-json-rpc-relay/common');
 const { updateRoutes, saveDatabase } = require('./dbManager');
 
@@ -71,15 +75,11 @@ class HederaManager {
 
       client.setOperator(accountId, privateKey);
 
-      switch (this.network) {
-        case 'local':
-          this.mirrorNodeUrl = 'http://localhost:5551';
-          break;
-        default:
-          this.mirrorNodeUrl =
-            'https://' + this.network + '.mirrornode.hedera.com';
-          break;
-      }
+      // Set mirror node URL using common utility
+      this.mirrorNodeUrl =
+        this.network === 'local'
+          ? 'http://localhost:5551'
+          : getMirrorNodeUrl(this.network);
 
       console.log(
         `Hedera client initialized for ${this.network} with mirror node ${this.mirrorNodeUrl}`
@@ -147,8 +147,7 @@ class HederaManager {
         .setFeeCollectorAccountId(proxyAccountId); // Proxy collects the fees
 
       const transaction = new TopicCreateTransaction()
-        .setTopicMemo('Hiero JSON-RPC Relay Proxy Topic (HIP-991)')
-        // NO submit key - anyone can post messages (but must pay custom fee)
+        .setTopicMemo('Hiero JSON-RPC Relay Proxy Management')
         .setFeeScheduleKey(proxyPrivateKey.publicKey) // Allow proxy to update fees
         .addCustomFee(customFee) // Add the $0.50 fee for message submission
         .addFeeExemptKey(proxyPrivateKey.publicKey) // Proxy is exempt from fees
@@ -159,7 +158,7 @@ class HederaManager {
       const newTopicId = receipt.topicId;
 
       console.log(`✅ HIP-991 paid topic created successfully: ${newTopicId}`);
-      console.log(`📝 Topic memo: Hiero JSON-RPC Relay Proxy Topic (HIP-991)`);
+      console.log(`📝 Topic memo: Hiero JSON-RPC Relay Proxy Management`);
       console.log(
         `🔓 Submit key: NONE (anyone can post messages by paying fee)`
       );
@@ -1391,13 +1390,8 @@ class HederaManager {
    * @returns {boolean} True if message is chunked
    */
   isChunkedMessage(message) {
-    return !!(
-      message.chunk_info &&
-      message.chunk_info.initial_transaction_id &&
-      message.chunk_info.initial_transaction_id.transaction_valid_start &&
-      typeof message.chunk_info.number === 'number' &&
-      typeof message.chunk_info.total === 'number'
-    );
+    // Proxy adapter: check if chunk_info is directly on the message object
+    return !!(message && message.chunk_info && message.chunk_info.total > 1);
   }
 
   /**
@@ -1406,7 +1400,29 @@ class HederaManager {
    * @returns {string} The chunk group key based on transaction_valid_start
    */
   getChunkGroupKey(message) {
-    return message.chunk_info.initial_transaction_id.transaction_valid_start;
+    // Proxy adapter: extract transaction_valid_start for chunk grouping
+    let validStart;
+
+    if (
+      message &&
+      message.chunk_info &&
+      message.chunk_info.initial_transaction_id
+    ) {
+      validStart =
+        message.chunk_info.initial_transaction_id.transaction_valid_start;
+    } else if (message && message.transaction_valid_start) {
+      if (typeof message.transaction_valid_start === 'object') {
+        validStart = `${message.transaction_valid_start.seconds}-${message.transaction_valid_start.nanos}`;
+      } else {
+        validStart = message.transaction_valid_start;
+      }
+    }
+
+    if (!validStart) {
+      throw new Error('Message missing transaction_valid_start');
+    }
+
+    return validStart.toString();
   }
 
   /**
@@ -1470,9 +1486,7 @@ class HederaManager {
     }
 
     return null; // Not all chunks received yet
-  }
-
-  /**
+  } /**
    * Combine multiple chunked messages into a single message
    * @param {object[]} chunks - Array of chunk messages sorted by chunk number
    * @returns {object} Combined message object
@@ -1482,35 +1496,30 @@ class HederaManager {
       throw new Error('No chunks provided for combining');
     }
 
-    // Use the first chunk as the base message structure
-    const baseMessage = { ...chunks[0] };
+    // Sort chunks by their chunk number to ensure correct order
+    const sortedChunks = chunks.sort((a, b) => {
+      return a.chunk_info.number - b.chunk_info.number;
+    });
 
-    // Combine all message content
-    let combinedContent = '';
-    for (const chunk of chunks) {
-      const chunkContent = Buffer.from(chunk.message, 'base64').toString(
-        'utf8'
-      );
-      combinedContent += chunkContent;
-    }
+    // Take the last chunk as the base (latest sequence number and timestamp)
+    const baseMessage = { ...sortedChunks[sortedChunks.length - 1] };
 
-    // Encode the combined content back to base64
-    baseMessage.message = Buffer.from(combinedContent, 'utf8').toString(
+    // Decode each chunk's message, combine the raw content, then re-encode
+    const combinedRawContent = sortedChunks
+      .map(chunk => Buffer.from(chunk.message, 'base64').toString('utf8'))
+      .join('');
+
+    // Re-encode the combined content
+    baseMessage.message = Buffer.from(combinedRawContent, 'utf8').toString(
       'base64'
     );
 
-    // Remove chunk_info from the combined message since it's no longer chunked
+    // Remove chunk_info since this is now a complete message
     delete baseMessage.chunk_info;
-
-    // Use the latest consensus timestamp and highest sequence number
-    const latestChunk = chunks[chunks.length - 1];
-    baseMessage.consensus_timestamp = latestChunk.consensus_timestamp;
-    baseMessage.sequence_number = latestChunk.sequence_number;
 
     console.log(
       `      🔗 Combined ${chunks.length} chunks into single message (sequence: ${baseMessage.sequence_number})`
     );
-
     return baseMessage;
   }
 

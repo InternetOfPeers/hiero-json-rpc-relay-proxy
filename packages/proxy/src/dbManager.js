@@ -1,6 +1,19 @@
 const fs = require('fs').promises;
 const path = require('path');
 const crypto = require('crypto');
+const {
+  database: {
+    generateRSAKeyPair: generateRSAKeyPairCommon,
+    createRSAKeyPairWithMetadata,
+    validateRSAKeyPair,
+    getDatabasePath,
+    createDefaultDatabase,
+    migrateDatabase,
+    saveDatabase: saveDatabaseCommon,
+    loadDatabase,
+    updateDatabaseRoutes,
+  },
+} = require('@hiero-json-rpc-relay/common');
 
 let database = {
   routes: {},
@@ -10,24 +23,13 @@ let database = {
   },
 };
 
-// Generate RSA key pair
+// Generate RSA key pair using common utility
 function generateRSAKeyPair() {
   try {
     console.log('Generating new RSA key pair...');
-    const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', {
-      modulusLength: 2048, // Key size in bits
-      publicKeyEncoding: {
-        type: 'spki', // Subject Public Key Info
-        format: 'pem',
-      },
-      privateKeyEncoding: {
-        type: 'pkcs8', // Public Key Cryptography Standards #8
-        format: 'pem',
-      },
-    });
-
+    const keyPair = generateRSAKeyPairCommon();
     console.log('✅ RSA key pair generated successfully');
-    return { publicKey, privateKey };
+    return keyPair;
   } catch (error) {
     console.error('Failed to generate RSA key pair:', error.message);
     throw error;

@@ -8,6 +8,7 @@
         "hederautils",
         "hiero",
         "httputils",
+        "mirrornode",
         "monorepo",
         "prover",
         "workspaces"
