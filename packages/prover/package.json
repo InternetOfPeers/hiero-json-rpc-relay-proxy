@@ -1,6 +1,6 @@
 {
   "name": "@hiero-json-rpc-relay/prover",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "Hedera prover component for sending encrypted messages to Hedera Consensus Service",
   "main": "src/prover.js",
   "bin": {

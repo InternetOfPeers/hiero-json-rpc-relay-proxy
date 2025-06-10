@@ -1,8 +1,4 @@
 const {
-  Client,
-  PrivateKey,
-  AccountId,
-  TopicCreateTransaction,
   TopicInfoQuery,
   TopicMessageSubmitTransaction,
   CustomFeeLimit,
@@ -10,13 +6,7 @@ const {
   Hbar,
 } = require('@hashgraph/sdk');
 const {
-  hedera: {
-    initHederaClient,
-    getMirrorNodeUrl,
-    isValidAccountId,
-    isValidTopicId,
-    validatePrivateKey,
-  },
+  hedera: { initHederaClient, getMirrorNodeUrl },
 } = require('@hiero-json-rpc-relay/common');
 
 // Prover Hedera Manager Module

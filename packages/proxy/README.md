@@ -1,5 +1,8 @@
 # @hiero-json-rpc-relay/proxy
 
+**Version**: 1.0.0  
+**Description**: Ethereum transaction routing proxy with Hedera Consensus Service integration and RSA key management
+
 The proxy component of the Hiero JSON-RPC Relay system. This package provides an Ethereum JSON-RPC proxy server with Hedera Consensus Service integration, RSA key management, and dynamic transaction routing.
 
 ## Features
@@ -24,13 +27,17 @@ npm install --workspace=packages/proxy
 
 ## Dependencies
 
-This package depends on the shared `@hiero-json-rpc-relay/common` package for cryptographic utilities, environment management, validation functions, and HTTP utilities. The common package provides:
+This package depends on:
 
-- RSA/AES encryption and signature verification
-- Environment variable loading and validation
-- Route signature validation with comprehensive error reporting
-- HTTP request parsing and CORS handling
-- Hedera client utilities and helper functions
+- **@hiero-json-rpc-relay/common**: ^1.0.0 - Shared utilities package providing:
+  - RSA/AES encryption and signature verification
+  - Environment variable loading and validation
+  - Route signature validation with comprehensive error reporting
+  - HTTP request parsing and CORS handling
+  - Hedera client utilities and helper functions
+  - Database management and persistence utilities
+- **@hashgraph/sdk**: ^2.66.0 - Official Hedera SDK for blockchain integration
+- **ethers**: ^6.14.3 - Ethereum library for transaction processing and cryptography
 
 ## Configuration
 

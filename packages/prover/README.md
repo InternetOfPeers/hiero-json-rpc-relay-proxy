@@ -1,5 +1,8 @@
 # @hiero-json-rpc-relay/prover
 
+**Version**: 1.0.0  
+**Description**: Hedera prover component for sending encrypted messages to Hedera Consensus Service
+
 The prover component of the Hiero JSON-RPC Relay system. This package is responsible for sending encrypted messages to Hedera Consensus Service topics, achieving the complete encryption workflow between the prover and proxy.
 
 ## Features
@@ -23,12 +26,15 @@ npm install --workspace=packages/prover
 
 ## Dependencies
 
-This package depends on the shared `@hiero-json-rpc-relay/common` package for cryptographic utilities, environment management, and validation functions. The common package provides:
+This package depends on:
 
-- RSA encryption and ECDSA signature verification
-- Environment variable loading with validation
-- Route signature validation for ensuring data integrity
-- Hedera client initialization and utility functions
+- **@hiero-json-rpc-relay/common**: ^1.0.0 - Shared utilities package providing:
+  - RSA encryption and ECDSA signature verification
+  - Environment variable loading with validation
+  - Route signature validation for ensuring data integrity
+  - Hedera client initialization and utility functions
+- **@hashgraph/sdk**: ^2.66.0 - Official Hedera SDK for blockchain integration
+- **ethers**: ^6.14.3 - Ethereum library for ECDSA signing and address derivation
 
 ## Configuration
 

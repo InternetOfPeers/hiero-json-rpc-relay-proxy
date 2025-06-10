@@ -2,7 +2,6 @@
 const { HederaManager } = require('./hederaManager');
 const {
   loadEnvFile,
-  encryptHybridMessage,
   verifyChallenge,
   signChallengeResponse,
   encryptAES,

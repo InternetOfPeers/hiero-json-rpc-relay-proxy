@@ -1,13 +1,10 @@
 const http = require('http');
 const https = require('https');
 const path = require('path');
-const { extractToFromTransaction } = require('./ethTxDecoder');
 const {
   initDatabase,
-  saveDatabase,
   getTargetServer,
   getRoutingDB,
-  updateRoutes,
   initRSAKeyPair,
   getRSAKeyPair,
   hasRSAKeyPair,
@@ -18,9 +15,7 @@ const { HederaManager } = require('./hederaManager');
 const {
   loadEnvFile,
   parseRequestBody,
-  sendJsonResponse,
-  sendErrorResponse,
-  setCorsHeaders,
+  extractToFromTransaction,
 } = require('@hiero-json-rpc-relay/common');
 
 // Load .env file before accessing environment variables (unless explicitly disabled)

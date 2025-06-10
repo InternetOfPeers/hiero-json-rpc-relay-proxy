@@ -1,19 +1,7 @@
 const fs = require('fs').promises;
 const path = require('path');
 const {
-  crypto: {
-    generateRSAKeyPair: generateRSAKeyPairCommon,
-    createRSAKeyPairWithMetadata,
-    validateRSAKeyPair,
-  },
-  database: {
-    getDatabasePath,
-    createDefaultDatabase,
-    migrateDatabase,
-    saveDatabase: saveDatabaseCommon,
-    loadDatabase,
-    updateDatabaseRoutes,
-  },
+  crypto: { generateRSAKeyPair },
 } = require('@hiero-json-rpc-relay/common');
 
 let database = {
@@ -23,19 +11,6 @@ let database = {
     sequences: {},
   },
 };
-
-// Generate RSA key pair using common utility
-function generateRSAKeyPair() {
-  try {
-    console.log('Generating new RSA key pair...');
-    const keyPair = generateRSAKeyPairCommon();
-    console.log('✅ RSA key pair generated successfully');
-    return keyPair;
-  } catch (error) {
-    console.error('Failed to generate RSA key pair:', error.message);
-    throw error;
-  }
-}
 
 // Check if RSA key pair exists in database
 function hasRSAKeyPair() {
@@ -84,8 +59,7 @@ async function initRSAKeyPair(DB_FILE) {
   }
 
   console.log('No RSA key pair found, generating new one...');
-  const keyPair = generateRSAKeyPair();
-  await storeRSAKeyPair(keyPair, DB_FILE);
+  await storeRSAKeyPair(generateRSAKeyPair(), DB_FILE);
 
   // Return the stored key pair with createdAt field
   return getRSAKeyPair();

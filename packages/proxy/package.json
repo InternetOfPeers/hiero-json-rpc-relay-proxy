@@ -1,6 +1,6 @@
 {
   "name": "@hiero-json-rpc-relay/proxy",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "Ethereum transaction routing proxy with Hedera Consensus Service integration and RSA key management",
   "main": "src/proxy.js",
   "bin": {
