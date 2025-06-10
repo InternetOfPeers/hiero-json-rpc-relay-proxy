@@ -7,8 +7,9 @@
     "packages/*"
   ],
   "scripts": {
-    "clean": "npm run clean:db && rm -rf node_modules packages/*/node_modules",
+    "clean": "npm run clean:db && npm run clean:modules",
     "clean:db": "node scripts/clean.js",
+    "clean:modules": "node scripts/clean-modules.js",
     "test": "npm run test:workspaces && npm run test:integration",
     "test:common": "npm test --workspace=packages/common",
     "test:proxy": "npm test --workspace=packages/proxy",
@@ -19,7 +20,7 @@
     "format:check": "prettier --check .",
     "install": "npm run install:hooks",
     "install:all": "npm install --workspaces",
-    "install:hooks": "scripts/install-hooks.sh",
+    "install:hooks": "node scripts/install-hooks.js",
     "prover": "npm run start --workspace=packages/prover",
     "prover:dev": "npm run dev --workspace=packages/prover",
     "proxy": "npm run start --workspace=packages/proxy",
