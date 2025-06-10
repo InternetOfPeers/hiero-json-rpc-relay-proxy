@@ -296,7 +296,7 @@ describe('Proxy-Prover Integration Tests', () => {
 
       // Prover should have prover-specific methods
       assert.ok(
-        proverContent.includes('initTopicForProver'),
+        proverContent.includes('configureTopicForProver'),
         'Prover should have prover-specific methods'
       );
     });

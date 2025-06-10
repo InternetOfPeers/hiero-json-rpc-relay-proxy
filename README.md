@@ -189,9 +189,27 @@ A shared utility package providing common functionality used by both proxy and p
 
 **Benefits**: Centralizes common functionality, reduces code duplication, ensures consistent behavior across packages, and provides comprehensive test coverage for all shared utilities.
 
+### Package Diagram
+
+```text
+┌─────────────┐    ┌─────────────┐
+│   Proxy     │    │   Prover    │
+│  Package    │    │  Package    │
+└──────┬──────┘    └──────┬──────┘
+       │                  │
+       │                  │
+       └────────┬─────────┘
+                │
+         ┌──────▼──────┐
+         │   Common    │
+         │  Package    │
+         │ (utilities) │
+         └─────────────┘
+```
+
 ## 📁 Project Structure
 
-```txt
+```text
 hiero-json-rpc-relay-proxy/
 ├── packages/
 │   ├── common/                     # 📦 Shared utilities and components
@@ -344,7 +362,7 @@ npm run test:coverage --workspace=packages/prover
 
 ### Project Structure
 
-```txt
+```text
 hiero-json-rpc-relay-proxy/
 ├── packages/
 │   ├── proxy/                 # Proxy server package

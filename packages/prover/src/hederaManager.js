@@ -5,6 +5,8 @@ const {
   TopicCreateTransaction,
   TopicInfoQuery,
   TopicMessageSubmitTransaction,
+  CustomFeeLimit,
+  CustomFixedFee,
   Hbar,
 } = require('@hashgraph/sdk');
 
@@ -94,7 +96,7 @@ class HederaManager {
     }
   }
 
-  // Submit message to topic
+  // Submit message to topic with HIP-991 fee handling
   async submitMessageToTopic(topicIdString, message) {
     if (!this.client || !topicIdString || !message) {
       throw new Error(
@@ -103,25 +105,34 @@ class HederaManager {
     }
 
     try {
-      console.log(`📤 Submitting message to topic ${topicIdString}...`);
+      console.log(`📤 Submitting message to HIP-991 topic ${topicIdString}...`);
+
+      // Create custom fee limit for HIP-991 topic
+      // Set maximum willing to pay: 0.6 HBAR (above the $0.50 topic fee)
+      const customFee = new CustomFixedFee().setAmount(50000000);
+      const customFeeLimit = new CustomFeeLimit()
+        .setAccountId(this.client.operatorAccountId) // Prover account pays the fee
+        .setFees([customFee]); // Maximum 0.6 HBAR for custom fees
 
       const transaction = new TopicMessageSubmitTransaction()
         .setTopicId(topicIdString)
         .setMessage(message)
-        .setMaxTransactionFee(new Hbar(1)); // Set max fee to 1 HBAR
+        .addCustomFeeLimit(customFeeLimit) // Set max custom fee limit for HIP-991
+        .setMaxTransactionFee(new Hbar(10)); // Set max transaction fee to 1 HBAR
 
       const txResponse = await transaction.execute(this.client);
       const receipt = await txResponse.getReceipt(this.client);
 
       console.log(
-        `✅ Message submitted to topic ${topicIdString} successfully`
+        `✅ Message submitted to HIP-991 topic ${topicIdString} successfully`
       );
+      console.log(`💰 Prover paid custom fee for HIP-991 topic (max: 0.6 HBAR)`);
       console.log(`   Transaction ID: ${txResponse.transactionId}`);
       console.log(`   Sequence Number: ${receipt.topicSequenceNumber}`);
       return receipt;
     } catch (error) {
       console.error(
-        `❌ Failed to submit message to topic ${topicIdString}:`,
+        `❌ Failed to submit message to HIP-991 topic ${topicIdString}:`,
         error.message
       );
       throw error;
@@ -150,7 +161,7 @@ class HederaManager {
   }
 
   // Initialize topic for prover (simplified version)
-  async initTopicForProver(topicIdString) {
+  async configureTopicForProver(topicIdString) {
     if (!topicIdString) {
       throw new Error('Topic ID is required for prover');
     }
@@ -171,7 +182,7 @@ class HederaManager {
       );
     }
 
-    console.log(`✅ Prover topic initialized: ${topicIdString}`);
+    console.log(`📝 Prover initialized for HIP-991 topic: ${topicIdString}`);
     return topicIdString;
   }
 

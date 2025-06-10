@@ -7,6 +7,8 @@ const {
   TopicCreateTransaction,
   TopicInfoQuery,
   TopicMessageSubmitTransaction,
+  AccountBalanceQuery,
+  CustomFixedFee,
   Hbar,
 } = require('@hashgraph/sdk');
 const {
@@ -114,28 +116,57 @@ class HederaManager {
     }
   }
 
-  // Create a new Hedera topic
+  // Create a new HIP-991 paid Hedera topic
   async createTopic() {
     if (!this.client) {
       throw new Error('Hedera client not initialized');
     }
 
     try {
-      console.log('Creating new Hedera topic...');
+      console.log('Creating new HIP-991 paid Hedera topic...');
+
+      // Check account balance first
+      const balance = await new AccountBalanceQuery()
+        .setAccountId(this.accountId)
+        .execute(this.client);
+      console.log(`💰 Account balance: ${balance.hbars} HBAR`);
+
+      if (balance.hbars.toBigNumber().isLessThan(25)) {
+        console.log('⚠️  Warning: Account balance is low for HIP-991 topic creation');
+      }
+
+      // Get the proxy's account ID to use as submit key (exempt from fees)
+      const proxyAccountId = AccountId.fromString(this.accountId);
+      const proxyPrivateKey = PrivateKey.fromStringED25519(this.privateKey);
+
+      // Create the $0.50 custom fixed fee (50,000,000 tinybars = 0.5 HBAR)
+      const customFee = new CustomFixedFee()
+        .setAmount(50000000) // 0.5 HBAR in tinybars (50,000,000 tinybars)
+        .setFeeCollectorAccountId(proxyAccountId); // Proxy collects the fees
 
       const transaction = new TopicCreateTransaction()
-        .setTopicMemo('Hiero JSON-RPC Relay Proxy Topic')
-        .setMaxTransactionFee(new Hbar(2)); // Set max fee to 2 HBAR
+        .setTopicMemo('Hiero JSON-RPC Relay Proxy Topic (HIP-991)')
+        // NO submit key - anyone can post messages (but must pay custom fee)
+        .setFeeScheduleKey(proxyPrivateKey.publicKey) // Allow proxy to update fees
+        .addCustomFee(customFee) // Add the $0.50 fee for message submission
+        .addFeeExemptKey(proxyPrivateKey.publicKey) // Proxy is exempt from fees
+        .setMaxTransactionFee(new Hbar(20)); // Set max fee to 20 HBAR for HIP-991 topic creation
 
       const txResponse = await transaction.execute(this.client);
       const receipt = await txResponse.getReceipt(this.client);
       const newTopicId = receipt.topicId;
 
-      console.log(`✅ Hedera topic created successfully: ${newTopicId}`);
+      console.log(`✅ HIP-991 paid topic created successfully: ${newTopicId}`);
+      console.log(`📝 Topic memo: Hiero JSON-RPC Relay Proxy Topic (HIP-991)`);
+      console.log(`🔓 Submit key: NONE (anyone can post messages by paying fee)`);
+      console.log(`🚫 Fee exempt keys: [${proxyPrivateKey.publicKey.toStringRaw()}] (proxy exempt)`);
+      console.log(`💰 Message submission cost for others: $0.50 (0.5 HBAR)`);
+      console.log(`💼 Fee collector: ${proxyAccountId} (proxy receives fees)`);
+
       this.currentTopicId = newTopicId.toString();
       return this.currentTopicId;
     } catch (error) {
-      console.error('Failed to create Hedera topic:', error.message);
+      console.error('Failed to create HIP-991 paid topic:', error.message);
       throw error;
     }
   }
@@ -239,7 +270,7 @@ class HederaManager {
     }
   }
 
-  // Submit message to topic
+  // Submit message to topic (proxy is exempt from fees due to being in fee exempt list)
   async submitMessageToTopic(topicIdString, message) {
     if (!this.client || !topicIdString || !message) {
       throw new Error(
@@ -248,7 +279,7 @@ class HederaManager {
     }
 
     try {
-      console.log(`Submitting message to topic ${topicIdString}...`);
+      console.log(`Submitting message to HIP-991 topic ${topicIdString}...`);
 
       const transaction = new TopicMessageSubmitTransaction()
         .setTopicId(topicIdString)
@@ -259,13 +290,14 @@ class HederaManager {
       const receipt = await txResponse.getReceipt(this.client);
 
       console.log(
-        `✅ Message submitted to topic ${topicIdString} successfully`
+        `✅ Message submitted to HIP-991 topic ${topicIdString} successfully`
       );
+      console.log(`💰 Proxy exempt from $0.50 submission fee (fee exempt key)`);
       console.log(`Transaction ID: ${txResponse.transactionId}`);
       return receipt;
     } catch (error) {
       console.error(
-        `Failed to submit message to topic ${topicIdString}:`,
+        `Failed to submit message to HIP-991 topic ${topicIdString}:`,
         error.message
       );
       throw error;
@@ -1337,6 +1369,14 @@ class HederaManager {
     console.log(`      💳 Payer: ${message.payer_account_id}`);
   }
 
+  // Close client connection
+  close() {
+    if (this.client) {
+      this.client.close();
+      console.log('🔌 Proxy Hedera client connection closed');
+    }
+  }
+
   /**
    * Check if a message is chunked by looking for chunk_info
    * @param {object} message - The message object from Hedera
@@ -1485,6 +1525,94 @@ class HederaManager {
 
     keysToDelete.forEach(key => this.pendingChunks.delete(key));
   }
+
+  /**
+   * Process a complete message (either regular or assembled from chunks)
+   * @param {object} message - The complete message to process
+   */
+  async processCompleteMessage(message) {
+    const timestamp = new Date(
+      message.consensus_timestamp * 1000
+    ).toISOString();
+    const content = Buffer.from(message.message, 'base64').toString('utf8');
+
+    console.log(
+      `      🔐 Processing complete message #${message.sequence_number} (${timestamp})`
+    );
+    console.log(
+      '      🔐 Encrypted message detected, attempting decryption...'
+    );
+
+    // Get RSA private key for decryption
+    const keyPair = this.getRSAKeyPair ? this.getRSAKeyPair() : null;
+
+    if (keyPair && keyPair.privateKey) {
+      const decryptionResult = decryptHybridMessageWithKey(
+        message.message,
+        keyPair.privateKey
+      );
+
+      if (decryptionResult.success) {
+        console.log('      ✅ Message decrypted successfully!');
+        console.log(
+          `      📄 Decrypted Content: ${decryptionResult.decryptedData}`
+        );
+        console.log(
+          `      📊 Compression: ${decryptionResult.originalLength} → ${decryptionResult.decryptedData.length} bytes`
+        );
+
+        // Store AES key for this session (extracted from hybrid decryption)
+        if (decryptionResult.aesKey) {
+          console.log(
+            '      🔑 AES key extracted and stored for secure communication'
+          );
+          // Parse message to get contract addresses for AES key mapping
+          try {
+            const messageData = JSON.parse(decryptionResult.decryptedData);
+            if (messageData.routes && Array.isArray(messageData.routes)) {
+              // Store AES key for each contract address in this message
+              for (const route of messageData.routes) {
+                if (route.addr) {
+                  this.proverAESKeys.set(route.addr.toLowerCase(), {
+                    aesKey: decryptionResult.aesKey,
+                    timestamp: Date.now(),
+                    url: route.url,
+                    sequenceNumber: message.sequence_number,
+                  });
+                  console.log(
+                    `         Stored AES key for contract: ${route.addr}`
+                  );
+                }
+              }
+            }
+          } catch (parseError) {
+            console.log(
+              '      ⚠️  Could not parse message data for AES key storage'
+            );
+          }
+        }
+
+        // Verify ECDSA signatures if message contains routes
+        await this.verifyMessageSignatures(decryptionResult.decryptedData);
+      } else {
+        console.log('      ❌ Decryption failed:', decryptionResult.error);
+        console.log(
+          `      📄 Raw Content: ${content.substring(0, 200)}${content.length > 200 ? '...' : ''
+          }`
+        );
+      }
+    } else {
+      console.log('      ⚠️  No RSA private key available for decryption');
+      console.log(
+        `      📄 Raw Content: ${content.substring(0, 200)}${content.length > 200 ? '...' : ''
+        }`
+      );
+    }
+
+    console.log(`      💳 Payer: ${message.payer_account_id}`);
+  }
+
+  // ...existing code...
 }
 
 module.exports = { HederaManager };

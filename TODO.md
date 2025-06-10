@@ -4,6 +4,8 @@
 - send a confirmation for each route
 - support removing routes
 - invert the order of loading environment variables (first wins)
+- restart from the last message processed and to up to the latest message (call https://testnet.mirrornode.hedera.com/api/v1/topics/0.0.6139083/messages?order=desc&limit=1 and get sequence_number). After that, start polling for new messages.
+
 
 ## Example cURL command to send a raw transaction
 

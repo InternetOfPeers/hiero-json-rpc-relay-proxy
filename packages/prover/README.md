@@ -204,7 +204,7 @@ const manager = new HederaManager({
 });
 
 // Initialize for a specific topic
-await manager.initTopicForProver('0.0.1234567');
+await manager.configureTopicForProver('0.0.1234567');
 
 // Submit encrypted message
 const receipt = await manager.submitMessageToTopic(topicId, encryptedData);

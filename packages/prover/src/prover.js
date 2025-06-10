@@ -298,7 +298,7 @@ async function sendEncryptedMessage(topicId, encryptedPayload) {
   }
 
   // Initialize topic for prover
-  await hederaManager.initTopicForProver(topicId);
+  await hederaManager.configureTopicForProver(topicId);
 
   try {
     // Submit the message to the topic
