@@ -283,7 +283,7 @@ npm run test:coverage --workspace=packages/prover
 
 ### Project Structure
 
-```
+```txt
 hiero-json-rpc-relay-proxy/
 ├── packages/
 │   ├── proxy/                 # Proxy server package
