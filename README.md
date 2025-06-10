@@ -1,37 +1,6 @@
 # Hiero JSON-RPC Relay Proxy
 
-A monorepo containing a dynamic JSON-RPC relay proxy that routes Ethereum requests to different backend servers based on contract addresses. The system uses Hedera Consensus Service for secure route registration and includes cryptographic verification of contract ownership. It consists of three main packages: a common utilities package, a proxy server that acts as a JSON-RPC relay with dynamic routing, and a prover client that demonstrates secure route registration.
-
-## 📁 Project Structure
-
-```
-hiero-json-rpc-relay-proxy/
-├── packages/
-│   ├── common/                     # 📦 Shared utilities and components
-│   │   ├── src/
-│   │   │   ├── cryptoUtils.js      # RSA+AES encryption, ECDSA signing
-│   │   │   ├── envLoader.js        # Environment variable loading
-│   │   │   ├── hederaUtils.js      # Hedera SDK utilities
-│   │   │   ├── httpUtils.js        # HTTP request/response handling
-│   │   │   ├── validation.js       # Route signature validation
-│   │   │   └── index.js            # Main exports
-│   │   └── test/                   # Unit tests for common utilities
-│   ├── proxy/                      # 🔀 JSON-RPC relay proxy server
-│   │   ├── src/
-│   │   │   ├── proxy.js            # Main proxy server
-│   │   │   ├── hederaManager.js    # Hedera integration
-│   │   │   ├── dbManager.js        # Route database management
-│   │   │   └── ethTxDecoder.js     # Ethereum transaction parsing
-│   │   └── test/                   # Proxy-specific tests
-│   └── prover/                     # 🔐 Route registration client
-│       ├── src/
-│       │   ├── prover.js           # Main prover client
-│       │   └── hederaManager.js    # Hedera integration for prover
-│       └── test/                   # Prover-specific tests
-├── docs/                           # 📚 Documentation
-├── test/                           # 🧪 Integration tests
-└── scripts/                       # 🛠️ Utility scripts
-```
+A monorepo containing a dynamic JSON-RPC relay proxy that routes Ethereum requests to different backend servers based on contract addresses. The system uses Hedera Consensus Service for secure route registration and includes cryptographic verification of contract ownership. It consists of three main packages: a common utilities package, a proxy server that acts as a JSON-RPC relay with dynamic routing, and a prover client that establishes secure route registration.
 
 ## 🏗️ Architecture
 
@@ -82,14 +51,14 @@ sequenceDiagram
   Prover ->> Proxy: Fetch /status
   Proxy -->> Prover: Answer with Topic ID & RSA Public Key
   Prover ->> Prover: 🔑 Generate AES shared secret key
-  Prover ->> HCS: 🔐 Submit Route Data (RSA+AES Encrypted, EcDSA signed), 🤑 Pay Fee
+  Prover ->> HCS: 🔐 Submit Route Data (RSA+AES Encrypted, ECDSA signed), 🤑 Pay Fee
   Prover ->> Prover: ⏳ Listen for Challenge Requests
   HCS -->> Proxy: Deliver Encrypted Message
   Proxy ->> Proxy: Decrypt Message (RSA+AES), Extract AES key
-  Proxy ->> Proxy: Verify Signature, Extract Address (EcDSA)
+  Proxy ->> Proxy: Verify Signature, Extract Address (ECDSA)
   Proxy ->> Proxy: ✅ Confirm Smart Contract's ownership (Address + Nonce)
   Proxy ->> Prover: 🔐 Send Challenge Request (RSA Signed, AES Encrypted)
-  Prover -->> Proxy: 🔐 Respond to Challenge (EcDSA Signed, AES Encrypted)
+  Prover -->> Proxy: 🔐 Respond to Challenge (ECDSA Signed, AES Encrypted)
   Proxy ->> Proxy: Verify Challenge Response, Prover is accessible
   Proxy ->> Proxy: Update Verified Routes Database
   Proxy ->> Prover: 🎉 Confirm Route Registration Success (AES Encrypted)
@@ -219,6 +188,37 @@ A shared utility package providing common functionality used by both proxy and p
 - **hederaUtils**: Hedera client setup and utility functions
 
 **Benefits**: Centralizes common functionality, reduces code duplication, ensures consistent behavior across packages, and provides comprehensive test coverage for all shared utilities.
+
+## 📁 Project Structure
+
+```txt
+hiero-json-rpc-relay-proxy/
+├── packages/
+│   ├── common/                     # 📦 Shared utilities and components
+│   │   ├── src/
+│   │   │   ├── cryptoUtils.js      # RSA+AES encryption, ECDSA signing
+│   │   │   ├── envLoader.js        # Environment variable loading
+│   │   │   ├── hederaUtils.js      # Hedera SDK utilities
+│   │   │   ├── httpUtils.js        # HTTP request/response handling
+│   │   │   ├── validation.js       # Route signature validation
+│   │   │   └── index.js            # Main exports
+│   │   └── test/                   # Unit tests for common utilities
+│   ├── proxy/                      # 🔀 JSON-RPC relay proxy server
+│   │   ├── src/
+│   │   │   ├── proxy.js            # Main proxy server
+│   │   │   ├── hederaManager.js    # Hedera integration
+│   │   │   ├── dbManager.js        # Route database management
+│   │   │   └── ethTxDecoder.js     # Ethereum transaction parsing
+│   │   └── test/                   # Proxy-specific tests
+│   └── prover/                     # 🔐 Route registration client
+│       ├── src/
+│       │   ├── prover.js           # Main prover client
+│       │   └── hederaManager.js    # Hedera integration for prover
+│       └── test/                   # Prover-specific tests
+├── docs/                           # 📚 Documentation
+├── test/                           # 🧪 Integration tests
+└── scripts/                       # 🛠️ Utility scripts
+```
 
 ## 🚀 Quick Start
 

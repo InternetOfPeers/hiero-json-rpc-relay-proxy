@@ -1,10 +1,10 @@
 # @hiero-json-rpc-relay/prover
 
-The prover component of the Hiero JSON-RPC Relay system. This package is responsible for sending encrypted messages to Hedera Consensus Service topics, demonstrating the complete encryption workflow between client and proxy.
+The prover component of the Hiero JSON-RPC Relay system. This package is responsible for sending encrypted messages to Hedera Consensus Service topics, achieving the complete encryption workflow between the prover and proxy.
 
 ## Features
 
-- 🔐 **RSA Encryption**: Encrypts payloads using RSA public keys from the proxy
+- 🔐 **AES+RSA Encryption**: Encrypts payloads using AES shared secret encrypted with a RSA public keys from the proxy
 - 🏗️ **ECDSA Support**: Full support for ECDSA private keys in addition to Ed25519
 - 📡 **HTTP Communication**: Fetches status and configuration from the proxy server
 - 🔗 **Hedera Integration**: Submits encrypted messages to Hedera Consensus Service
