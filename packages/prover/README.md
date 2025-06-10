@@ -44,8 +44,8 @@ PROVER_HEDERA_PRIVATE_KEY=0x48b52aba58f4b8dd4cd0e527e28b0eb5f89e2540785b6fcd3c41
 PROVER_HEDERA_NETWORK=testnet
 PROVER_HEDERA_KEY_TYPE=ECDSA
 
-# Optional: Specific topic ID (if not set, will be fetched from proxy)
-# PROVER_HEDERA_TOPIC_ID=0.0.1234567
+# Optional: Specific topic ID (overrides proxy's topic)
+PROVER_HEDERA_TOPIC_ID=0.0.1234567
 ```
 
 ## HIP-991 Paid Topic Integration
@@ -120,16 +120,110 @@ npm run test:coverage
 
 ## How It Works
 
-1. **Fetch Status**: Connects to the proxy server to get topic ID and RSA public key
-2. **Create Payload**: Generates a test payload with route signatures using the new format
-3. **Sign Routes**: Uses ECDSA to sign concatenated `addr+proofType+nonce+url` for authentication
-4. **Encrypt Payload**: Encrypts the JSON payload using the proxy's RSA public key
-5. **Submit to Hedera**: Sends the encrypted message to the specified Hedera topic (pays 0.5 HBAR fee)
-6. **Start Challenge Server**: Starts HTTP server to respond to URL reachability challenges and receive confirmation
-7. **Handle Challenges**: Responds to challenge-response verification requests from proxy
-8. **Receive Confirmation**: Waits for confirmation message from proxy when verification is complete
-9. **Save Results**: Saves comprehensive session results to a JSON file
-10. **Exit Gracefully**: Automatically exits when confirmation is received from proxy
+### Topic ID Resolution Strategy
+
+The prover uses a intelligent topic resolution strategy to maximize compatibility:
+
+1. **Configured Topic Priority**: If `PROVER_HEDERA_TOPIC_ID` (or `PROVER_HEDERA_TOPIC_ID`) is set:
+
+   - Uses the configured topic ID instead of the proxy's topic
+   - Fetches only the RSA public key from the proxy's `/status` endpoint
+   - Logs which topic is being used vs. which topic the proxy advertises
+   - If the proxy is unreachable, fails immediately (public key required for encryption)
+
+2. **Fallback to Proxy Topic**: If no topic is configured:
+   - Fetches complete status from proxy including topic ID and public key
+   - Uses the proxy's topic ID and all other settings from the status response
+   - Traditional behavior for maximum compatibility
+
+### Topic ID Configuration
+
+The prover supports flexible topic ID configuration with automatic fallback:
+
+#### Option 1: Use Configured Topic ID (Recommended)
+
+```bash
+# .env file
+PROVER_HEDERA_TOPIC_ID=0.0.9999999
+```
+
+**Behavior:**
+
+- Prover uses the specified topic ID regardless of what the proxy advertises
+- Still fetches the RSA public key from the proxy's `/status` endpoint
+- Logs both the configured topic ID and the proxy's topic ID for transparency
+- Fails immediately if proxy is unreachable (public key required for encryption)
+
+**Use Cases:**
+
+- Testing with a specific topic
+- Using a different topic than the proxy's default
+- Ensuring consistent topic usage across multiple prover instances
+
+#### Option 2: Auto-Discovery from Proxy (Default)
+
+```bash
+# .env file (PROVER_HEDERA_TOPIC_ID not set)
+```
+
+**Behavior:**
+
+- Fetches complete status from proxy including topic ID and public key
+- Uses whatever topic the proxy is configured to use
+- Traditional behavior for maximum compatibility
+- Requires proxy to be reachable to determine topic
+
+**Use Cases:**
+
+- Production environments where proxy manages topic selection
+- Simple setup without topic-specific requirements
+- Dynamic topic assignment scenarios
+
+#### Logging Examples
+
+**With Configured Topic:**
+
+```text
+1️⃣  Using configured topic ID, fetching status for public key...
+   📋 Configured Topic ID: 0.0.9999999
+✅ Successfully retrieved status with configured topic override
+   🔑 Public Key: -----BEGIN PUBLIC KEY-----MIIBIjANBgkqhkiG9w0B...
+   📋 Using Topic ID: 0.0.9999999 (configured)
+   📋 Proxy Topic ID: 0.0.1111111 (ignored)
+   🌐 Network: testnet
+```
+
+**Without Configured Topic:**
+
+```text
+1️⃣  No configured topic ID - fetching status from proxy server...
+📊 Status received:
+   📋 Topic ID: 0.0.1111111
+   🌐 Network: testnet
+   🔑 Has Public Key: true
+```
+
+**Error Scenarios:**
+
+```text
+⚠️  Failed to get status with configured topic (Connection refused)
+   📡 This means the proxy server is not reachable
+❌ Cannot reach proxy server to get public key: Connection refused
+```
+
+### Detailed Workflow
+
+1. **Topic ID Resolution**: Determines which topic to use (configured vs. proxy)
+2. **Fetch Proxy Status**: Gets RSA public key (and optionally topic info) from proxy
+3. **Create Payload**: Generates a test payload with route signatures using the new format
+4. **Sign Routes**: Uses ECDSA to sign concatenated `addr+proofType+nonce+url` for authentication
+5. **Encrypt Payload**: Encrypts the JSON payload using the proxy's RSA public key
+6. **Submit to Hedera**: Sends the encrypted message to the specified Hedera topic (pays 0.5 HBAR fee)
+7. **Start Challenge Server**: Starts HTTP server to respond to URL reachability challenges and receive confirmation
+8. **Handle Challenges**: Responds to challenge-response verification requests from proxy
+9. **Receive Confirmation**: Waits for confirmation message from proxy when verification is complete
+10. **Save Results**: Saves comprehensive session results to a JSON file
+11. **Exit Gracefully**: Automatically exits when confirmation is received from proxy
 
 ## Results and Logging
 
@@ -240,7 +334,7 @@ The signature verification ensures that only the deployer of the contract at `ad
 The prover includes its own HederaManager implementation optimized for sending messages:
 
 ```javascript
-const { HederaManager } = require('./src/hederaManager');
+const { HederaManager } } = require('./src/hederaManager');
 
 const manager = new HederaManager({
   accountId: '0.0.1545',

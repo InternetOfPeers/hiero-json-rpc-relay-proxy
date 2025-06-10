@@ -17,11 +17,6 @@ const {
   decryptAES,
   generateAESKey,
   validateRouteSignatures,
-  signRouteData,
-  parseRequestBody,
-  sendJsonResponse,
-  sendErrorResponse,
-  setCorsHeaders,
 } = require('@hiero-json-rpc-relay/common');
 const { ethers } = require('ethers');
 const http = require('http');
@@ -75,20 +70,26 @@ const proverEnvPath = path.join(__dirname, '..', '.env');
 
 // Check if prover .env exists before loading
 if (!require('fs').existsSync(proverEnvPath)) {
-  console.log('📁 Prover .env not found, stopping the prover');
-  process.exit(0);
+  console.log('📁 Prover .env not found, trying to load root .env');
+  // Try loading root .env as fallback
+  const rootEnvPath = path.join(__dirname, '..', '..', '..', '.env');
+  if (require('fs').existsSync(rootEnvPath)) {
+    loadEnvFile(rootEnvPath);
+    console.log('📁 Using root .env file');
+  } else {
+    console.log(
+      '📁 No .env file found, using system environment variables only'
+    );
+  }
+} else {
+  loadEnvFile(proverEnvPath);
+  console.log('📁 Using prover-specific .env file');
 }
 
-loadEnvFile(proverEnvPath);
-console.log('📁 Using prover-specific .env file');
-
 // Configuration
-const PROXY_SERVER_URL =
-  process.env.PROVER_PROXY_SERVER_URL ||
-  process.env.PROXY_SERVER_URL ||
-  'http://localhost:3000';
-const HEDERA_NETWORK =
-  process.env.PROVER_HEDERA_NETWORK || process.env.HEDERA_NETWORK || 'testnet';
+const PROVER_PROXY_SERVER_URL =
+  process.env.PROVER_PROXY_SERVER_URL || 'http://localhost:3000';
+const PROVER_HEDERA_NETWORK = process.env.PROVER_HEDERA_NETWORK || 'testnet';
 const PROVER_PORT = process.env.PROVER_PORT
   ? parseInt(process.env.PROVER_PORT, 10)
   : 7546;
@@ -217,11 +218,11 @@ function saveResults(
 // Function to fetch status from the proxy server
 function fetchStatus() {
   return new Promise((resolve, reject) => {
-    const url = `${PROXY_SERVER_URL}/status`;
+    const url = `${PROVER_PROXY_SERVER_URL}/status`;
     console.log(`📡 Fetching status from: ${url}`);
 
     // Track proxy URL
-    proverResults.session.proxyUrl = PROXY_SERVER_URL;
+    proverResults.session.proxyUrl = PROVER_PROXY_SERVER_URL;
 
     const request = http.get(url, response => {
       let data = '';
@@ -288,20 +289,15 @@ async function sendEncryptedMessage(topicId, encryptedPayload) {
 
   // Initialize Prover Hedera Manager with ECDSA support
   const hederaManager = new HederaManager({
-    accountId:
-      process.env.PROVER_HEDERA_ACCOUNT_ID || process.env.HEDERA_ACCOUNT_ID,
-    privateKey:
-      process.env.PROVER_HEDERA_PRIVATE_KEY || process.env.HEDERA_PRIVATE_KEY,
-    network: HEDERA_NETWORK,
-    keyType:
-      process.env.PROVER_HEDERA_KEY_TYPE ||
-      process.env.HEDERA_KEY_TYPE ||
-      'ECDSA',
+    accountId: process.env.PROVER_HEDERA_ACCOUNT_ID,
+    privateKey: process.env.PROVER_HEDERA_PRIVATE_KEY,
+    network: PROVER_HEDERA_NETWORK,
+    keyType: process.env.PROVER_HEDERA_KEY_TYPE || 'ECDSA',
   });
 
   if (!hederaManager.isEnabled()) {
     throw new Error(
-      'Hedera credentials not configured. Please set HEDERA_ACCOUNT_ID and HEDERA_PRIVATE_KEY'
+      'Hedera credentials not configured. Please set PROVER_HEDERA_ACCOUNT_ID and PROVER_HEDERA_PRIVATE_KEY'
     );
   }
 
@@ -772,23 +768,69 @@ async function initPairingWithProxy() {
   console.log('=================================\n');
 
   try {
-    // Step 1: Fetch status from proxy server
-    console.log('1️⃣  Fetching status from proxy server...');
-    const status = await fetchStatus();
+    // Get configured topic ID if available
+    const configuredTopicId =
+      process.env.PROVER_HEDERA_TOPIC_ID || process.env.HEDERA_TOPIC_ID;
 
-    console.log('📊 Status received:');
-    console.log(`   Topic ID: ${status.topicId}`);
-    console.log(`   Network: ${status.hederaNetwork}`);
-    console.log(`   Has Public Key: ${!!status.publicKey}`);
+    let topicId, publicKey, hederaNetwork;
+
+    if (configuredTopicId) {
+      console.log(
+        '1️⃣  Using configured topic ID, fetching status for public key...'
+      );
+      console.log(`   📋 Configured Topic ID: ${configuredTopicId}`);
+
+      try {
+        // Fetch status to get the public key (we'll use our configured topic instead of the one from status)
+        const status = await fetchStatus();
+        publicKey = status.publicKey;
+        topicId = configuredTopicId; // Use our configured topic ID
+        hederaNetwork = PROVER_HEDERA_NETWORK; // Use configured network
+
+        console.log(
+          '✅ Successfully retrieved status with configured topic override'
+        );
+        console.log(`   🔑 Public Key: ${publicKey.substring(0, 50)}...`);
+        console.log(`   📋 Using Topic ID: ${topicId} (configured)`);
+        console.log(`   📋 Proxy Topic ID: ${status.topicId} (ignored)`);
+        console.log(`   🌐 Network: ${hederaNetwork}`);
+
+        // Track status info for configured topic scenario
+        proverResults.session.proxyUrl = PROVER_PROXY_SERVER_URL;
+        proverResults.session.hederaNetwork = hederaNetwork;
+        proverResults.session.topicId = topicId;
+      } catch (configError) {
+        console.log(
+          `⚠️  Failed to get status with configured topic (${configError.message})`
+        );
+        console.log('   📡 This means the proxy server is not reachable');
+        throw new Error(
+          `Cannot reach proxy server to get public key: ${configError.message}`
+        );
+      }
+    } else {
+      console.log(
+        '1️⃣  No configured topic ID - fetching status from proxy server...'
+      );
+      const status = await fetchStatus();
+      topicId = status.topicId;
+      publicKey = status.publicKey;
+      hederaNetwork = status.hederaNetwork;
+
+      console.log('📊 Status received:');
+      console.log(`   📋 Topic ID: ${topicId}`);
+      console.log(`   🌐 Network: ${hederaNetwork}`);
+      console.log(`   🔑 Has Public Key: ${!!publicKey}`);
+    }
 
     // Validate required data
-    if (!status.topicId) {
+    if (!topicId) {
       throw new Error(
         'Topic ID not available. Make sure the proxy server is running and has initialized a topic.'
       );
     }
 
-    if (!status.publicKey) {
+    if (!publicKey) {
       throw new Error(
         'Public key not available. Make sure the proxy server has initialized RSA keys.'
       );
@@ -800,10 +842,11 @@ async function initPairingWithProxy() {
     // Create a test payload for the prover with a single route and signature
 
     const privateKey =
-      process.env.PROVER_HEDERA_PRIVATE_KEY || process.env.HEDERA_PRIVATE_KEY;
+      process.env.PROVER_HEDERA_PRIVATE_KEY ||
+      process.env.PROVER_HEDERA_PRIVATE_KEY;
     if (!privateKey) {
       throw new Error(
-        'PROVER_HEDERA_PRIVATE_KEY (or HEDERA_PRIVATE_KEY) not set in environment'
+        'PROVER_HEDERA_PRIVATE_KEY (or PROVER_HEDERA_PRIVATE_KEY) not set in environment'
       );
     }
 
@@ -912,7 +955,7 @@ async function initPairingWithProxy() {
     // Step 3: Encrypt the payload using the generated AES key
     console.log('3️⃣  Encrypting payload with specific AES key...');
     const encryptedPayload = encryptHybridMessageWithKey(
-      status.publicKey,
+      publicKey,
       payloadJson,
       aesKey,
       true // verbose logging
@@ -923,18 +966,15 @@ async function initPairingWithProxy() {
 
     // Step 4: Start challenge server before sending message
     console.log('4️⃣  Starting challenge server...');
-    const challengeServer = await startChallengeServer(
-      status.publicKey,
-      privateKey
-    );
+    const challengeServer = await startChallengeServer(publicKey, privateKey);
 
     // Step 5: Send encrypted message to topic
     console.log('5️⃣  Sending encrypted message to Hedera topic...');
-    await sendEncryptedMessage(status.topicId, encryptedPayload);
+    await sendEncryptedMessage(topicId, encryptedPayload);
 
     console.log('\n🎉 Message sent successfully!');
     console.log('📝 Summary:');
-    console.log(`   - Topic ID: ${status.topicId}`);
+    console.log(`   - Topic ID: ${topicId}`);
     console.log(`   - Original payload size: ${payloadJson.length} bytes`);
     console.log(
       `   - Encrypted payload size: ${encryptedPayload.length} bytes`

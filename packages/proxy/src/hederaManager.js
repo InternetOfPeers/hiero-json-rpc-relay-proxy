@@ -415,7 +415,7 @@ class HederaManager {
       this.currentTopicId = await this.createTopic();
       console.log(`Hedera topic initialized: ${this.currentTopicId}`);
       console.log(
-        `💡 Add this to your .env file: HEDERA_TOPIC_ID=${this.currentTopicId}`
+        `💡 Add this to your .env file: PROXY_HEDERA_TOPIC_ID=${this.currentTopicId}`
       );
 
       // For new topics, always send the public key as the first message

@@ -338,6 +338,13 @@ npm install --workspaces
    # Ensure account has ≥1 HBAR for submission fees
    ```
 
+   **Advanced Topic Configuration**: The prover supports flexible topic ID configuration:
+
+   - **Use Proxy's Topic** (default): Don't set `PROVER_HEDERA_TOPIC_ID` - the prover will fetch and use whatever topic the proxy is configured to use
+   - **Override with Specific Topic**: Set `PROVER_HEDERA_TOPIC_ID=0.0.1234567` to use a specific topic regardless of what the proxy advertises
+
+   This allows testing with different topics while still maintaining compatibility with the proxy's RSA public key.
+
 3. **Common Package**: The `@hiero-json-rpc-relay/common` package is automatically installed as a dependency for both proxy and prover packages. It provides shared utilities for:
    - Cryptographic operations (RSA+AES encryption, ECDSA signing)
    - HTTP request/response handling

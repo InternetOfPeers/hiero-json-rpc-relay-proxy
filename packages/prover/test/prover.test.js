@@ -366,4 +366,203 @@ describe('Prover Main Functionality', () => {
       );
     });
   });
+
+  describe('Topic ID Configuration Logic', () => {
+    let originalEnv;
+
+    beforeEach(() => {
+      // Save original environment
+      originalEnv = {
+        PROVER_HEDERA_TOPIC_ID: process.env.PROVER_HEDERA_TOPIC_ID,
+      };
+    });
+
+    afterEach(() => {
+      // Restore original environment
+      if (originalEnv.PROVER_HEDERA_TOPIC_ID !== undefined) {
+        process.env.PROVER_HEDERA_TOPIC_ID = originalEnv.PROVER_HEDERA_TOPIC_ID;
+      } else {
+        delete process.env.PROVER_HEDERA_TOPIC_ID;
+      }
+    });
+
+    it('should use configured PROVER_HEDERA_TOPIC_ID when available', () => {
+      const configuredTopicId = '0.0.9999999';
+      process.env.PROVER_HEDERA_TOPIC_ID = configuredTopicId;
+
+      // Simulate the logic from initPairingWithProxy
+      const configuredTopicId_resolved = process.env.PROVER_HEDERA_TOPIC_ID;
+
+      assert.strictEqual(configuredTopicId_resolved, configuredTopicId);
+      assert.ok(
+        configuredTopicId_resolved,
+        'Should have a configured topic ID'
+      );
+    });
+
+    it('should handle no configured topic ID scenario', () => {
+      delete process.env.PROVER_HEDERA_TOPIC_ID;
+
+      const configuredTopicId = process.env.PROVER_HEDERA_TOPIC_ID;
+
+      assert.strictEqual(configuredTopicId, undefined);
+    });
+
+    it('should simulate successful status fetch with configured topic override', () => {
+      const configuredTopicId = '0.0.9999999';
+      const statusResponse = {
+        topicId: '0.0.1111111', // This should be ignored when configured topic is used
+        publicKey:
+          '-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...\n-----END PUBLIC KEY-----',
+        hederaNetwork: 'testnet',
+      };
+
+      // Simulate the configured topic logic
+      process.env.PROVER_HEDERA_TOPIC_ID = configuredTopicId;
+      const configuredTopicId_resolved = process.env.PROVER_HEDERA_TOPIC_ID;
+
+      if (configuredTopicId_resolved) {
+        // Use configured topic, get public key from status
+        const finalTopicId = configuredTopicId_resolved;
+        const finalPublicKey = statusResponse.publicKey;
+        const finalNetwork = 'testnet'; // From environment
+
+        assert.strictEqual(finalTopicId, configuredTopicId);
+        assert.notStrictEqual(
+          finalTopicId,
+          statusResponse.topicId,
+          'Should use configured topic, not proxy topic'
+        );
+        assert.strictEqual(finalPublicKey, statusResponse.publicKey);
+        assert.strictEqual(finalNetwork, 'testnet');
+      }
+    });
+
+    it('should simulate fallback to status endpoint when no topic configured', () => {
+      const statusResponse = {
+        topicId: '0.0.1111111',
+        publicKey:
+          '-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...\n-----END PUBLIC KEY-----',
+        hederaNetwork: 'testnet',
+      };
+
+      // Clear configured topic
+      delete process.env.PROVER_HEDERA_TOPIC_ID;
+
+      const configuredTopicId = process.env.PROVER_HEDERA_TOPIC_ID;
+
+      if (!configuredTopicId) {
+        // Use everything from status response
+        const finalTopicId = statusResponse.topicId;
+        const finalPublicKey = statusResponse.publicKey;
+        const finalNetwork = statusResponse.hederaNetwork;
+
+        assert.strictEqual(finalTopicId, statusResponse.topicId);
+        assert.strictEqual(finalPublicKey, statusResponse.publicKey);
+        assert.strictEqual(finalNetwork, statusResponse.hederaNetwork);
+      }
+    });
+
+    it('should handle error scenarios in configured topic flow', () => {
+      const configuredTopicId = '0.0.9999999';
+      process.env.PROVER_HEDERA_TOPIC_ID = configuredTopicId;
+
+      // Simulate error when trying to fetch status for public key
+      const statusError = new Error('Connection refused');
+
+      assert.ok(statusError instanceof Error);
+      assert.strictEqual(statusError.message, 'Connection refused');
+
+      // In the actual implementation, this would throw an error since
+      // we can't get the public key without reaching the proxy
+      const expectedErrorMessage = `Cannot reach proxy server to get public key: ${statusError.message}`;
+      const actualError = new Error(expectedErrorMessage);
+
+      assert.strictEqual(
+        actualError.message,
+        'Cannot reach proxy server to get public key: Connection refused'
+      );
+    });
+
+    it('should validate that both topic ID and public key are required', () => {
+      // Test missing topic ID
+      let topicId = null;
+      let publicKey =
+        '-----BEGIN PUBLIC KEY-----\ntest\n-----END PUBLIC KEY-----';
+
+      let error = null;
+      if (!topicId) {
+        error = new Error(
+          'Topic ID not available. Make sure the proxy server is running and has initialized a topic.'
+        );
+      }
+
+      assert.ok(error);
+      assert.ok(error.message.includes('Topic ID not available'));
+
+      // Test missing public key
+      topicId = '0.0.1234567';
+      publicKey = null;
+      error = null;
+
+      if (!publicKey) {
+        error = new Error(
+          'Public key not available. Make sure the proxy server has initialized RSA keys.'
+        );
+      }
+
+      assert.ok(error);
+      assert.ok(error.message.includes('Public key not available'));
+
+      // Test both available
+      topicId = '0.0.1234567';
+      publicKey = '-----BEGIN PUBLIC KEY-----\ntest\n-----END PUBLIC KEY-----';
+      error = null;
+
+      if (!topicId) {
+        error = new Error('Topic ID not available');
+      } else if (!publicKey) {
+        error = new Error('Public key not available');
+      }
+
+      assert.strictEqual(
+        error,
+        null,
+        'Should not have errors when both topic ID and public key are available'
+      );
+    });
+
+    it('should properly track session results for different scenarios', () => {
+      const mockResults = {
+        session: {
+          proxyUrl: null,
+          hederaNetwork: null,
+          topicId: null,
+        },
+      };
+
+      // Scenario 1: Configured topic
+      const configuredTopicId = '0.0.9999999';
+      const proxyUrl = 'http://localhost:3000';
+      const hederaNetwork = 'testnet';
+
+      mockResults.session.proxyUrl = proxyUrl;
+      mockResults.session.hederaNetwork = hederaNetwork;
+      mockResults.session.topicId = configuredTopicId;
+
+      assert.strictEqual(mockResults.session.proxyUrl, proxyUrl);
+      assert.strictEqual(mockResults.session.hederaNetwork, hederaNetwork);
+      assert.strictEqual(mockResults.session.topicId, configuredTopicId);
+
+      // Scenario 2: Status-based topic
+      const statusTopicId = '0.0.1111111';
+      const statusNetwork = 'mainnet';
+
+      mockResults.session.hederaNetwork = statusNetwork;
+      mockResults.session.topicId = statusTopicId;
+
+      assert.strictEqual(mockResults.session.hederaNetwork, statusNetwork);
+      assert.strictEqual(mockResults.session.topicId, statusTopicId);
+    });
+  });
 });

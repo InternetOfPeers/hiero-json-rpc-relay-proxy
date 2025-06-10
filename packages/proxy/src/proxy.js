@@ -37,14 +37,10 @@ const PROXY_DEFAULT_SERVER =
   process.env.PROXY_DEFAULT_SERVER || 'https://testnet.hashio.io/api'; // Fallback server
 
 // Proxy Hedera configuration
-const HEDERA_ACCOUNT_ID =
-  process.env.PROXY_HEDERA_ACCOUNT_ID || process.env.HEDERA_ACCOUNT_ID;
-const HEDERA_PRIVATE_KEY =
-  process.env.PROXY_HEDERA_PRIVATE_KEY || process.env.HEDERA_PRIVATE_KEY;
-const HEDERA_NETWORK =
-  process.env.PROXY_HEDERA_NETWORK || process.env.HEDERA_NETWORK || 'testnet'; // testnet or mainnet
-const HEDERA_TOPIC_ID =
-  process.env.PROXY_HEDERA_TOPIC_ID || process.env.HEDERA_TOPIC_ID; // Optional: existing topic ID
+const PROXY_HEDERA_ACCOUNT_ID = process.env.PROXY_HEDERA_ACCOUNT_ID;
+const PROXY_HEDERA_PRIVATE_KEY = process.env.PROXY_HEDERA_PRIVATE_KEY;
+const PROXY_HEDERA_NETWORK = process.env.PROXY_HEDERA_NETWORK || 'testnet'; // testnet or mainnet
+const PROXY_HEDERA_TOPIC_ID = process.env.PROXY_HEDERA_TOPIC_ID; // Optional: existing topic ID
 
 // Generate network-specific database file path
 function getDBFilePath() {
@@ -52,15 +48,15 @@ function getDBFilePath() {
   const dataPath = path.isAbsolute(PROXY_DATA_FOLDER)
     ? PROXY_DATA_FOLDER
     : path.join(__dirname, '..', PROXY_DATA_FOLDER);
-  return path.join(dataPath, `routing_db_${HEDERA_NETWORK}.json`);
+  return path.join(dataPath, `routing_db_${PROXY_HEDERA_NETWORK}.json`);
 }
 
 // Initialize Hedera manager
 const hederaManager = new HederaManager({
-  accountId: HEDERA_ACCOUNT_ID,
-  privateKey: HEDERA_PRIVATE_KEY,
-  network: HEDERA_NETWORK,
-  topicId: HEDERA_TOPIC_ID,
+  accountId: PROXY_HEDERA_ACCOUNT_ID,
+  privateKey: PROXY_HEDERA_PRIVATE_KEY,
+  network: PROXY_HEDERA_NETWORK,
+  topicId: PROXY_HEDERA_TOPIC_ID,
   getLastProcessedSequence,
   storeLastProcessedSequence,
   dbFile: getDBFilePath(),

@@ -29,7 +29,7 @@ class HederaManager {
   initClient() {
     if (!this.accountId || !this.privateKey) {
       console.log(
-        '❌ Hedera credentials not provided. Please set HEDERA_ACCOUNT_ID and HEDERA_PRIVATE_KEY'
+        '❌ Hedera credentials not provided. Please set PROVER_HEDERA_ACCOUNT_ID and PROVER_HEDERA_PRIVATE_KEY'
       );
       return null;
     }
