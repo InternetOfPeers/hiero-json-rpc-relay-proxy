@@ -696,6 +696,7 @@ class HederaManager {
       let totalSignatures = 0;
       let validSignatures = 0;
       let derivedSignerAddress = null;
+      let invalidRoutes = [];
 
       const { getContractAddressFromCreate } = require('./cryptoUtils');
 
@@ -753,80 +754,58 @@ class HederaManager {
                   `      🏗️ Contract address verification (CREATE): computed=${computedAddress}, expected=${route.addr}, valid=${isValidOwnership}`
                 );
               } else if (route.proofType === 'create2') {
-                // TODO: Implement CREATE2 verification when added
                 console.log(
                   `      ⚠️ CREATE2 verification not yet implemented - skipping ownership check`
                 );
-                isValidOwnership = true; // Temporary - allow CREATE2 for now
-              } else {
-                console.log(`      ❌ Unknown proof type: ${route.proofType}`);
-                isValidOwnership = false;
               }
 
               if (isValidOwnership) {
                 validSignatures++;
                 console.log(
-                  `      ✅ Valid signature and ownership for ${route.addr} (${route.proofType}, nonce ${route.nonce}) from ${signerFromThisSignature.slice(0, 10)}...`
+                  `      ✅ Valid signature and ownership for ${route.addr} (${route.proofType}, nonce ${route.nonce})`
                 );
               } else {
-                console.log(
+                console.error(
                   `      ❌ Valid signature but invalid ownership for ${route.addr} (${route.proofType}, nonce ${route.nonce})`
                 );
-                console.log(
-                  `         Signer ${derivedSignerAddress.slice(0, 10)}... is not the owner of contract at ${route.addr}`
-                );
+                invalidRoutes.push(route);
               }
             } else {
-              console.log(
+              console.error(
                 `      ❌ Invalid signature for ${route.addr} (${route.proofType}, nonce ${route.nonce})`
               );
-              console.log(
-                `         Expected signer: ${derivedSignerAddress.slice(
-                  0,
-                  10
-                )}...`
-              );
-              console.log(
-                `         Actual signer: ${signerFromThisSignature.slice(
-                  0,
-                  10
-                )}...`
-              );
+              invalidRoutes.push(route);
             }
           } catch (error) {
-            console.log(
-              `      ❌ Failed to verify signature for ${route.addr
-              } (${route.proofType}, nonce ${route.nonce}): ${error.message}`
+            console.error(
+              `      ❌ Error verifying signature for ${route.addr}: ${error.message}`
             );
+            invalidRoutes.push(route);
           }
+        } else {
+          console.error(
+            `      ❌ Missing required fields for route: ${JSON.stringify(route)}`
+          );
+          invalidRoutes.push(route);
         }
       }
 
-      if (totalSignatures > 0) {
-        const success = validSignatures === totalSignatures;
-        console.log(
-          `      🎯 Signature and ownership verification: ${validSignatures}/${totalSignatures} routes valid ${success ? '✅' : '❌'
-          }`
+      if (invalidRoutes.length > 0) {
+        throw new Error(
+          `Signature verification failed for ${invalidRoutes.length} route(s): ${invalidRoutes.map(r => r.addr).join(', ')}`
         );
+      }
 
-        if (!success) {
-          console.log(
-            '      ⚠️  Message contains invalid signatures or ownership proofs - potential security risk!'
-          );
-          return; // Don't proceed with challenge-response if signatures are invalid
-        }
+      console.log(
+        `      ✅ Signature verification completed: ${validSignatures}/${totalSignatures} valid`
+      );
 
-        // If all signatures are valid, initiate challenge-response flow
-        if (success && derivedSignerAddress) {
-          console.log('      🚀 Starting challenge-response verification...');
-          await this.processChallengeResponseFlow(
-            messageData,
-            derivedSignerAddress
-          );
-        }
-      } else {
-        console.log(
-          '      📝 No signatures found in routes - skipping verification'
+      // If all signatures are valid, initiate challenge-response flow
+      if (validSignatures === totalSignatures && derivedSignerAddress) {
+        console.log('      🚀 Starting challenge-response verification...');
+        await this.processChallengeResponseFlow(
+          messageData,
+          derivedSignerAddress
         );
       }
     } catch (error) {

@@ -557,6 +557,28 @@ function handleChallenge(req, res, body, proxyPublicKey, privateKey) {
 }
 
 /**
+ * Enhance confirmation handling to validate route signatures
+ */
+function validateRouteSignatures(routes) {
+  return routes.every(route => {
+    if (!route.sig) {
+      console.error(`❌ Missing signature for route: ${route.addr}`);
+      return false;
+    }
+
+    const message = route.addr + route.proofType + route.nonce + route.url;
+    const wallet = new ethers.Wallet(privateKey);
+    const isValid = wallet.verifyMessage(message, route.sig);
+
+    if (!isValid) {
+      console.error(`❌ Invalid signature for route: ${route.addr}`);
+    }
+
+    return isValid;
+  });
+}
+
+/**
  * Handle incoming confirmation from proxy
  * @param {http.IncomingMessage} req - HTTP request
  * @param {http.ServerResponse} res - HTTP response
@@ -601,6 +623,10 @@ function handleConfirmation(req, res, body, server) {
         );
       }
     }
+
+    // if (!validateRouteSignatures(confirmation.routes)) {
+    //   throw new Error('One or more routes have invalid or missing signatures');
+    // }
 
     // Track confirmation received
     proverResults.confirmation.receivedCount++;
@@ -793,6 +819,12 @@ async function initPairingWithProxy() {
       nonce: 33,
       url: testUrl,
     };
+    route1.sig = await signRouteData(
+      route1.addr,
+      route1.proofType,
+      route1.nonce,
+      route1.url
+    )
 
     const route2 = {
       addr: '0xfcec100d41f4bcc889952e1a73ad6d96783c491f',
@@ -800,6 +832,12 @@ async function initPairingWithProxy() {
       nonce: 30,
       url: testUrl,
     };
+    route2.sig = await signRouteData(
+      route2.addr,
+      route2.proofType,
+      route2.nonce,
+      route2.url
+    )
 
     const route3 = {
       addr: '0xfcec100d41f4bcc889952e1a73ad6d96783c491f',
@@ -807,35 +845,15 @@ async function initPairingWithProxy() {
       nonce: 30,
       url: testUrl,
     };
-    const route4 = {
-      addr: '0xfcec100d41f4bcc889952e1a73ad6d96783c491f',
-      proofType: 'create',
-      nonce: 30,
-      url: testUrl,
-    };
-    const route5 = {
-      addr: '0xfcec100d41f4bcc889952e1a73ad6d96783c491f',
-      proofType: 'create',
-      nonce: 30,
-      url: testUrl,
-    };
-
-    // Sign each route
-    route1.sig = await signRouteData(
-      route1.addr,
-      route1.proofType,
-      route1.nonce,
-      route1.url
-    );
-    route2.sig = await signRouteData(
-      route2.addr,
-      route2.proofType,
-      route2.nonce,
-      route2.url
-    );
+    route3.sig = await signRouteData(
+      route3.addr,
+      route3.proofType,
+      route3.nonce,
+      route3.url
+    )
 
     const payload = {
-      routes: [route1, route2, route3, route4, route5],
+      routes: [route1, route2, route3],
     };
 
     // Generate and store AES keys for each contract address
@@ -850,27 +868,10 @@ async function initPairingWithProxy() {
 
     // Track payload creation
     proverResults.payload.created = true;
-    proverResults.payload.routes = [
-      {
-        addr: route1.addr,
-        proofType: route1.proofType,
-        nonce: route1.nonce,
-        url: route1.url,
-        signaturePrefix: route1.sig.slice(0, 20) + '...',
-      },
-    ];
 
     // Set expected confirmation count based on number of routes submitted
     proverResults.confirmation.expectedCount = payload.routes.length;
     console.log(`📊 Expecting ${proverResults.confirmation.expectedCount} confirmations (one per route)`);
-
-    console.log('🔑 Signed route data with ethers.js ECDSA...');
-    console.log(
-      `   ✅ Route 1: ${route1.addr} (nonce ${route1.nonce}) -> ${route1.sig.slice(0, 20)}...`
-    );
-    console.log(
-      `   ✅ Route 2: ${route2.addr} (nonce ${route2.nonce}) -> ${route2.sig.slice(0, 20)}...`
-    );
 
     const payloadJson = JSON.stringify(payload);
     proverResults.payload.originalSize = payloadJson.length;
