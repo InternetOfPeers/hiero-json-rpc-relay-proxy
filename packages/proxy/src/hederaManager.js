@@ -547,7 +547,8 @@ class HederaManager {
                       decryptionResult.error
                     );
                     console.log(
-                      `      📄 Raw Content: ${content.substring(0, 200)}${content.length > 200 ? '...' : ''
+                      `      📄 Raw Content: ${content.substring(0, 200)}${
+                        content.length > 200 ? '...' : ''
                       }`
                     );
                   }
@@ -556,7 +557,8 @@ class HederaManager {
                     '      ⚠️  No RSA private key available for decryption'
                   );
                   console.log(
-                    `      📄 Raw Content: ${content.substring(0, 200)}${content.length > 200 ? '...' : ''
+                    `      📄 Raw Content: ${content.substring(0, 200)}${
+                      content.length > 200 ? '...' : ''
                     }`
                   );
                 }
@@ -804,7 +806,8 @@ class HederaManager {
             }
           } catch (error) {
             console.log(
-              `      ❌ Failed to verify signature for ${route.addr
+              `      ❌ Failed to verify signature for ${
+                route.addr
               } (${route.proofType}, nonce ${route.nonce}): ${error.message}`
             );
           }
@@ -814,7 +817,8 @@ class HederaManager {
       if (totalSignatures > 0) {
         const success = validSignatures === totalSignatures;
         console.log(
-          `      🎯 Signature and ownership verification: ${validSignatures}/${totalSignatures} routes valid ${success ? '✅' : '❌'
+          `      🎯 Signature and ownership verification: ${validSignatures}/${totalSignatures} routes valid ${
+            success ? '✅' : '❌'
           }`
         );
 
@@ -1129,7 +1133,9 @@ class HederaManager {
         return;
       }
 
-      console.log(`      📤 Sending confirmation to ${successfulRoutes.length} prover(s)...`);
+      console.log(
+        `      📤 Sending confirmation to ${successfulRoutes.length} prover(s)...`
+      );
 
       for (const route of successfulRoutes) {
         try {
@@ -1166,7 +1172,9 @@ class HederaManager {
                     console.log(`      ✅ Confirmation sent to ${route.url}`);
                     resolve();
                   } else {
-                    console.log(`      ⚠️  Confirmation to ${route.url} returned status ${res.statusCode}`);
+                    console.log(
+                      `      ⚠️  Confirmation to ${route.url} returned status ${res.statusCode}`
+                    );
                     resolve(); // Don't fail the whole process for confirmation issues
                   }
                 });
@@ -1174,7 +1182,9 @@ class HederaManager {
             );
 
             req.on('error', error => {
-              console.log(`      ⚠️  Failed to send confirmation to ${route.url}: ${error.message}`);
+              console.log(
+                `      ⚠️  Failed to send confirmation to ${route.url}: ${error.message}`
+              );
               resolve(); // Don't fail the whole process for confirmation issues
             });
 
@@ -1188,11 +1198,15 @@ class HederaManager {
             req.end();
           });
         } catch (error) {
-          console.log(`      ⚠️  Error sending confirmation to ${route.url}: ${error.message}`);
+          console.log(
+            `      ⚠️  Error sending confirmation to ${route.url}: ${error.message}`
+          );
         }
       }
     } catch (error) {
-      console.log(`      ⚠️  Failed to send confirmation to prover(s): ${error.message}`);
+      console.log(
+        `      ⚠️  Failed to send confirmation to prover(s): ${error.message}`
+      );
     }
   }
 

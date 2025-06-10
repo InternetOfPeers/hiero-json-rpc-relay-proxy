@@ -10,16 +10,16 @@ const mockHederaManager = {
   getTopicId: () => '0.0.12345',
   getTopicInfo: () => ({ topicId: '0.0.12345', network: 'testnet' }),
   startMessageListener: () => 'mock-interval-id',
-  stopMessageListener: () => { },
+  stopMessageListener: () => {},
 };
 
 const mockDbManager = {
-  initDatabase: async () => { },
-  saveDatabase: async () => { },
+  initDatabase: async () => {},
+  saveDatabase: async () => {},
   getTargetServer: () => 'https://testnet.hashio.io/api',
   getRoutingDB: () => ({ '0x1234': 'https://testnet.hashio.io/api' }),
-  updateRoutes: async () => { },
-  initRSAKeyPair: async () => { },
+  updateRoutes: async () => {},
+  initRSAKeyPair: async () => {},
   getRSAKeyPair: () => ({
     publicKey: 'mock-public-key',
     privateKey: 'mock-private-key',
@@ -27,7 +27,7 @@ const mockDbManager = {
   }),
   hasRSAKeyPair: () => true,
   getLastProcessedSequence: () => 0,
-  storeLastProcessedSequence: async () => { },
+  storeLastProcessedSequence: async () => {},
 };
 
 // Mock the required modules

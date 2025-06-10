@@ -82,7 +82,10 @@ const PROVER_PORT = process.env.PROVER_PORT
  * @param {string} status - Final status: 'completed', 'failed', 'timeout'
  * @param {string} reason - Reason for completion/failure
  */
-function saveResults(status = 'completed', reason = 'Flow completed successfully') {
+function saveResults(
+  status = 'completed',
+  reason = 'Flow completed successfully'
+) {
   try {
     proverResults.session.endTime = new Date().toISOString();
     proverResults.session.status = status;
@@ -111,8 +114,12 @@ function saveResults(status = 'completed', reason = 'Flow completed successfully
     console.log(`📊 Session Summary:`);
     console.log(`   Status: ${status}`);
     console.log(`   Duration: ${proverResults.session.duration}ms`);
-    console.log(`   Challenges: ${proverResults.challenges.successCount}/${proverResults.challenges.totalCount} successful`);
-    console.log(`   Hedera submission: ${proverResults.hedera.submitted ? 'Success' : 'Failed'}`);
+    console.log(
+      `   Challenges: ${proverResults.challenges.successCount}/${proverResults.challenges.totalCount} successful`
+    );
+    console.log(
+      `   Hedera submission: ${proverResults.hedera.submitted ? 'Success' : 'Failed'}`
+    );
 
     return filepath;
   } catch (error) {
@@ -227,7 +234,8 @@ async function sendEncryptedMessage(topicId, encryptedPayload) {
 
     // Track Hedera submission
     proverResults.hedera.submitted = true;
-    proverResults.hedera.sequenceNumber = receipt.topicSequenceNumber.toString();
+    proverResults.hedera.sequenceNumber =
+      receipt.topicSequenceNumber.toString();
 
     // Close the client connection
     hederaManager.close();
@@ -428,19 +436,24 @@ function handleConfirmation(req, res, body, server) {
     proverResults.confirmation.received = true;
     proverResults.confirmation.timestamp = new Date().toISOString();
     proverResults.confirmation.status = confirmation.status || 'completed';
-    proverResults.confirmation.message = confirmation.message || 'Verification completed successfully';
+    proverResults.confirmation.message =
+      confirmation.message || 'Verification completed successfully';
 
     console.log(`   Status: ${proverResults.confirmation.status}`);
     console.log(`   Message: ${proverResults.confirmation.message}`);
-    console.log(`   Verified Routes: ${confirmation.verifiedRoutes || 0}/${confirmation.totalRoutes || 0}`);
+    console.log(
+      `   Verified Routes: ${confirmation.verifiedRoutes || 0}/${confirmation.totalRoutes || 0}`
+    );
 
     // Send successful response
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({
-      status: 'received',
-      timestamp: Date.now(),
-      message: 'Confirmation processed successfully'
-    }));
+    res.end(
+      JSON.stringify({
+        status: 'received',
+        timestamp: Date.now(),
+        message: 'Confirmation processed successfully',
+      })
+    );
 
     console.log('   ✅ Confirmation acknowledged');
 
@@ -448,11 +461,13 @@ function handleConfirmation(req, res, body, server) {
     console.log('\n✅ Verification flow completed successfully!');
     server.close(() => {
       console.log('🛑 Challenge server stopped');
-      saveResults('completed', 'Verification flow completed with confirmation from proxy');
+      saveResults(
+        'completed',
+        'Verification flow completed with confirmation from proxy'
+      );
       console.log('🎯 Prover session completed successfully');
       process.exit(0);
     });
-
   } catch (error) {
     console.log(`   ❌ Confirmation handling error: ${error.message}`);
 
@@ -467,16 +482,16 @@ function handleConfirmation(req, res, body, server) {
     });
 
     res.writeHead(400, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({
-      error: error.message,
-      status: 'failed',
-    }));
+    res.end(
+      JSON.stringify({
+        error: error.message,
+        status: 'failed',
+      })
+    );
   }
 }
 
-// ...existing code...
-
-async function demonstrateEncryptedMessaging() {
+async function initPairingWithProxy() {
   console.log('🔐 Encrypted Message Sender Prover');
   console.log('=================================\n');
 
@@ -572,7 +587,7 @@ async function demonstrateEncryptedMessaging() {
     );
 
     const payload = {
-      routes: [route1],
+      routes: [route1, route2],
     };
 
     // Track payload creation
@@ -638,7 +653,9 @@ async function demonstrateEncryptedMessaging() {
       '   The proxy will now send challenges to verify URL reachability.'
     );
     console.log('   This prover will respond to challenges automatically.');
-    console.log('   When verification is complete, the proxy will send confirmation.');
+    console.log(
+      '   When verification is complete, the proxy will send confirmation.'
+    );
 
     // Set up timeout protection (fallback in case confirmation never arrives)
     const maxWaitTime = 300000; // 5 minutes maximum wait
@@ -647,7 +664,10 @@ async function demonstrateEncryptedMessaging() {
       console.log('   No confirmation received from proxy');
       challengeServer.close(() => {
         console.log('🛑 Challenge server stopped');
-        saveResults('timeout', 'Maximum wait time reached without receiving confirmation from proxy');
+        saveResults(
+          'timeout',
+          'Maximum wait time reached without receiving confirmation from proxy'
+        );
         console.log('⚠️  Prover session timed out');
         process.exit(0);
       });
@@ -657,8 +677,12 @@ async function demonstrateEncryptedMessaging() {
     global.updateLastChallengeTime = null;
 
     console.log('\n🔄 Waiting for confirmation from proxy...');
-    console.log(`   Expected challenges: ${payload.routes.length} for ${payload.routes.length} route(s)`);
-    console.log('   Will complete when proxy sends confirmation to /confirmation endpoint');
+    console.log(
+      `   Expected challenges: ${payload.routes.length} for ${payload.routes.length} route(s)`
+    );
+    console.log(
+      '   Will complete when proxy sends confirmation to /confirmation endpoint'
+    );
 
     // Handle graceful shutdown
     process.on('SIGINT', () => {
@@ -694,4 +718,4 @@ async function demonstrateEncryptedMessaging() {
 }
 
 // Run the prover
-demonstrateEncryptedMessaging().catch(console.error);
+initPairingWithProxy().catch(console.error);

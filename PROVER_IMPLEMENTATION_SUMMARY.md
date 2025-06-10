@@ -16,6 +16,7 @@ Successfully implemented a comprehensive prover system with confirmation-based c
 ## 🔧 Key Features Implemented
 
 ### 1. Global Results Tracking
+
 - **Session Information**: Start/end times, duration, status, proxy URL, Hedera network
 - **Payload Details**: Route information, original/encrypted payload sizes
 - **Hedera Submission**: Success status, sequence number, error details
@@ -24,6 +25,7 @@ Successfully implemented a comprehensive prover system with confirmation-based c
 - **Error Logging**: Detailed error information throughout the process
 
 ### 2. Confirmation-Based Completion (NEW)
+
 - **Direct Proxy Communication**: Proxy sends confirmation to prover's `/confirmation` endpoint
 - **Immediate Response**: Prover responds instantly when confirmation is received
 - **Graceful Shutdown**: Automatic exit after confirmation with proper cleanup
@@ -31,12 +33,14 @@ Successfully implemented a comprehensive prover system with confirmation-based c
 - **No Activity Monitoring**: Removed 30-second inactivity detection
 
 ### 3. Automatic File Saving
+
 - **Timestamped Files**: Results saved to `data/prover-results-YYYY-MM-DDTHH-mm-ss-sssZ.json`
 - **Directory Management**: Automatically creates `data/` directory if needed
 - **JSON Format**: Well-structured JSON with complete session information
 - **Multiple Completion States**: Handles 'completed', 'failed', 'timeout', 'interrupted' states
 
 ### 4. Enhanced Error Handling
+
 - **Error Tracking**: All errors tracked with timestamps and context
 - **Graceful Degradation**: Continues operation where possible despite errors
 - **Comprehensive Logging**: Detailed console output with status updates
@@ -48,7 +52,7 @@ Successfully implemented a comprehensive prover system with confirmation-based c
 {
   "session": {
     "startTime": "2025-06-10T00:00:00.000Z",
-    "endTime": "2025-06-10T00:02:15.123Z", 
+    "endTime": "2025-06-10T00:02:15.123Z",
     "duration": 135123,
     "status": "completed",
     "reason": "Verification flow completed with confirmation from proxy",
@@ -105,6 +109,7 @@ Successfully implemented a comprehensive prover system with confirmation-based c
 ## 🔄 Workflow Changes
 
 ### Before (Timeout-Based)
+
 1. Fetch status from proxy
 2. Create and encrypt payload
 3. Submit to Hedera
@@ -112,10 +117,11 @@ Successfully implemented a comprehensive prover system with confirmation-based c
 5. **Wait for activity timeout (30s inactivity + 2min max)**
 
 ### After (Confirmation-Based)
-1. Fetch status from proxy *(tracked)*
-2. Create and encrypt payload *(tracked)*
-3. Submit to Hedera *(tracked)*
-4. Start challenge server *(tracked)*
+
+1. Fetch status from proxy _(tracked)_
+2. Create and encrypt payload _(tracked)_
+3. Submit to Hedera _(tracked)_
+4. Start challenge server _(tracked)_
 5. **Respond to proxy challenges**
 6. **Receive direct confirmation from proxy**
 7. **Save comprehensive results to file**
@@ -124,12 +130,14 @@ Successfully implemented a comprehensive prover system with confirmation-based c
 ## 🔧 Key Technical Changes
 
 ### Prover Changes
+
 - **Added handleConfirmation function**: Processes `/confirmation` POST requests from proxy
 - **Replaced completion logic**: Removed activity monitoring, added confirmation-based completion
 - **Extended timeout**: Increased max wait time from 2 minutes to 5 minutes
 - **Enhanced results tracking**: Added confirmation details to results file
 
-### Proxy Changes  
+### Proxy Changes
+
 - **Added sendConfirmationToProver method**: Sends HTTP POST to prover's `/confirmation` endpoint
 - **Updated processChallengeResponseFlow**: Calls sendConfirmationToProver instead of sendConfirmationMessage
 - **Maintained verification logic**: All existing challenge-response verification unchanged
@@ -137,8 +145,9 @@ Successfully implemented a comprehensive prover system with confirmation-based c
 ## 🧪 Test Results
 
 All tests passing:
+
 - ✅ **Prover Package**: 49/49 tests passing
-- ✅ **Proxy Package**: 116/116 tests passing  
+- ✅ **Proxy Package**: 116/116 tests passing
 - ✅ **Integration Tests**: 15/15 tests passing
 - ✅ **Total**: 180/180 tests passing
 

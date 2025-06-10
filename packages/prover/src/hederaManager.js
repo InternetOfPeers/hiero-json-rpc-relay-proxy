@@ -94,34 +94,6 @@ class HederaManager {
     }
   }
 
-  // Create a new Hedera topic
-  async createTopic(memo = 'Prover Topic for Encrypted Messages') {
-    if (!this.client) {
-      throw new Error('Hedera client not initialized');
-    }
-
-    try {
-      console.log('🏗️ Creating new prover Hedera topic...');
-
-      const transaction = new TopicCreateTransaction()
-        .setTopicMemo(memo)
-        .setMaxTransactionFee(new Hbar(2)); // Set max fee to 2 HBAR
-
-      const txResponse = await transaction.execute(this.client);
-      const receipt = await txResponse.getReceipt(this.client);
-      const newTopicId = receipt.topicId;
-
-      console.log(`✅ Prover Hedera topic created successfully: ${newTopicId}`);
-      console.log(`   Topic memo: ${memo}`);
-      console.log(`   💡 You can use this topic ID: ${newTopicId}`);
-
-      return newTopicId.toString();
-    } catch (error) {
-      console.error('❌ Failed to create prover Hedera topic:', error.message);
-      throw error;
-    }
-  }
-
   // Submit message to topic
   async submitMessageToTopic(topicIdString, message) {
     if (!this.client || !topicIdString || !message) {

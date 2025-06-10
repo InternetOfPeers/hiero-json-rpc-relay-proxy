@@ -161,7 +161,7 @@ describe('proxy.js integration', function () {
     // Check for the default route that should always exist
     assert.ok(
       data['0x0000000000000000000000000000000000000000'] ||
-      data['0x742d35cc6634c0532925a3b8d0c0f3e5c5c07c20']
+        data['0x742d35cc6634c0532925a3b8d0c0f3e5c5c07c20']
     );
   });
 
