@@ -16,7 +16,7 @@ describe('hederaUtils', function () {
   describe('getMirrorNodeUrl', function () {
     test('should return mainnet mirror node URL', function () {
       const url = getMirrorNodeUrl('mainnet');
-      assert.strictEqual(url, 'https://mainnet-public.mirrornode.hedera.com');
+      assert.strictEqual(url, 'https://mainnet.mirrornode.hedera.com');
     });
 
     test('should return testnet mirror node URL', function () {
@@ -33,7 +33,7 @@ describe('hederaUtils', function () {
       const url1 = getMirrorNodeUrl('MAINNET');
       const url2 = getMirrorNodeUrl('Testnet');
 
-      assert.strictEqual(url1, 'https://mainnet-public.mirrornode.hedera.com');
+      assert.strictEqual(url1, 'https://mainnet.mirrornode.hedera.com');
       assert.strictEqual(url2, 'https://testnet.mirrornode.hedera.com');
     });
   });

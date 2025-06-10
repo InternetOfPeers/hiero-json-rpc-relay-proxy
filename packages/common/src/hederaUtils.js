@@ -65,7 +65,7 @@ function initHederaClient(config) {
 function getMirrorNodeUrl(network) {
   switch (network.toLowerCase()) {
     case 'mainnet':
-      return 'https://mainnet-public.mirrornode.hedera.com';
+      return 'https://mainnet.mirrornode.hedera.com';
     case 'testnet':
     default:
       return 'https://testnet.mirrornode.hedera.com';

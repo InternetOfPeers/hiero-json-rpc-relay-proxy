@@ -7,26 +7,26 @@ A monorepo containing a dynamic JSON-RPC relay proxy that routes Ethereum reques
 ### Flow 1: Normal JSON-RPC Routing (Daily Operations)
 
 ```text
-┌──────────┐    ┌─────────────────────────────────────────────────────────┐     ┌────────────────┐
-│ Ethereum │    │              JSON-RPC Relay PROXY                       │     │   JSON-RPC     │
-│ dApps/   │───►│                                                         │────►│   Relay        │
-│ Wallets  │    │  1. Receive JSON-RPC Request                            │     │   Servers      │
-│ Clients  │    │  2. Extract `to` address from `eth_sendRawTransaction`  │     │                │
-└──────────┘    │  3. Lookup address in routes database                   │     │                │
-                │                                                         │     │                │
-                │  ┌─────────────────┐  ┌──────────────────┐              │     │                │
-                │  │ Address Lookup  │  │  Routes Database │              │     │                │
-                │  │                 │  │   (Verified)     │              │     │                │
-                │  │ 0x123... ──────►│  │                  │              │     │                │
-                │  │                 │  │ 0x123 → relay-a  │              │     │                │
-                │  │                 │  │ 0x456 → relay-b  │              │     │                │
-                │  └─────────────────┘  │ 0x789 → relay-c  │              │     │                │
-                │                       └──────────────────┘              │     │                │
-                │                                                         │     │ • ...          │
-                |  IF FOUND: Route to custom JSON-RPC Relay               │     │ • example.com  |
-                |                                                         │     | • acme.org     |
-                │  IF NOT FOUND: Route to Default (hashio.io)             │     │ • hashio.io    │
-                └─────────────────────────────────────────────────────────┘     └────────────────┘
+┌──────────┐    ┌──────────────────────────────────────────────────┐     ┌────────────────┐
+│ Ethereum │    │              JSON-RPC Relay PROXY                │     │   JSON-RPC     │
+│ dApps/   │───►│                                                  │────►│   Relay        │
+│ Wallets  │    │  1. Receive JSON-RPC Request                     │     │   Servers      │
+│ Clients  │    │  2. Extract `to` from `eth_sendRawTransaction`   │     │                │
+└──────────┘    │  3. Lookup address in routes database            │     │                │
+                │                                                  │     │                │
+                │  ┌─────────────────┐  ┌──────────────────┐       │     │                │
+                │  │ Address Lookup  │  │  Routes Database │       │     │                │
+                │  │                 │  │   (Verified)     │       │     │                │
+                │  │ 0x123... ──────►│  │                  │       │     │                │
+                │  │                 │  │ 0x123 → relay-a  │       │     │                │
+                │  │                 │  │ 0x456 → relay-b  │       │     │                │
+                │  └─────────────────┘  │ 0x789 → relay-c  │       │     │                │
+                │                       └──────────────────┘       │     │                │
+                │                                                  │     │ • hashio.io    │
+                |  IF FOUND: Route to custom JSON-RPC Relay        │     │ • example.com  |
+                |                                                  │     | • acme.org     |
+                │  IF NOT FOUND: Route to Default (hashio.io)      │     │ • ...          │
+                └──────────────────────────────────────────────────┘     └────────────────┘
 ```
 
 ### Flow 2: Route Registration & Verification

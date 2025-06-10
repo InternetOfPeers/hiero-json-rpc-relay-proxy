@@ -218,7 +218,7 @@ class HederaManager {
       let mirrorNodeUrl;
       switch (network.toLowerCase()) {
         case 'mainnet':
-          mirrorNodeUrl = 'https://mainnet-public.mirrornode.hedera.com';
+          mirrorNodeUrl = 'https://mainnet.mirrornode.hedera.com';
           break;
         case 'previewnet':
           mirrorNodeUrl = 'https://previewnet.mirrornode.hedera.com';
