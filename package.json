@@ -1,7 +1,7 @@
 {
   "name": "hiero-json-rpc-relay-proxy",
   "version": "0.1.0",
-  "description": "Monorepo for Ethereum transaction routing proxy with Hedera Consensus Service integration",
+  "description": "Monorepo for Ethereum JSON-RPC proxy with Hedera Consensus Service integration for decentralized routing management",
   "private": true,
   "workspaces": [
     "packages/*"
@@ -9,12 +9,6 @@
   "scripts": {
     "clean": "npm run clean:db && rm -rf node_modules packages/*/node_modules",
     "clean:db": "node scripts/clean.js",
-    "start": "npm run start:proxy",
-    "start:proxy": "npm run start --workspace=packages/proxy",
-    "start:prover": "npm run start --workspace=packages/prover",
-    "dev": "npm run dev:proxy",
-    "dev:proxy": "npm run dev --workspace=packages/proxy",
-    "dev:prover": "npm run dev --workspace=packages/prover",
     "test": "npm run test:workspaces && npm run test:integration",
     "test:common": "npm test --workspace=packages/common",
     "test:proxy": "npm test --workspace=packages/proxy",
@@ -25,7 +19,11 @@
     "format:check": "prettier --check .",
     "install": "npm run install:hooks",
     "install:all": "npm install --workspaces",
-    "install:hooks": "scripts/install-hooks.sh"
+    "install:hooks": "scripts/install-hooks.sh",
+    "prover": "npm run start --workspace=packages/prover",
+    "prover:dev": "npm run dev --workspace=packages/prover",
+    "proxy": "npm run start --workspace=packages/proxy",
+    "proxy:dev": "npm run dev --workspace=packages/proxy"
   },
   "author": "Giuseppe Bertone <giuseppe.bertone@proton.me>",
   "license": "Apache-2.0",

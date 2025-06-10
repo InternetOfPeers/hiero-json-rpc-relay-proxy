@@ -1,8 +1,82 @@
 const crypto = require('crypto');
 
 // Crypto Utilities Module
-// Handles hybrid RSA+AES encryption and decryption functionality
+// Handles RSA key management, hybrid RSA+AES encryption and decryption functionality
 // Used for encrypting/decrypting messages sent to Hedera topics
+
+/**
+ * Generate RSA key pair
+ * @returns {Object} Object with publicKey and privateKey in PEM format
+ */
+function generateRSAKeyPair() {
+  try {
+    console.log('Generating new RSA key pair...');
+    const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', {
+      modulusLength: 2048, // Key size in bits
+      publicKeyEncoding: {
+        type: 'spki', // Subject Public Key Info
+        format: 'pem',
+      },
+      privateKeyEncoding: {
+        type: 'pkcs8', // Public Key Cryptography Standards #8
+        format: 'pem',
+      },
+    });
+
+    console.log('✅ RSA key pair generated successfully');
+    return { publicKey, privateKey };
+  } catch (error) {
+    console.error('Failed to generate RSA key pair:', error.message);
+    throw error;
+  }
+}
+
+/**
+ * Store RSA key pair with metadata
+ * @param {Object} keyPair - Object with publicKey and privateKey (optional, will generate if not provided)
+ * @returns {Object} Object with keyPair and metadata
+ */
+function createRSAKeyPairWithMetadata(keyPair) {
+  const keys = keyPair || generateRSAKeyPair();
+  return {
+    keyPair: {
+      publicKey: keys.publicKey,
+      privateKey: keys.privateKey,
+    },
+    metadata: {
+      algorithm: 'RSA-2048',
+      createdAt: new Date().toISOString(),
+    },
+  };
+}
+
+/**
+ * Validate RSA key pair structure
+ * @param {Object} keyPair - Key pair object to validate
+ * @returns {Object} Validation result with valid boolean and errors array
+ */
+function validateRSAKeyPair(keyPair) {
+  const errors = [];
+
+  if (!keyPair) {
+    errors.push('Key pair is null or undefined');
+    return { valid: false, errors };
+  }
+
+  if (!keyPair.publicKey) {
+    errors.push('Missing public key');
+  } else if (!keyPair.publicKey.includes('BEGIN PUBLIC KEY')) {
+    errors.push('Invalid public key format');
+  }
+
+  if (!keyPair.privateKey) {
+    errors.push('Missing private key');
+  } else if (!keyPair.privateKey.includes('BEGIN PRIVATE KEY')) {
+    errors.push('Invalid private key format');
+  }
+
+  return { valid: errors.length === 0, errors };
+}
 
 /**
  * Encrypt data using hybrid encryption (RSA + AES)
@@ -539,4 +613,7 @@ module.exports = {
   decryptAES,
   generateAESKey,
   decryptHybridMessageWithKey,
+  generateRSAKeyPair,
+  createRSAKeyPairWithMetadata,
+  validateRSAKeyPair,
 };

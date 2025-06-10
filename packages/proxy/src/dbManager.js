@@ -1,11 +1,12 @@
 const fs = require('fs').promises;
 const path = require('path');
-const crypto = require('crypto');
 const {
-  database: {
+  crypto: {
     generateRSAKeyPair: generateRSAKeyPairCommon,
     createRSAKeyPairWithMetadata,
     validateRSAKeyPair,
+  },
+  database: {
     getDatabasePath,
     createDefaultDatabase,
     migrateDatabase,
