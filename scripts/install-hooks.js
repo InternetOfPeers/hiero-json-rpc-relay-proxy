@@ -6,7 +6,7 @@ const colors = {
   red: '\x1b[31m',
   green: '\x1b[32m',
   yellow: '\x1b[33m',
-  reset: '\x1b[0m'
+  reset: '\x1b[0m',
 };
 
 function printColor(color, message) {
@@ -90,22 +90,27 @@ exit 0
 try {
   fs.writeFileSync(preCommitHookPath, preCommitHookContent);
   printColor('green', '📝 Created pre-commit hook');
-  
+
   // Make the hook executable (Unix-like systems only)
   if (process.platform !== 'win32') {
     try {
       fs.chmodSync(preCommitHookPath, '755');
       printColor('green', '🔐 Made pre-commit hook executable');
     } catch (error) {
-      printColor('yellow', `⚠️  Could not make hook executable: ${error.message}`);
+      printColor(
+        'yellow',
+        `⚠️  Could not make hook executable: ${error.message}`
+      );
     }
   } else {
     printColor('yellow', '⚠️  On Windows: hook permissions handled by Git');
   }
-  
+
   printColor('green', '✅ Git hooks installed successfully!');
-  printColor('yellow', '💡 The pre-commit hook will now run Prettier on your staged files before each commit.');
-  
+  printColor(
+    'yellow',
+    '💡 The pre-commit hook will now run Prettier on your staged files before each commit.'
+  );
 } catch (error) {
   printColor('red', `❌ Failed to install pre-commit hook: ${error.message}`);
   process.exit(1);

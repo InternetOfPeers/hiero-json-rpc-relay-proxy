@@ -6,7 +6,7 @@ const colors = {
   red: '\x1b[31m',
   green: '\x1b[32m',
   yellow: '\x1b[33m',
-  reset: '\x1b[0m'
+  reset: '\x1b[0m',
 };
 
 function printColor(color, message) {
@@ -43,7 +43,7 @@ if (fs.existsSync(packagesDir)) {
     packages.forEach(pkg => {
       const packagePath = path.join(packagesDir, pkg);
       const stats = fs.statSync(packagePath);
-      
+
       if (stats.isDirectory()) {
         const nodeModulesPath = path.join(packagePath, 'node_modules');
         removeDir(nodeModulesPath);
