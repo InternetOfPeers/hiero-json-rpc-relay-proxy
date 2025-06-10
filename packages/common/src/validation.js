@@ -20,6 +20,7 @@ function validateRouteSignatures(routes, privateKey = null) {
     success: true,
     validCount: 0,
     invalidCount: 0,
+    validRoutes: [],
     invalidRoutes: [],
     derivedSignerAddress: null,
     errors: [],
@@ -180,6 +181,7 @@ function validateRouteSignatures(routes, privateKey = null) {
       }
 
       result.validCount++;
+      result.validRoutes.push(route);
     } catch (error) {
       result.invalidCount++;
       result.invalidRoutes.push({

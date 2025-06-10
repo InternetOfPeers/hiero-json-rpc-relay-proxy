@@ -735,36 +735,218 @@ class HederaManager {
       // Use common validation function
       const validationResult = validateRouteSignatures(messageData.routes);
 
-      if (!validationResult.success) {
+      // Handle mixed results - some routes valid, some invalid
+      if (validationResult.invalidCount > 0) {
         const invalidAddresses = validationResult.invalidRoutes
           .map(item => item.route.addr || 'unknown')
           .join(', ');
-        throw new Error(
-          `Signature verification failed for ${validationResult.invalidCount} route(s): ${invalidAddresses} , reason: ${validationResult.invalidRoutes
+        console.log(
+          `      ❌ Signature verification failed for ${validationResult.invalidCount} route(s): ${invalidAddresses}`
+        );
+        console.log(
+          `      📋 Failure reasons: ${validationResult.invalidRoutes
             .map(item => item.error)
             .join(', ')}`
         );
+
+        // Send failure notification only to routes that failed
+        await this.sendVerificationFailureToProver(
+          messageData,
+          validationResult,
+          validationResult.derivedSignerAddress
+        );
+      }
+
+      // Handle successful routes
+      if (validationResult.validCount > 0) {
+        const validAddresses = validationResult.validRoutes
+          .map(route => route.addr)
+          .join(', ');
+        console.log(
+          `      ✅ Signature verification succeeded for ${validationResult.validCount} route(s): ${validAddresses}`
+        );
+
+        // Process challenge-response flow for valid routes only
+        if (validationResult.derivedSignerAddress) {
+          console.log(
+            '      🚀 Starting challenge-response verification for valid routes...'
+          );
+
+          // Create a new message with only valid routes for processing
+          const validRoutesMessage = {
+            ...messageData,
+            routes: validationResult.validRoutes,
+          };
+
+          await this.processChallengeResponseFlow(
+            validRoutesMessage,
+            validationResult.derivedSignerAddress
+          );
+        }
       }
 
       console.log(
-        `      ✅ Signature verification completed: ${validationResult.validCount}/${validationResult.validCount + validationResult.invalidCount} valid`
+        `      📊 Verification summary: ${validationResult.validCount}/${validationResult.validCount + validationResult.invalidCount} valid, ${validationResult.invalidCount} failed`
       );
       console.log(
         `      🔑 Derived signer address: ${validationResult.derivedSignerAddress}`
       );
 
-      // If all signatures are valid, initiate challenge-response flow
-      if (validationResult.success && validationResult.derivedSignerAddress) {
-        console.log('      🚀 Starting challenge-response verification...');
-        await this.processChallengeResponseFlow(
-          messageData,
-          validationResult.derivedSignerAddress
+      // Only throw error if ALL routes failed
+      if (
+        validationResult.validCount === 0 &&
+        validationResult.invalidCount > 0
+      ) {
+        const invalidAddresses = validationResult.invalidRoutes
+          .map(item => item.route.addr || 'unknown')
+          .join(', ');
+        throw new Error(
+          `All routes failed signature verification: ${invalidAddresses} , reason: ${validationResult.invalidRoutes
+            .map(item => item.error)
+            .join(', ')}`
         );
       }
     } catch (error) {
       console.log('      ❌ Signature verification failed:', error.message);
       console.log(
         '      📝 Message may not be in expected format or contain valid JSON'
+      );
+    }
+  }
+
+  /**
+   * Send verification failure message to prover(s) for routes that failed
+   * @param {object} originalMessage - Original message data
+   * @param {object} validationResult - Validation result with errors
+   * @param {string} signerAddress - Derived signer address (if any)
+   */
+  async sendVerificationFailureToProver(
+    originalMessage,
+    validationResult,
+    signerAddress = null
+  ) {
+    try {
+      console.log(
+        '      📤 Sending verification failure to failed routes only...'
+      );
+
+      // Get only the routes that failed verification
+      const failedRoutes = validationResult.invalidRoutes || [];
+
+      if (failedRoutes.length === 0) {
+        console.log('      ⚠️  No failed routes found to notify');
+        return;
+      }
+
+      // Create failure confirmation message
+      const failureMessage = {
+        type: 'route-verification-failure',
+        status: 'failed',
+        timestamp: Date.now(),
+        originalSigner: signerAddress || 'unknown',
+        reason: 'signature_verification_failed',
+        errors: validationResult.errors || [],
+        invalidRoutes: validationResult.invalidRoutes || [],
+        validCount: validationResult.validCount || 0,
+        invalidCount: validationResult.invalidCount || 0,
+        message: `Route verification failed: ${validationResult.invalidCount || 0} invalid signatures`,
+      };
+
+      // Send failure message only to routes that actually failed
+      for (const failedRouteInfo of failedRoutes) {
+        const route = failedRouteInfo.route;
+        if (!route || !route.url || !route.addr) {
+          console.log('      ⚠️  Skipping invalid route in failed routes');
+          continue;
+        }
+
+        try {
+          const confirmationUrl = new URL('/confirmation', route.url);
+
+          // Encrypt failure message using AES key if available
+          let postData;
+          try {
+            // Add route-specific information
+            const routeFailureMessage = {
+              ...failureMessage,
+              addr: route.addr,
+              routeSpecificError: failedRouteInfo.error || 'Unknown error',
+            };
+
+            postData = this.encryptForProver(route.addr, routeFailureMessage);
+            console.log(
+              `         🔐 Failure message encrypted with AES key for contract ${route.addr}`
+            );
+          } catch (aesError) {
+            // Fallback to unencrypted if no AES key available
+            console.log(
+              `         ⚠️  No AES key for ${route.addr}, sending unencrypted failure message`
+            );
+            postData = JSON.stringify({
+              ...failureMessage,
+              addr: route.addr,
+              routeSpecificError: failedRouteInfo.error || 'Unknown error',
+            });
+          }
+
+          await new Promise((resolve, reject) => {
+            const client = confirmationUrl.protocol === 'https:' ? https : http;
+            const req = client.request(
+              confirmationUrl,
+              {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Content-Length': Buffer.byteLength(postData),
+                },
+                timeout: 10000, // 10 second timeout
+              },
+              res => {
+                let data = '';
+                res.on('data', chunk => (data += chunk));
+                res.on('end', () => {
+                  if (res.statusCode === 200) {
+                    console.log(
+                      `      ✅ Failure notification sent to ${route.url}`
+                    );
+                    resolve();
+                  } else {
+                    console.log(
+                      `      ⚠️  Failure notification to ${route.url} returned status ${res.statusCode}`
+                    );
+                    resolve(); // Don't fail the whole process
+                  }
+                });
+              }
+            );
+
+            req.on('error', error => {
+              console.log(
+                `      ⚠️  Failed to send failure notification to ${route.url}: ${error.message}`
+              );
+              resolve(); // Don't fail the whole process
+            });
+
+            req.on('timeout', () => {
+              req.destroy();
+              console.log(
+                `      ⚠️  Failure notification to ${route.url} timed out`
+              );
+              resolve(); // Don't fail the whole process
+            });
+
+            req.write(postData);
+            req.end();
+          });
+        } catch (error) {
+          console.log(
+            `      ⚠️  Error sending failure notification to ${route.url}: ${error.message}`
+          );
+        }
+      }
+    } catch (error) {
+      console.log(
+        `      ⚠️  Failed to send verification failure to prover(s): ${error.message}`
       );
     }
   }
@@ -1013,21 +1195,58 @@ class HederaManager {
         `      🎯 Challenge-response results: ${successfulChallenges}/${challengeResults.length} successful`
       );
 
-      // Update routes if all challenges were successful
-      if (allChallengesSuccessful && challengeResults.length > 0) {
-        console.log('      ✅ All challenges successful - updating routes...');
-        await this.updateRoutesFromMessage(messageData);
+      // FIXED: Send individual confirmations to successful routes (not all-or-nothing)
+      const successfulRoutes = challengeResults.filter(
+        r => r.challengeSuccess && r.responseValid
+      );
+      const failedRoutes = challengeResults.filter(
+        r => !r.challengeSuccess || !r.responseValid
+      );
 
-        // Send confirmation message directly to prover
+      if (successfulRoutes.length > 0) {
+        console.log(
+          `      ✅ ${successfulRoutes.length} challenges successful - updating routes for successful ones...`
+        );
+
+        // Update routes only for successful challenges
+        const successfulMessage = {
+          ...messageData,
+          routes: messageData.routes.filter(route =>
+            successfulRoutes.some(success => success.addr === route.addr)
+          ),
+        };
+        await this.updateRoutesFromMessage(successfulMessage);
+
+        // Send confirmation message directly to prover for successful routes
         await this.sendConfirmationToProver(
           messageData,
-          challengeResults,
+          successfulRoutes,
           signerAddress
         );
-      } else {
-        console.log('      ❌ Some challenges failed - routes not updated');
-        // Note: Failure details are logged but not sent to Hedera topic
-        // Challenge-response communication happens only via direct HTTP
+      }
+
+      if (failedRoutes.length > 0) {
+        console.log(
+          `      ❌ ${failedRoutes.length} challenges failed - sending failure notifications...`
+        );
+
+        // Send failure notifications to routes that failed challenges
+        const challengeFailureResult = {
+          invalidRoutes: failedRoutes.map(failedRoute => ({
+            route: messageData.routes.find(r => r.addr === failedRoute.addr),
+            error:
+              failedRoute.error || 'Challenge-response verification failed',
+          })),
+          invalidCount: failedRoutes.length,
+          validCount: successfulRoutes.length,
+          errors: failedRoutes.map(r => r.error || 'Challenge failed'),
+        };
+
+        await this.sendVerificationFailureToProver(
+          messageData,
+          challengeFailureResult,
+          signerAddress
+        );
       }
     } catch (error) {
       console.log(`      ❌ Challenge-response flow error: ${error.message}`);

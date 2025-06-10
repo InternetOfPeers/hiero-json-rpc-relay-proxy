@@ -569,28 +569,30 @@ function handleChallenge(req, res, body, proxyPublicKey, privateKey) {
  */
 function handleConfirmation(req, res, body, server) {
   try {
-    console.log('\n🎉 Received confirmation from proxy');
-
-    // Try to parse confirmation - could be AES encrypted or plain JSON
+    console.log('\n📨 Received message from proxy'); // Try to parse confirmation - could be AES encrypted or plain JSON
     let confirmation;
+    let parsedBody;
+
     try {
-      // First try parsing as JSON (unencrypted)
-      confirmation = JSON.parse(body);
-      console.log('   📄 Received unencrypted confirmation');
+      parsedBody = JSON.parse(body);
     } catch (jsonError) {
-      // If JSON parsing fails, try AES decryption
-      console.log('   🔓 Attempting to decrypt AES-encrypted confirmation...');
+      throw new Error('Invalid JSON in confirmation message');
+    }
+
+    // Check if this is an AES-encrypted message (has iv and data properties)
+    if (parsedBody.iv && parsedBody.data) {
+      console.log('   🔓 Attempting to decrypt AES-encrypted message...');
 
       // Try to decrypt with each stored AES key
       let decrypted = false;
       for (const [contractAddress, aesKey] of proverAESKeys.entries()) {
         try {
-          const encrypted = JSON.parse(body);
-          const decryptedData = decryptAES(encrypted, aesKey);
+          const decryptedData = decryptAES(parsedBody, aesKey);
           confirmation = JSON.parse(decryptedData);
           console.log(
-            `   🔓 Confirmation decrypted with AES key for contract: ${contractAddress}`
+            `   🔓 Message decrypted with AES key for contract: ${contractAddress}`
           );
+
           decrypted = true;
           break;
         } catch (decryptError) {
@@ -600,11 +602,132 @@ function handleConfirmation(req, res, body, server) {
       }
 
       if (!decrypted) {
-        throw new Error(
-          'Could not decrypt confirmation with any available AES key'
+        throw new Error('Could not decrypt message with any available AES key');
+      }
+    } else {
+      // This is an unencrypted message
+      confirmation = parsedBody;
+      console.log('   📄 Received unencrypted message');
+    }
+
+    // Check if this is a failure message
+    if (
+      confirmation.status === 'failed' ||
+      confirmation.type === 'route-verification-failure'
+    ) {
+      console.log('   ❌ Received verification failure notification');
+      console.log(`   📋 Reason: ${confirmation.reason || 'unknown'}`);
+      console.log(
+        `   📝 Message: ${confirmation.message || 'No details provided'}`
+      );
+
+      if (confirmation.routeSpecificError) {
+        console.log(
+          `   🔍 Route-specific error: ${confirmation.routeSpecificError}`
         );
       }
+
+      if (confirmation.errors && confirmation.errors.length > 0) {
+        console.log('   📋 Detailed errors:');
+        confirmation.errors.forEach((error, index) => {
+          console.log(`      ${index + 1}. ${error}`);
+        });
+      }
+
+      if (confirmation.invalidRoutes && confirmation.invalidRoutes.length > 0) {
+        console.log('   📋 Invalid routes:');
+        confirmation.invalidRoutes.forEach((invalid, index) => {
+          console.log(
+            `      ${index + 1}. ${invalid.route?.addr || 'unknown'}: ${invalid.error}`
+          );
+        });
+      }
+
+      // Track failure confirmation
+      proverResults.confirmation.receivedCount++;
+      proverResults.confirmation.confirmations.push({
+        timestamp: new Date().toISOString(),
+        status: 'failed',
+        message: confirmation.message || 'Verification failed',
+        addr: confirmation.addr || 'unknown',
+        verifiedRoutes: 0,
+        totalRoutes: confirmation.invalidCount || 0,
+        reason: confirmation.reason || 'unknown',
+        errors: confirmation.errors || [],
+      });
+
+      // Update error tracking
+      proverResults.errors.push({
+        type: 'verification_failure',
+        message: confirmation.message || 'Route verification failed',
+        reason: confirmation.reason || 'unknown',
+        routeErrors: confirmation.errors || [],
+        timestamp: new Date().toISOString(),
+      });
+
+      // Send response
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ status: 'failure_acknowledged' }));
+
+      console.log('   ❌ Failure notification acknowledged');
+      console.log(
+        `   📨 Message ${proverResults.confirmation.receivedCount}/${proverResults.confirmation.expectedCount} received`
+      );
+
+      // Check if we have received all expected messages (both successes and failures)
+      if (
+        proverResults.confirmation.receivedCount >=
+        proverResults.confirmation.expectedCount
+      ) {
+        console.log(
+          `\n📋 All ${proverResults.confirmation.expectedCount} messages received!`
+        );
+
+        // Calculate summary statistics
+        const totalSuccesses = proverResults.confirmation.confirmations.filter(
+          c => c.status === 'completed'
+        ).length;
+        const totalFailures = proverResults.confirmation.confirmations.filter(
+          c => c.status === 'failed'
+        ).length;
+
+        console.log(`   ✅ Successful routes: ${totalSuccesses}`);
+        console.log(`   ❌ Failed routes: ${totalFailures}`);
+
+        // Mark overall session based on results
+        const sessionStatus = totalFailures > 0 ? 'mixed' : 'completed';
+        const sessionMessage = `${totalSuccesses} successful, ${totalFailures} failed routes`;
+
+        proverResults.confirmation.received = true;
+        proverResults.confirmation.timestamp = new Date().toISOString();
+        proverResults.confirmation.status = sessionStatus;
+        proverResults.confirmation.message = sessionMessage;
+
+        // Clean up AES keys from memory for security
+        console.log('   🧹 Cleaning up AES keys from memory...');
+        const keyCount = proverAESKeys.size;
+        proverAESKeys.clear();
+        console.log(`   🗑️  Removed ${keyCount} AES keys from memory`);
+
+        // Save results and shutdown gracefully
+        console.log('\n✅ Verification flow completed!');
+        server.close(() => {
+          console.log('🛑 Challenge server stopped');
+          saveResults(sessionStatus, sessionMessage);
+          console.log(`🎯 Prover session completed: ${sessionMessage}`);
+          process.exit(totalFailures > 0 ? 1 : 0); // Exit with error code if any failures
+        });
+      } else {
+        console.log(
+          `   ⏳ Waiting for ${proverResults.confirmation.expectedCount - proverResults.confirmation.receivedCount} more message(s)...`
+        );
+      }
+
+      return;
     }
+
+    // Handle success message (existing logic)
+    console.log('   ✅ Received verification success confirmation');
 
     // Validate route signatures if routes are present
     if (confirmation.routes && Array.isArray(confirmation.routes)) {
@@ -670,7 +793,7 @@ function handleConfirmation(req, res, body, server) {
       proverResults.confirmation.received = true;
       proverResults.confirmation.timestamp = new Date().toISOString();
       proverResults.confirmation.status = 'completed';
-      proverResults.confirmation.message = `All ${proverResults.confirmation.expectedCount} routes verified successfully`;
+      proverResults.confirmation.message = `All ${proverResults.confirmation.expectedCount} routes analyzed by the proxy`;
 
       // Clean up AES keys from memory for security
       console.log('   🧹 Cleaning up AES keys from memory...');
@@ -871,7 +994,13 @@ async function initPairingWithProxy() {
 
     const testUrl = `http://localhost:${PROVER_PORT}`;
 
-    // Create test routes with new format - routes array with addr, proofType, nonce, url, sig
+    // Import the function to compute correct addresses
+    const {
+      getContractAddressFromCreate,
+      getContractAddressFromCreate2,
+    } = require('@hiero-json-rpc-relay/common');
+
+    // Create test routes with COMPUTED addresses based on the actual signer
     const route1 = {
       addr: '0x3ed660420aa9bc674e8f80f744f8062603da385e',
       proofType: 'create',
@@ -886,7 +1015,7 @@ async function initPairingWithProxy() {
     );
 
     const route2 = {
-      addr: '0xfcec100d41f4bcc889952e1a73ad6d96783c491f',
+      addr: '0xfcec100d41f4bcc889952e1a73ad6d96783c491a',
       proofType: 'create',
       nonce: 30,
       url: testUrl,

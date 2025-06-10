@@ -1,6 +1,5 @@
 # todo list
 
-- send a confirmation for each route
 - support removing routes
 - the proxy restart from the last non processed message and to up to the latest message (call https://testnet.mirrornode.hedera.com/api/v1/topics/0.0.6139083/messages?order=desc&limit=1 and get sequence_number). After that, start polling for new messages.
 - when creating a topic, use the mirror node to get the latest hbar/usd exchange rate and set the custom fees to 0.5 dollars
