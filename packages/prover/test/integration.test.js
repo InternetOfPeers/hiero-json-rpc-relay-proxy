@@ -80,10 +80,10 @@ describe('Prover Integration Tests', () => {
 
       // Test environment variables that the prover requires
       const requiredVars = [
-        'HEDERA_ACCOUNT_ID',
-        'HEDERA_PRIVATE_KEY',
-        'HEDERA_NETWORK',
-        'PROXY_SERVER_URL',
+        'PROVER_HEDERA_ACCOUNT_ID',
+        'PROVER_HEDERA_PRIVATE_KEY',
+        'PROVER_HEDERA_NETWORK',
+        'PROVER_PROXY_SERVER_URL',
       ];
 
       // Save original values

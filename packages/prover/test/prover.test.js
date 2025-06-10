@@ -32,12 +32,12 @@ describe('Prover Main Functionality', () => {
     console.error = mock.fn();
 
     // Setup environment variables
-    process.env.PROXY_SERVER_URL = 'http://localhost:3000';
-    process.env.HEDERA_ACCOUNT_ID = '0.0.1545';
-    process.env.HEDERA_PRIVATE_KEY =
+    process.env.PROVER_PROXY_SERVER_URL = 'http://localhost:3000';
+    process.env.PROVER_HEDERA_ACCOUNT_ID = '0.0.1545';
+    process.env.PROVER_HEDERA_PRIVATE_KEY =
       '0x48b52aba58f4b8dd4cd0e527e28b0eb5f89e2540785b6fcd3c418cc16b640569';
-    process.env.HEDERA_NETWORK = 'testnet';
-    process.env.HEDERA_KEY_TYPE = 'ECDSA';
+    process.env.PROVER_HEDERA_NETWORK = 'testnet';
+    process.env.PROVER_HEDERA_KEY_TYPE = 'ECDSA';
   });
 
   after(() => {
@@ -46,11 +46,11 @@ describe('Prover Main Functionality', () => {
     console.error = originalConsole.error;
 
     // Clean up environment
-    delete process.env.PROXY_SERVER_URL;
-    delete process.env.HEDERA_ACCOUNT_ID;
-    delete process.env.HEDERA_PRIVATE_KEY;
-    delete process.env.HEDERA_NETWORK;
-    delete process.env.HEDERA_KEY_TYPE;
+    delete process.env.PROVER_PROXY_SERVER_URL;
+    delete process.env.PROVER_HEDERA_ACCOUNT_ID;
+    delete process.env.PROVER_HEDERA_PRIVATE_KEY;
+    delete process.env.PROVER_HEDERA_NETWORK;
+    delete process.env.PROVER_HEDERA_KEY_TYPE;
   });
 
   beforeEach(() => {
@@ -339,7 +339,10 @@ describe('Prover Main Functionality', () => {
 
     it('should validate required environment variables', () => {
       // Test that required environment variables are checked
-      const requiredEnvVars = ['HEDERA_ACCOUNT_ID', 'HEDERA_PRIVATE_KEY'];
+      const requiredEnvVars = [
+        'PROVER_HEDERA_ACCOUNT_ID',
+        'PROVER_HEDERA_PRIVATE_KEY',
+      ];
 
       requiredEnvVars.forEach(envVar => {
         assert.ok(process.env[envVar], `${envVar} should be set`);
@@ -347,7 +350,7 @@ describe('Prover Main Functionality', () => {
     });
 
     it('should handle wallet creation and address derivation', () => {
-      const privateKey = process.env.HEDERA_PRIVATE_KEY;
+      const privateKey = process.env.PROVER_HEDERA_PRIVATE_KEY;
       const expectedAddress = '0x1234567890123456789012345678901234567890';
 
       mockEthers.Wallet.mock.mockImplementation(() => ({

@@ -24,28 +24,34 @@ const {
 } = require('@hiero-json-rpc-relay/common');
 
 // Load .env file before accessing environment variables (unless explicitly disabled)
-if (!process.env.SKIP_ENV_FILE) {
+if (!process.env.PROXY_SKIP_ENV_FILE) {
   loadEnvFile();
 }
 
 // Configuration
-const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
-const DATA_FOLDER = process.env.DATA_FOLDER || 'data';
-const DEFAULT_SERVER =
-  process.env.DEFAULT_SERVER || 'https://testnet.hashio.io/api'; // Fallback server
+const PROXY_PORT = process.env.PROXY_PORT
+  ? parseInt(process.env.PROXY_PORT, 10)
+  : 3000;
+const PROXY_DATA_FOLDER = process.env.PROXY_DATA_FOLDER || 'data';
+const PROXY_DEFAULT_SERVER =
+  process.env.PROXY_DEFAULT_SERVER || 'https://testnet.hashio.io/api'; // Fallback server
 
-// Hedera configuration
-const HEDERA_ACCOUNT_ID = process.env.HEDERA_ACCOUNT_ID;
-const HEDERA_PRIVATE_KEY = process.env.HEDERA_PRIVATE_KEY;
-const HEDERA_NETWORK = process.env.HEDERA_NETWORK || 'testnet'; // testnet or mainnet
-const HEDERA_TOPIC_ID = process.env.HEDERA_TOPIC_ID; // Optional: existing topic ID
+// Proxy Hedera configuration
+const HEDERA_ACCOUNT_ID =
+  process.env.PROXY_HEDERA_ACCOUNT_ID || process.env.HEDERA_ACCOUNT_ID;
+const HEDERA_PRIVATE_KEY =
+  process.env.PROXY_HEDERA_PRIVATE_KEY || process.env.HEDERA_PRIVATE_KEY;
+const HEDERA_NETWORK =
+  process.env.PROXY_HEDERA_NETWORK || process.env.HEDERA_NETWORK || 'testnet'; // testnet or mainnet
+const HEDERA_TOPIC_ID =
+  process.env.PROXY_HEDERA_TOPIC_ID || process.env.HEDERA_TOPIC_ID; // Optional: existing topic ID
 
 // Generate network-specific database file path
 function getDBFilePath() {
-  // Resolve DATA_FOLDER relative to the proxy package directory (parent of src)
-  const dataPath = path.isAbsolute(DATA_FOLDER)
-    ? DATA_FOLDER
-    : path.join(__dirname, '..', DATA_FOLDER);
+  // Resolve PROXY_DATA_FOLDER relative to the proxy package directory (parent of src)
+  const dataPath = path.isAbsolute(PROXY_DATA_FOLDER)
+    ? PROXY_DATA_FOLDER
+    : path.join(__dirname, '..', PROXY_DATA_FOLDER);
   return path.join(dataPath, `routing_db_${HEDERA_NETWORK}.json`);
 }
 
@@ -173,7 +179,7 @@ const server = http.createServer(async (req, res) => {
     const { body: requestBody, jsonData } = await parseRequestBody(req);
 
     let toAddress = null;
-    let targetServer = DEFAULT_SERVER;
+    let targetServer = PROXY_DEFAULT_SERVER;
 
     // Only analyze transactions for eth_sendRawTransaction method
     if (jsonData && jsonData.method === 'eth_sendRawTransaction') {
@@ -182,20 +188,20 @@ const server = http.createServer(async (req, res) => {
       if (rawTx && rawTx.length > 0) {
         toAddress = extractToFromTransaction(rawTx[0]);
         // Get target server based on "to" address only for eth_sendRawTransaction
-        targetServer = getTargetServer(toAddress, DEFAULT_SERVER);
+        targetServer = getTargetServer(toAddress, PROXY_DEFAULT_SERVER);
         console.log(
           `${req.method} ${req.url} - method: ${jsonData.method}, to address: "${toAddress}" -> ${targetServer}`
         );
       } else {
         console.log(
-          `${req.method} ${req.url} - method: ${jsonData.method}, no raw transaction found -> ${DEFAULT_SERVER}`
+          `${req.method} ${req.url} - method: ${jsonData.method}, no raw transaction found -> ${PROXY_DEFAULT_SERVER}`
         );
       }
     } else {
       // For all other methods, use default server
       const method = jsonData ? jsonData.method : 'unknown';
       console.log(
-        `${req.method} ${req.url} - method: ${method} -> ${DEFAULT_SERVER} (default)`
+        `${req.method} ${req.url} - method: ${method} -> ${PROXY_DEFAULT_SERVER} (default)`
       );
     }
 
@@ -223,9 +229,9 @@ async function startServer() {
     process.exit(1);
   }
 
-  server.listen(PORT, () => {
-    console.log(`Hiero JSON-RPC Relay Proxy running on port ${PORT}`);
-    console.log(`Default target server: ${DEFAULT_SERVER}`);
+  server.listen(PROXY_PORT, () => {
+    console.log(`Hiero JSON-RPC Relay Proxy running on port ${PROXY_PORT}`);
+    console.log(`Default target server: ${PROXY_DEFAULT_SERVER}`);
 
     const topicId = hederaManager.getTopicId();
     if (topicId) {
@@ -246,17 +252,19 @@ async function startServer() {
     });
     console.log('\nManagement endpoints:');
     console.log(
-      `  GET  http://localhost:${PORT}/status - Topic id & public key`
+      `  GET  http://localhost:${PROXY_PORT}/status - Topic id & public key`
     );
     console.log(
-      `  GET  http://localhost:${PORT}/status/topic - Get Hedera topic info`
+      `  GET  http://localhost:${PROXY_PORT}/status/topic - Get Hedera topic info`
     );
     console.log(
-      `  GET  http://localhost:${PORT}/status/public-key - Get RSA public key`
+      `  GET  http://localhost:${PROXY_PORT}/status/public-key - Get RSA public key`
     );
-    console.log(`  GET  http://localhost:${PORT}/routes - View current routes`);
+    console.log(
+      `  GET  http://localhost:${PROXY_PORT}/routes - View current routes`
+    );
     console.log('\nExample request:');
-    console.log(`  curl -X POST http://localhost:${PORT} \\`);
+    console.log(`  curl -X POST http://localhost:${PROXY_PORT} \\`);
     console.log('    -H "Content-Type: application/json" \\');
     console.log(
       '    -d \'{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}\''
@@ -276,18 +284,20 @@ async function startServer() {
   // Handle server listen errors (e.g., port already in use)
   server.on('error', error => {
     if (error.code === 'EADDRINUSE') {
-      console.error(`❌ Error: Port ${PORT} is already in use`);
+      console.error(`❌ Error: Port ${PROXY_PORT} is already in use`);
       console.error(
         'Please choose a different port or stop the process using this port.'
       );
-      console.error(`You can use: lsof -ti:${PORT} | xargs kill -9`);
+      console.error(`You can use: lsof -ti:${PROXY_PORT} | xargs kill -9`);
     } else if (error.code === 'EACCES') {
-      console.error(`❌ Error: Permission denied to bind to port ${PORT}`);
+      console.error(
+        `❌ Error: Permission denied to bind to port ${PROXY_PORT}`
+      );
       console.error(
         'Please try using a port number above 1024 or run with appropriate permissions.'
       );
     } else {
-      console.error(`❌ Error binding to port ${PORT}:`, error.message);
+      console.error(`❌ Error binding to port ${PROXY_PORT}:`, error.message);
     }
 
     console.error('Server startup failed. Exiting...');

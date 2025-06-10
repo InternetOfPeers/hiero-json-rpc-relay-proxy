@@ -36,16 +36,16 @@ Create a `.env` file in the prover package directory:
 
 ```bash
 # Proxy Server Configuration
-PROXY_SERVER_URL=http://localhost:3000
+PROVER_PROXY_SERVER_URL=http://localhost:3000
 
-# Hedera Consensus Service Configuration
-HEDERA_ACCOUNT_ID=0.0.1545
-HEDERA_PRIVATE_KEY=0x48b52aba58f4b8dd4cd0e527e28b0eb5f89e2540785b6fcd3c418cc16b640569
-HEDERA_NETWORK=testnet
-HEDERA_KEY_TYPE=ECDSA
+# Prover Hedera Consensus Service Configuration
+PROVER_HEDERA_ACCOUNT_ID=0.0.1545
+PROVER_HEDERA_PRIVATE_KEY=0x48b52aba58f4b8dd4cd0e527e28b0eb5f89e2540785b6fcd3c418cc16b640569
+PROVER_HEDERA_NETWORK=testnet
+PROVER_HEDERA_KEY_TYPE=ECDSA
 
 # Optional: Specific topic ID (if not set, will be fetched from proxy)
-# HEDERA_TOPIC_ID=0.0.1234567
+# PROVER_HEDERA_TOPIC_ID=0.0.1234567
 ```
 
 ## HIP-991 Paid Topic Integration
@@ -75,8 +75,8 @@ The prover implements robust fee management:
 
 ```bash
 # Minimum recommended balance for reliable operation
-HEDERA_ACCOUNT_ID=0.0.1545
-HEDERA_PRIVATE_KEY=0x48b52aba58f4b8dd4cd0e527e28b0eb5f89e2540785b6fcd3c418cc16b640569
+PROVER_HEDERA_ACCOUNT_ID=0.0.1545
+PROVER_HEDERA_PRIVATE_KEY=0x48b52aba58f4b8dd4cd0e527e28b0eb5f89e2540785b6fcd3c418cc16b640569
 
 # Ensure account has sufficient balance
 # - Topic submission: 0.5 HBAR

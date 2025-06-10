@@ -7,12 +7,12 @@
     "packages/*"
   ],
   "scripts": {
-    "clean": "node scripts/clean.js",
-    "clean:all": "npm run clean && rm -rf node_modules packages/*/node_modules",
-    "start": "npm run start --workspace=packages/proxy",
+    "clean": "npm run clean:db && rm -rf node_modules packages/*/node_modules",
+    "clean:db": "node scripts/clean.js",
+    "start": "npm run start:proxy",
     "start:proxy": "npm run start --workspace=packages/proxy",
     "start:prover": "npm run start --workspace=packages/prover",
-    "dev": "npm run dev --workspace=packages/proxy",
+    "dev": "npm run dev:proxy",
     "dev:proxy": "npm run dev --workspace=packages/proxy",
     "dev:prover": "npm run dev --workspace=packages/prover",
     "test": "npm run test:workspaces && npm run test:integration",
@@ -23,11 +23,9 @@
     "test:workspaces": "npm test --workspaces",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "install": "npm run install:hooks",
     "install:all": "npm install --workspaces",
-    "install:hooks": "scripts/install-hooks.sh",
-    "workspace:common": "npm --workspace=packages/common",
-    "workspace:proxy": "npm --workspace=packages/proxy",
-    "workspace:prover": "npm --workspace=packages/prover"
+    "install:hooks": "scripts/install-hooks.sh"
   },
   "author": "Giuseppe Bertone <giuseppe.bertone@proton.me>",
   "license": "Apache-2.0",

@@ -1,9 +1,7 @@
 # todo list
 
-- ✅ support CREATE2 contract address computation and verification (getContractAddressFromCreate2) - COMPLETED
 - send a confirmation for each route
 - support removing routes
-- invert the order of loading environment variables (first wins)
 - the proxy restart from the last non processed message and to up to the latest message (call https://testnet.mirrornode.hedera.com/api/v1/topics/0.0.6139083/messages?order=desc&limit=1 and get sequence_number). After that, start polling for new messages.
 - use a prefix to distinguish env variables in different packages
 - when creating a topic, use the mirror node to get the latest hbar/usd exchange rate and set the custom fees to 0.5 dollars

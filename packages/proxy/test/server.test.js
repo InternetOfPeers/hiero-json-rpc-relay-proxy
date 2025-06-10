@@ -56,9 +56,9 @@ describe('server functions', function () {
     originalEnv = { ...process.env };
     process.env.PORT = (portCounter++).toString(); // Use a different port for each test
     process.env.DATA_FOLDER = TEST_DATA_DIR;
-    process.env.HEDERA_ACCOUNT_ID = '0.0.12345';
-    process.env.HEDERA_PRIVATE_KEY = 'mock-private-key';
-    process.env.HEDERA_NETWORK = 'testnet';
+    process.env.PROXY_HEDERA_ACCOUNT_ID = '0.0.12345';
+    process.env.PROXY_HEDERA_PRIVATE_KEY = 'mock-private-key';
+    process.env.PROXY_HEDERA_NETWORK = 'testnet';
     testServers = []; // Reset test servers array
   });
 
@@ -340,12 +340,12 @@ describe('server functions', function () {
 
   describe('utility functions', function () {
     test('should generate network-specific database file path', function () {
-      const originalEnv = process.env.HEDERA_NETWORK;
+      const originalEnv = process.env.PROXY_HEDERA_NETWORK;
 
-      process.env.HEDERA_NETWORK = 'testnet';
+      process.env.PROXY_HEDERA_NETWORK = 'testnet';
       const testnetPath = path.join('data', 'routing_db_testnet.json');
 
-      process.env.HEDERA_NETWORK = 'mainnet';
+      process.env.PROXY_HEDERA_NETWORK = 'mainnet';
       const mainnetPath = path.join('data', 'routing_db_mainnet.json');
 
       // Test that different networks generate different paths
@@ -353,7 +353,7 @@ describe('server functions', function () {
       assert.ok(testnetPath.includes('testnet'));
       assert.ok(mainnetPath.includes('mainnet'));
 
-      process.env.HEDERA_NETWORK = originalEnv;
+      process.env.PROXY_HEDERA_NETWORK = originalEnv;
     });
 
     test('should parse request body correctly', function (done) {

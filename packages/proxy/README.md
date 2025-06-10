@@ -40,17 +40,17 @@ The proxy automatically loads configuration from environment variables and `.env
 
 ```bash
 # Server Configuration
-PORT=3000
-TARGET_URL=http://localhost:8545
+PROXY_PORT=3000
+PROXY_DEFAULT_SERVER=https://testnet.hashio.io/api
 
-# Hedera Configuration
-HEDERA_ACCOUNT_ID=0.0.1545
-HEDERA_PRIVATE_KEY=0x...
-HEDERA_NETWORK=testnet
-HEDERA_TOPIC_ID=0.0.1234567
+# Proxy Hedera Configuration
+PROXY_HEDERA_ACCOUNT_ID=0.0.1545
+PROXY_HEDERA_PRIVATE_KEY=302e020100300506032b65700...
+PROXY_HEDERA_NETWORK=testnet
+PROXY_HEDERA_TOPIC_ID=0.0.1234567
 
 # Database Configuration
-DB_PATH=./data/routing_db_testnet.json
+PROXY_DATA_FOLDER=data
 ```
 
 ## Usage

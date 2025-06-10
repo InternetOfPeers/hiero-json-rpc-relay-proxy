@@ -84,8 +84,11 @@ console.log('📁 Using prover-specific .env file');
 
 // Configuration
 const PROXY_SERVER_URL =
-  process.env.PROXY_SERVER_URL || 'http://localhost:3000';
-const HEDERA_NETWORK = process.env.HEDERA_NETWORK || 'testnet';
+  process.env.PROVER_PROXY_SERVER_URL ||
+  process.env.PROXY_SERVER_URL ||
+  'http://localhost:3000';
+const HEDERA_NETWORK =
+  process.env.PROVER_HEDERA_NETWORK || process.env.HEDERA_NETWORK || 'testnet';
 const PROVER_PORT = process.env.PROVER_PORT
   ? parseInt(process.env.PROVER_PORT, 10)
   : 7546;
@@ -285,10 +288,15 @@ async function sendEncryptedMessage(topicId, encryptedPayload) {
 
   // Initialize Prover Hedera Manager with ECDSA support
   const hederaManager = new HederaManager({
-    accountId: process.env.HEDERA_ACCOUNT_ID,
-    privateKey: process.env.HEDERA_PRIVATE_KEY,
+    accountId:
+      process.env.PROVER_HEDERA_ACCOUNT_ID || process.env.HEDERA_ACCOUNT_ID,
+    privateKey:
+      process.env.PROVER_HEDERA_PRIVATE_KEY || process.env.HEDERA_PRIVATE_KEY,
     network: HEDERA_NETWORK,
-    keyType: process.env.HEDERA_KEY_TYPE || 'ECDSA',
+    keyType:
+      process.env.PROVER_HEDERA_KEY_TYPE ||
+      process.env.HEDERA_KEY_TYPE ||
+      'ECDSA',
   });
 
   if (!hederaManager.isEnabled()) {
@@ -791,9 +799,12 @@ async function initPairingWithProxy() {
 
     // Create a test payload for the prover with a single route and signature
 
-    const privateKey = process.env.HEDERA_PRIVATE_KEY;
+    const privateKey =
+      process.env.PROVER_HEDERA_PRIVATE_KEY || process.env.HEDERA_PRIVATE_KEY;
     if (!privateKey) {
-      throw new Error('HEDERA_PRIVATE_KEY not set in environment');
+      throw new Error(
+        'PROVER_HEDERA_PRIVATE_KEY (or HEDERA_PRIVATE_KEY) not set in environment'
+      );
     }
 
     // Create wallet and get address for logging

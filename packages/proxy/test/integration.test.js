@@ -76,14 +76,14 @@ describe('proxy.js integration', function () {
 
     // Start the server with explicit environment variables to override any .env file
     const env = {
-      PORT: PORT.toString(),
-      DATA_FOLDER: TEST_DATA_FOLDER,
-      HEDERA_NETWORK: TEST_NETWORK,
+      PROXY_PORT: PORT.toString(),
+      PROXY_DATA_FOLDER: TEST_DATA_FOLDER,
+      PROXY_HEDERA_NETWORK: TEST_NETWORK,
       // Skip loading .env file to prevent override of test environment variables
-      SKIP_ENV_FILE: 'true',
+      PROXY_SKIP_ENV_FILE: 'true',
       // Inherit only specific environment variables
-      PATH: process.env.PATH,
-      NODE_ENV: process.env.NODE_ENV,
+      PROXY_PATH: process.env.PATH,
+      PROXY_NODE_ENV: process.env.NODE_ENV,
     };
 
     serverProcess = spawn(process.execPath, ['packages/proxy/src/proxy.js'], {
@@ -202,9 +202,9 @@ describe('proxy.js integration', function () {
 
     // In integration tests without credentials, client should not be initialized
     if (
-      process.env.HEDERA_ACCOUNT_ID &&
-      process.env.HEDERA_PRIVATE_KEY &&
-      process.env.HEDERA_TOPIC_ID
+      process.env.PROXY_HEDERA_ACCOUNT_ID &&
+      process.env.PROXY_HEDERA_PRIVATE_KEY &&
+      process.env.PROXY_HEDERA_TOPIC_ID
     ) {
       // If credentials are provided, client should be initialized
       assert.strictEqual(data.clientInitialized, true);
