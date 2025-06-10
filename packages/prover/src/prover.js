@@ -566,7 +566,7 @@ async function initPairingWithProxy() {
     };
 
     const route2 = {
-      addr: '0x9300681e2745d5071d0f1fd6c80ad64c6b28e970',
+      addr: '0x4f1a953df9df8d1c6073ce57f7493e50515fa73f',
       proofType: 'create',
       nonce: 60,
       url: testUrl,

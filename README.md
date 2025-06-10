@@ -1,53 +1,151 @@
 # Hiero JSON-RPC Relay Proxy
 
-A monorepo containing a lightweight Ethereum transaction routing proxy with Hedera Consensus Service integration and RSA key management. The system consists of two main packages: a proxy server and a prover client that demonstrate encrypted communication via Hedera topics.
+A monorepo containing a dynamic JSON-RPC relay proxy that routes Ethereum requests to different backend servers based on contract addresses. The system uses Hedera Consensus Service for secure route registration and includes cryptographic verification of contract ownership. It consists of two main packages: a proxy server that acts as a JSON-RPC relay with dynamic routing, and a prover client that demonstrates secure route registration.
 
 ## 🏗️ Architecture
 
+### Flow 1: Normal JSON-RPC Routing (Daily Operations)
+
+```txt
+┌─────────────────┐     ┌─────────────────────────────────────────────────────────┐     ┌─────────────────┐
+│   Ethereum      │     │              JSON-RPC Relay PROXY                       │     │   JSON-RPC      │
+│   dApps/        │────►│                                                         │────►│   Relay         │
+│   Wallets       │     │  1. Receive JSON-RPC Request                            │     │   Servers       │
+│   Clients       │     │  2. Extract `to` address from `eth_sendRawTransaction`  │     │                 │
+└─────────────────┘     │  3. Lookup address in routes database                   │     │                 │
+                        │                                                         │     │                 │
+                        │  ┌─────────────────┐  ┌──────────────────┐              │     │                 │
+                        │  │ Address Lookup  │  │  Routes Database │              │     │                 │
+                        │  │                 │  │   (Verified)     │              │     │                 │
+                        │  │ 0x123... ──────►│  │                  │              │     │                 │
+                        │  │                 │  │ 0x123 → relay-a  │              │     │                 │
+                        │  │                 │  │ 0x456 → relay-b  │              │     │                 │
+                        │  └─────────────────┘  │ 0x789 → relay-c  │              │     │                 │
+                        │                       └──────────────────┘              │     │                 │
+                        │                                                         │     │                 │
+                        │  IF FOUND: Route to custom JSON-RPC Relay               │     │ • Custom Relay  │
+                        │  IF NOT FOUND: Route to Default (hashio.io)             │     │ • hashio.io     │
+                        └─────────────────────────────────────────────────────────┘     └─────────────────┘
 ```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Ethereum      │    │     Proxy       │    │    Hedera       │
-│   Clients       │◄──►│    Server       │◄──►│   Consensus     │
-│                 │    │                 │    │   Service       │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-                                ▲
-                                │ Encrypted
-                                │ Messages
-                                ▼
-                       ┌─────────────────┐
-                       │     Prover      │
-                       │    Client       │
-                       └─────────────────┘
+
+### Flow 2: Route Registration & Verification
+
+#### Sequence Diagram
+
+![alt text](docs/flow2.svg "Flow 2: Route Registration & Verification")
+
+```mermaid
+sequenceDiagram
+  participant Prover as Prover (Contract Owner)
+  participant Proxy as Proxy
+  participant HCS as HCS
+
+  autonumber
+  rect rgb(191, 223, 255)
+    Note right of Proxy: Setup
+    Proxy ->> Proxy: 🔑 Generate RSA key pair
+    Proxy ->> HCS: Create new Paid Topics
+    Proxy ->> HCS: Publish RSA Public Key
+    Proxy -->> HCS: ⏳ Subscribe to messages
+  end
+  Prover ->> Proxy: Fetch /status
+  Proxy -->> Prover: Answer with Topic ID & RSA Public Key
+  Prover ->> Prover: 🔑 Generate RSA encrypted AES key
+  Prover ->> HCS: 🔐 Submit Route Data (Encrypted, EcDSA signed), 🤑  Pay Fee
+  Prover ->> Prover: ⏳ Listen for Challenge Requests
+  HCS -->> Proxy: Deliver Encrypted Message
+  Proxy ->> Proxy: Decrypt Message (AES+RSA)
+  Proxy ->> Proxy: Verify Signature, Extract Address (EcDSA)
+  Proxy ->> Proxy: ✅ Confirm Smart Contract's ownership (Address + Nonce)
+  Proxy ->> Prover: 🔐 Send Challenge Request (RSA Signed, AES Encrypted)
+  Prover -->> Proxy: Respond to Challenge (EcDSA Signed, AES Encrypted)
+  Proxy ->> Proxy: Verify Challenge Response, Prover is accessible
+  Proxy ->> Proxy: Update Verified Routes Database
+  Proxy ->> Prover: 🎉 Confirm Route Registration Success
 ```
+
+#### Updated Description
+
+1. **Contract Owner (Prover)**:
+
+   - Generates route data, including the contract address and relay information.
+   - Signs the data using ECDSA and encrypts it using the Proxy's RSA public key.
+   - Submits the encrypted message to the Hedera topic.
+
+2. **Hedera Consensus Service**:
+
+   - Acts as a secure message relay, delivering the encrypted message to the Proxy.
+
+3. **JSON-RPC Relay Proxy**:
+
+   - Decrypts the message using its RSA private key.
+   - Verifies the ECDSA signature to ensure authenticity.
+   - Validates the route data and updates the verified route database.
+   - Sends a challenge request to the Prover to verify its availability.
+   - Verifies the Prover's challenge response.
+   - Confirms the successful route registration to the Prover.
+
+### Flow Overview
+
+#### Flow 1: Normal Operations
+
+1. **JSON-RPC Request**: dApps/wallets send requests to the proxy
+2. **Address Extraction**: Proxy extracts "to" address from `eth_sendRawTransaction`
+3. **Route Lookup**: Check if address exists in verified route database
+4. **Routing Decision**: Route to custom relay if found, otherwise default to hashio.io
+
+#### Flow 2: Route Registration Process
+
+1. **Contract Address Generation**: Owner generates deterministic address (deployer + nonce)
+2. **Cryptographic Proof**: Signs route data with ECDSA to prove ownership
+3. **Secure Submission**: Encrypts and submits route data to Hedera Consensus Service
+4. **Message Processing**: Proxy decrypts, verifies signatures, and validates ownership
+5. **Challenge-Response**: Proxy challenges the claimed JSON-RPC endpoint URL
+6. **Verification**: Prover responds with ECDSA signature to prove control of endpoint
+7. **Route Activation**: Successful verification adds route to database and sends confirmation
 
 ## 📦 Packages
 
 ### [@hiero-json-rpc-relay/proxy](./packages/proxy)
 
-The main proxy server that:
+The main JSON-RPC relay proxy server that:
 
-- Handles Ethereum JSON-RPC requests
-- Routes transactions based on sender addresses
-- Manages RSA encryption keys
-- Listens to Hedera topics for routing updates
-- **Verifies contract ownership through deterministic address computation**
-- **Validates ECDSA signatures for route registration**
-- **Implements challenge-response mechanism for URL verification**
-- Provides status and configuration endpoints
+- **Acts as a JSON-RPC relay proxy** routing Ethereum requests to appropriate backend servers
+- **Analyzes transaction "to" addresses** from `eth_sendRawTransaction` calls to determine routing
+- **Maintains dynamic routing table** mapping contract addresses to specific JSON-RPC relay endpoints
+- **Provides fallback routing** to default JSON-RPC relay (e.g., hashio.io) for unregistered addresses
+- **Manages secure route registration** via verified Hedera Consensus Service messages
+- **Handles RSA hybrid encryption** for secure message communication on Hedera topics
+- **Verifies contract ownership** through deterministic address computation and ECDSA signatures
+- **Implements challenge-response verification** for URL reachability and endpoint validation
+- **Sends direct HTTP confirmation** to provers upon successful route verification
+- **Provides status and management endpoints** for monitoring and configuration
 
-**Note**: Route updates can only be done through verified Hedera messages with challenge-response verification. Manual route updates via HTTP endpoints have been removed for security.
+**Key Features**:
+
+- Dynamic address-based routing for Ethereum JSON-RPC requests
+- Secure route registration through Hedera Consensus Service
+- Cryptographic proof of contract ownership required for route updates
+- HTTP route update endpoints removed for security (all updates via Hedera only)
+
+**Security**: Route updates can only be done through verified Hedera messages with cryptographic proof of contract ownership and challenge-response verification. HTTP route update endpoints have been removed for security.
 
 ### [@hiero-json-rpc-relay/prover](./packages/prover)
 
-A demonstration client that:
+A demonstration client that shows the complete route registration flow for JSON-RPC relay endpoints:
 
-- Fetches proxy configuration and public keys
-- Creates and signs routing payloads with contract ownership proof
-- **Generates deterministic contract addresses using CREATE deployment**
-- **Signs route data with ECDSA for ownership verification**
-- **Responds to proxy challenges for URL reachability verification**
-- Encrypts messages using RSA
-- Submits encrypted data to Hedera topics
+- **Fetches proxy configuration** and RSA public keys from proxy status endpoints
+- **Creates route registration payloads** mapping contract addresses to JSON-RPC relay endpoints
+- **Generates deterministic contract addresses** using CREATE deployment parameters (deployer + nonce)
+- **Signs route data with ECDSA** for ownership verification (signs `addr+proofType+nonce+url`)
+- **Encrypts messages using RSA** hybrid encryption (RSA + AES) for secure Hedera transmission
+- **Submits encrypted route data to Hedera topics** for proxy processing
+- **Starts HTTP challenge server** to respond to proxy verification requests
+- **Handles challenge-response verification** automatically with ECDSA signature responses
+- **Receives direct confirmation** from proxy upon successful route verification
+- **Saves comprehensive results** to timestamped JSON files and exits automatically
+
+**Purpose**: Demonstrates how contract owners can securely register their preferred JSON-RPC relay endpoints with the proxy, enabling custom routing for their contract interactions.
 
 ## 🚀 Quick Start
 
@@ -82,6 +180,7 @@ npm install --workspaces
    ```
 
 2. **Configure the Prover** (optional for demo):
+
    ```bash
    cd packages/prover
    cp .env.example .env
@@ -202,6 +301,7 @@ hiero-json-rpc-relay-proxy/
    ```
 
 3. **For Integration Features**:
+
    ```bash
    # Add tests to test/
    npm run test:integration
