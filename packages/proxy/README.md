@@ -6,6 +6,7 @@ The proxy component of the Hiero JSON-RPC Relay system. This package provides an
 
 - 🔄 **JSON-RPC Proxy**: Full Ethereum JSON-RPC 2.0 compatible proxy server
 - 🔐 **RSA Encryption**: Automatic RSA key pair generation and management
+- 💰 **HIP-991 Paid Topics**: Creates and manages paid Hedera topics with $0.50 submission fee
 - 🏗️ **Dynamic Routing**: Route transactions based on encrypted Hedera messages
 - 📡 **Hedera Integration**: Listen to Hedera Consensus Service for routing updates
 - 🗄️ **Database Management**: Persistent storage for routing configurations
@@ -144,7 +145,57 @@ To update routes:
 4. Proxy verifies signatures and sends challenges to URLs
 5. Respond to challenges to complete verification
 
-```
+````
+
+## HIP-991 Paid Topic Implementation
+
+The proxy implements **HIP-991 Paid Topics** to prevent spam and ensure quality route registrations while maintaining decentralized access.
+
+### Economic Security Model
+
+- **Submission Fee**: $0.50 USD equivalent (0.5 HBAR) per message submission
+- **Spam Prevention**: Economic barrier prevents frivolous route registration attempts
+- **Fee Collection**: Proxy collects all submission fees as the topic creator
+- **Operational Exemption**: Proxy is exempt from fees for publishing RSA public keys and confirmations
+
+### Topic Creation and Management
+
+When the proxy starts, it automatically:
+
+1. **Creates HIP-991 Topic**: If no topic ID is provided in configuration
+2. **Sets Custom Fee**: 0.5 HBAR submission fee for all message submissions
+3. **Configures Fee Exemption**: Proxy account is exempt via fee exempt key
+4. **Publishes Public Key**: First message contains RSA public key for encryption
+5. **Starts Message Listener**: Monitors topic for encrypted route registration messages
+
+### Fee Structure
+
+```javascript
+// HIP-991 Topic Configuration
+const customFee = new CustomFixedFee()
+  .setAmount(50000000)  // 0.5 HBAR in tinybars
+  .setFeeCollectorAccountId(proxyAccountId);
+
+const topic = new TopicCreateTransaction()
+  .setTopicMemo('Hiero JSON-RPC Relay Proxy Topic (HIP-991)')
+  .addCustomFee(customFee)
+  .addFeeExemptKey(proxyPrivateKey.publicKey)
+  .setFeeScheduleKey(proxyPrivateKey.publicKey);
+````
+
+### Balance Requirements
+
+- **Proxy Account**: Minimum 25 HBAR recommended for topic creation
+- **Prover Account**: Minimum 1 HBAR recommended for route submissions
+- **Fee Buffer**: Additional balance recommended for network fee variations
+
+### Economic Benefits
+
+1. **Quality Assurance**: Only serious projects will pay for route registration
+2. **Network Sustainability**: Fees support proxy operation and infrastructure
+3. **Scalable Revenue**: Fee collection scales with network usage
+4. **Fair Access**: No gatekeeping - transparent fee structure for all users
+5. **Spam Resistance**: Economic cost makes spam attacks unfeasible
 
 ## Architecture
 
@@ -198,7 +249,7 @@ proxy/
 ├── package.json
 └── README.md
 
-````
+```
 
 ## Configuration Files
 
@@ -217,7 +268,7 @@ The routing database (`data/routing_db_testnet.json`) stores address-to-URL mapp
     "version": "1.0.0"
   }
 }
-````
+```
 
 ## Security
 

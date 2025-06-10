@@ -6,6 +6,7 @@ The prover component of the Hiero JSON-RPC Relay system. This package is respons
 
 - 🔐 **AES+RSA Encryption**: Encrypts payloads using AES shared secret encrypted with a RSA public keys from the proxy
 - 🏗️ **ECDSA Support**: Full support for ECDSA private keys in addition to Ed25519
+- 💰 **HIP-991 Integration**: Automatic payment of $0.50 topic submission fees
 - 📡 **HTTP Communication**: Fetches status and configuration from the proxy server
 - 🔗 **Hedera Integration**: Submits encrypted messages to Hedera Consensus Service
 - ✅ **Route Signing**: Signs routing URLs using Ethereum-compatible signatures
@@ -47,6 +48,51 @@ HEDERA_KEY_TYPE=ECDSA
 # HEDERA_TOPIC_ID=0.0.1234567
 ```
 
+## HIP-991 Paid Topic Integration
+
+The prover automatically handles **HIP-991 paid topic** submissions with built-in fee management and balance checking.
+
+### Economic Requirements
+
+- **Submission Fee**: 0.5 HBAR per route registration message
+- **Account Balance**: Minimum 1 HBAR recommended (covers submission + network fees)
+- **Fee Buffer**: Additional balance recommended for network fee variations
+- **Automatic Payment**: Fees are deducted automatically during message submission
+
+### Fee Handling
+
+The prover implements robust fee management:
+
+```bash
+# Account balance check before submission
+💰 Account balance: 5.0 HBAR
+📤 Submitting message to HIP-991 topic 0.0.1234567...
+💰 Prover paid custom fee for HIP-991 topic (max: 0.6 HBAR)
+✅ Message submitted successfully
+```
+
+### Configuration for Paid Topics
+
+```bash
+# Minimum recommended balance for reliable operation
+HEDERA_ACCOUNT_ID=0.0.1545
+HEDERA_PRIVATE_KEY=0x48b52aba58f4b8dd4cd0e527e28b0eb5f89e2540785b6fcd3c418cc16b640569
+
+# Ensure account has sufficient balance
+# - Topic submission: 0.5 HBAR
+# - Network fees: ~0.1 HBAR
+# - Buffer for variations: 0.4+ HBAR
+# Recommended minimum: 1.0 HBAR
+```
+
+### Economic Benefits for Provers
+
+1. **Quality Network**: 0.5 HBAR fee ensures serious network participants
+2. **Spam-Free Environment**: Economic barrier prevents frivolous registrations
+3. **Fair Access**: No gatekeeping - transparent fee structure for all
+4. **Predictable Costs**: Fixed 0.5 HBAR fee regardless of network congestion
+5. **Investment Protection**: Fees support network infrastructure and stability
+
 ## Usage
 
 ### Run the Prover
@@ -78,7 +124,7 @@ npm run test:coverage
 2. **Create Payload**: Generates a test payload with route signatures using the new format
 3. **Sign Routes**: Uses ECDSA to sign concatenated `addr+proofType+nonce+url` for authentication
 4. **Encrypt Payload**: Encrypts the JSON payload using the proxy's RSA public key
-5. **Submit to Hedera**: Sends the encrypted message to the specified Hedera topic
+5. **Submit to Hedera**: Sends the encrypted message to the specified Hedera topic (pays 0.5 HBAR fee)
 6. **Start Challenge Server**: Starts HTTP server to respond to URL reachability challenges and receive confirmation
 7. **Handle Challenges**: Responds to challenge-response verification requests from proxy
 8. **Receive Confirmation**: Waits for confirmation message from proxy when verification is complete

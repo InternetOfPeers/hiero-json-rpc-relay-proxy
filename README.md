@@ -44,14 +44,14 @@ sequenceDiagram
   rect rgb(191, 223, 255)
     Note right of Proxy: Setup
     Proxy ->> Proxy: 🔑 Generate RSA key pair
-    Proxy ->> HCS: Create new Paid Topics
-    Proxy ->> HCS: Publish RSA Public Key
+    Proxy ->> HCS: Create new HIP-991 Paid Topic ($0.50 submission fee)
+    Proxy ->> HCS: Publish RSA Public Key (proxy exempt from fees)
     Proxy -->> HCS: ⏳ Subscribe to messages
   end
   Prover ->> Proxy: Fetch /status
   Proxy -->> Prover: Answer with Topic ID & RSA Public Key
   Prover ->> Prover: 🔑 Generate AES shared secret key
-  Prover ->> HCS: 🔐 Submit Route Data (RSA+AES Encrypted, ECDSA signed), 🤑 Pay Fee
+  Prover ->> HCS: 🔐 Submit Route Data (RSA+AES Encrypted, ECDSA signed), 💰 Pay $0.50 Topic Fee
   Prover ->> Prover: ⏳ Listen for Challenge Requests
   HCS -->> Proxy: Deliver Encrypted Message
   Proxy ->> Proxy: Decrypt Message (RSA+AES), Extract AES key
@@ -82,6 +82,9 @@ sequenceDiagram
 2. **Hedera Consensus Service**:
 
    - Acts as a secure message relay, delivering the encrypted message to the Proxy.
+   - **HIP-991 Paid Topics**: Implements $0.50 USD equivalent submission fee (0.5 HBAR) to prevent spam.
+   - **Fee Collection**: Proxy collects submission fees as topic creator and fee collector.
+   - **Fee Exemption**: Proxy is exempt from submission fees via fee exempt key.
 
 3. **JSON-RPC Relay Proxy**:
 
@@ -125,6 +128,53 @@ sequenceDiagram
 6. **Verification**: Prover responds with ECDSA signature to prove control of endpoint
 7. **Route Activation**: Successful verification adds route to database and sends confirmation
 
+## 💰 HIP-991 Paid Topic Implementation
+
+The system implements **HIP-991 Paid Topics** to prevent spam and ensure quality route registrations. This provides economic security while maintaining decentralized access.
+
+### Topic Economics
+
+- **Submission Fee**: $0.50 USD equivalent (0.5 HBAR) per message submission
+- **Fee Purpose**: Prevents spam attacks and ensures serious route registration attempts
+- **Fee Collection**: Proxy collects all submission fees as the topic creator
+- **Fee Exemption**: Proxy is exempt from fees via fee exempt key for operational messages
+
+### Technical Implementation
+
+#### Proxy (Topic Creator)
+
+- **Creates HIP-991 topic** with custom fixed fee of 0.5 HBAR per submission
+- **Exempt from fees** via fee exempt key for publishing RSA public key and confirmations
+- **Collects all fees** paid by provers for route registration attempts
+- **Sets fee schedule key** to allow future fee adjustments if needed
+
+#### Prover (Message Submitter)
+
+- **Pays 0.5 HBAR fee** automatically when submitting route registration messages
+- **Sets custom fee limit** to maximum 0.6 HBAR to account for network fee variations
+- **Must have sufficient balance** before attempting route registration
+- **Receives route verification** and confirmation after successful payment and validation
+
+### Economic Benefits
+
+1. **Spam Prevention**: 0.5 HBAR cost makes spam attacks economically unfeasible
+2. **Quality Assurance**: Only serious projects with genuine intent will pay for registration
+3. **Network Sustainability**: Fees support proxy operation and maintenance
+4. **Fair Access**: No central gatekeeping - anyone can register by paying the transparent fee
+5. **Scalable Economics**: Fee collection scales with usage without additional infrastructure
+
+### Configuration Requirements
+
+```bash
+# Proxy must have sufficient balance for topic creation (≥25 HBAR recommended)
+HEDERA_ACCOUNT_ID=0.0.123456
+HEDERA_PRIVATE_KEY=302e020100300506032b65700...
+
+# Prover must have sufficient balance for submissions (≥1 HBAR recommended)
+HEDERA_ACCOUNT_ID=0.0.789012
+HEDERA_PRIVATE_KEY=0x48b52aba58f4b8dd4cd0e527...
+```
+
 ## 📦 Packages
 
 ### [@hiero-json-rpc-relay/proxy](./packages/proxy)
@@ -136,6 +186,7 @@ The main JSON-RPC relay proxy server that:
 - **Maintains dynamic routing table** mapping contract addresses to specific JSON-RPC relay endpoints
 - **Provides fallback routing** to default JSON-RPC relay (e.g., hashio.io) for unregistered addresses
 - **Manages secure route registration** via verified Hedera Consensus Service messages
+- **Creates and manages HIP-991 paid topics** with $0.50 submission fee to prevent spam
 - **Handles RSA hybrid encryption** for secure message communication on Hedera topics
 - **Verifies contract ownership** through deterministic address computation and ECDSA signatures for both CREATE and CREATE2 deployments
 - **Implements challenge-response verification** for URL reachability and endpoint validation
@@ -161,6 +212,7 @@ A demonstration client that shows the complete route registration flow for JSON-
 - **Signs route data with ECDSA** for ownership verification (signs `addr+proofType+nonce+url` for CREATE or `addr+proofType+salt+url` for CREATE2)
 - **Encrypts messages using RSA** hybrid encryption (RSA + AES) for secure Hedera transmission
 - **Submits encrypted route data to Hedera topics** for proxy processing
+- **Pays HIP-991 topic submission fees** automatically (0.5 HBAR per registration)
 - **Starts HTTP challenge server** to respond to proxy verification requests
 - **Handles challenge-response verification** automatically with ECDSA signature responses
 - **Receives direct confirmation** from proxy upon successful route verification
@@ -243,7 +295,9 @@ hiero-json-rpc-relay-proxy/
 ### Prerequisites
 
 - Node.js 18.0.0 or higher
-- Hedera testnet account with HBAR balance
+- Hedera testnet account with HBAR balance:
+  - **Proxy Account**: Minimum 25 HBAR (for HIP-991 topic creation)
+  - **Prover Account**: Minimum 1 HBAR (for $0.50 submission fees)
 - Ethereum JSON-RPC endpoint (optional, for testing)
 
 ### Installation
@@ -268,6 +322,7 @@ npm install --workspaces
    cd packages/proxy
    cp .env.example .env
    # Edit .env with your Hedera credentials
+   # Ensure account has ≥25 HBAR for topic creation
    ```
 
 2. **Configure the Prover** (optional for demo):
@@ -276,6 +331,7 @@ npm install --workspaces
    cd packages/prover
    cp .env.example .env
    # Edit .env with your Hedera credentials
+   # Ensure account has ≥1 HBAR for submission fees
    ```
 
 3. **Common Package**: The `@hiero-json-rpc-relay/common` package is automatically installed as a dependency for both proxy and prover packages. It provides shared utilities for:
@@ -525,6 +581,7 @@ For detailed implementation information, see [docs/chunked-messages.md](./docs/c
 1. **Proxy won't start**:
 
    - Check Hedera credentials in `.env`
+   - Verify account has ≥25 HBAR for topic creation
    - Verify network connectivity
    - Ensure port 3000 is available
 
@@ -534,7 +591,20 @@ For detailed implementation information, see [docs/chunked-messages.md](./docs/c
    - Check prover `.env` configuration
    - Confirm Hedera credentials are valid
 
-3. **Tests failing**:
+3. **HIP-991 Topic Issues**:
+
+   - **Insufficient Balance**: Ensure proxy account has ≥25 HBAR for topic creation
+   - **Submission Failed**: Ensure prover account has ≥1 HBAR for submission fees
+   - **Fee Limit Exceeded**: Check account balance and increase HBAR if needed
+   - **Topic Not Found**: Verify topic ID in configuration matches created topic
+
+4. **Route Submission Failures**:
+
+   - **Payment Required**: Verify prover account has sufficient HBAR balance
+   - **Custom Fee Error**: Check network status and retry with higher fee limit
+   - **Balance Too Low**: Add HBAR to prover account for submission fees
+
+5. **Tests failing**:
    - Run `npm run clean:all` and reinstall
    - Check Node.js version (requires 18+)
    - Verify test environment variables

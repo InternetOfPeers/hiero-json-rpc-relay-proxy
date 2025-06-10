@@ -8,6 +8,7 @@ Common utilities and shared code for the Hiero JSON-RPC Relay system. This packa
 - 🌐 **HTTP Utilities**: Request parsing, CORS handling, standardized responses
 - ✅ **Validation**: Route signature validation, configuration validation, error handling
 - 📁 **Environment Loading**: Simple .env file parsing without external dependencies
+- 💰 **HIP-991 Support**: Custom fee handling, paid topic integration utilities
 - 🔗 **Hedera Integration**: Client initialization, timestamp handling, message parsing
 
 ## Installation
