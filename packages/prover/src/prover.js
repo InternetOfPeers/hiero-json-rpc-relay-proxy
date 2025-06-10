@@ -13,6 +13,9 @@ const {
   encryptHybridMessage,
   verifyChallenge,
   signChallengeResponse,
+  encryptAES,
+  decryptAES,
+  generateAESKey,
 } = require('../../proxy/src/cryptoUtils');
 const { ethers } = require('ethers');
 const http = require('http');
@@ -76,6 +79,71 @@ const HEDERA_NETWORK = process.env.HEDERA_NETWORK || 'testnet';
 const PROVER_PORT = process.env.PROVER_PORT
   ? parseInt(process.env.PROVER_PORT, 10)
   : 7546;
+
+// AES key storage for encrypted communications with proxy
+let proverAESKeys = new Map(); // contractAddress -> aesKey
+
+/**
+ * Custom hybrid encryption function that uses a specific AES key
+ * @param {string} publicKeyPem - RSA public key for encrypting the AES key
+ * @param {string} data - Data to encrypt
+ * @param {Buffer} aesKey - Specific AES key to use
+ * @param {boolean} verbose - Verbose logging
+ * @returns {string} JSON string containing encrypted payload
+ */
+function encryptHybridMessageWithKey(
+  publicKeyPem,
+  data,
+  aesKey,
+  verbose = false
+) {
+  const crypto = require('crypto');
+
+  try {
+    if (verbose) {
+      console.log(
+        '🔐 Encrypting payload with hybrid encryption using specific AES key...'
+      );
+    }
+
+    // Generate IV for AES encryption
+    const iv = crypto.randomBytes(16);
+
+    // Encrypt the data with AES-256-CBC
+    const aesCipher = crypto.createCipheriv('aes-256-cbc', aesKey, iv);
+    let encryptedData = aesCipher.update(data, 'utf8', 'base64');
+    encryptedData += aesCipher.final('base64');
+
+    // Encrypt the AES key with RSA
+    const encryptedAesKey = crypto.publicEncrypt(
+      {
+        key: publicKeyPem,
+        padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
+        oaepHash: 'sha256',
+      },
+      aesKey
+    );
+
+    // Combine everything into a single payload
+    const hybridPayload = {
+      key: encryptedAesKey.toString('base64'),
+      iv: iv.toString('base64'),
+      data: encryptedData,
+    };
+
+    const jsonPayload = JSON.stringify(hybridPayload);
+
+    if (verbose) {
+      console.log(
+        `✅ Payload encrypted successfully with specific AES key (${data.length} characters)`
+      );
+    }
+
+    return jsonPayload;
+  } catch (error) {
+    throw new Error(`Custom hybrid encryption failed: ${error.message}`);
+  }
+}
 
 /**
  * Save prover results to a file
@@ -338,7 +406,52 @@ function handleChallenge(req, res, body, proxyPublicKey, privateKey) {
     // Track challenge received
     proverResults.challenges.totalCount++;
 
-    const challengeObj = JSON.parse(body);
+    // Try to parse challenge - could be AES encrypted or plain JSON
+    let challengeObj;
+    try {
+      // Parse body as JSON first
+      const parsedBody = JSON.parse(body);
+
+      // Check if it looks like an unencrypted challenge (has challenge and signature)
+      if (parsedBody.challenge && parsedBody.signature) {
+        challengeObj = parsedBody;
+        console.log('   📄 Received unencrypted challenge');
+      }
+      // Check if it looks like an encrypted challenge (has iv and data)
+      else if (parsedBody.iv && parsedBody.data) {
+        console.log('   🔓 Attempting to decrypt AES-encrypted challenge...');
+
+        // Try to decrypt with each stored AES key
+        let decrypted = false;
+        for (const [contractAddress, aesKey] of proverAESKeys.entries()) {
+          try {
+            const decryptedData = decryptAES(parsedBody, aesKey);
+            challengeObj = JSON.parse(decryptedData);
+            console.log(
+              `   🔓 Challenge decrypted with AES key for contract: ${contractAddress}`
+            );
+            decrypted = true;
+            break;
+          } catch (decryptError) {
+            // Try next key
+            continue;
+          }
+        }
+
+        if (!decrypted) {
+          throw new Error(
+            'Could not decrypt challenge with any available AES key'
+          );
+        }
+      } else {
+        throw new Error(
+          'Unknown challenge format - not unencrypted or AES encrypted'
+        );
+      }
+    } catch (jsonError) {
+      throw new Error(`Invalid JSON in challenge body: ${jsonError.message}`);
+    }
+
     if (!challengeObj.challenge || !challengeObj.signature) {
       throw new Error('Invalid challenge format');
     }
@@ -384,8 +497,29 @@ function handleChallenge(req, res, body, proxyPublicKey, privateKey) {
       `   Response signature: ${responseSignature.substring(0, 20)}...`
     );
 
+    // Try to encrypt response with AES if key is available for this contract
+    let responseData;
+    const contractAddress = challengeObj.challenge.contractAddress;
+    const aesKey = proverAESKeys.get(contractAddress?.toLowerCase());
+
+    if (aesKey) {
+      try {
+        const encrypted = encryptAES(JSON.stringify(response), aesKey);
+        responseData = JSON.stringify(encrypted);
+        console.log('   🔐 Challenge response encrypted with AES key');
+      } catch (aesError) {
+        console.log(
+          `   ⚠️  AES encryption failed: ${aesError.message}, sending unencrypted`
+        );
+        responseData = JSON.stringify(response);
+      }
+    } else {
+      console.log('   📄 No AES key available, sending unencrypted response');
+      responseData = JSON.stringify(response);
+    }
+
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify(response));
+    res.end(responseData);
 
     console.log('   ✅ Challenge response sent');
 
@@ -430,7 +564,40 @@ function handleConfirmation(req, res, body, server) {
   try {
     console.log('\n🎉 Received confirmation from proxy');
 
-    const confirmation = JSON.parse(body);
+    // Try to parse confirmation - could be AES encrypted or plain JSON
+    let confirmation;
+    try {
+      // First try parsing as JSON (unencrypted)
+      confirmation = JSON.parse(body);
+      console.log('   📄 Received unencrypted confirmation');
+    } catch (jsonError) {
+      // If JSON parsing fails, try AES decryption
+      console.log('   🔓 Attempting to decrypt AES-encrypted confirmation...');
+
+      // Try to decrypt with each stored AES key
+      let decrypted = false;
+      for (const [contractAddress, aesKey] of proverAESKeys.entries()) {
+        try {
+          const encrypted = JSON.parse(body);
+          const decryptedData = decryptAES(encrypted, aesKey);
+          confirmation = JSON.parse(decryptedData);
+          console.log(
+            `   🔓 Confirmation decrypted with AES key for contract: ${contractAddress}`
+          );
+          decrypted = true;
+          break;
+        } catch (decryptError) {
+          // Try next key
+          continue;
+        }
+      }
+
+      if (!decrypted) {
+        throw new Error(
+          'Could not decrypt confirmation with any available AES key'
+        );
+      }
+    }
 
     // Track confirmation received
     proverResults.confirmation.received = true;
@@ -456,6 +623,12 @@ function handleConfirmation(req, res, body, server) {
     );
 
     console.log('   ✅ Confirmation acknowledged');
+
+    // Clean up AES keys from memory for security
+    console.log('   🧹 Cleaning up AES keys from memory...');
+    const keyCount = proverAESKeys.size;
+    proverAESKeys.clear();
+    console.log(`   🗑️  Removed ${keyCount} AES keys from memory`);
 
     // Save results and shutdown
     console.log('\n✅ Verification flow completed successfully!');
@@ -587,8 +760,18 @@ async function initPairingWithProxy() {
     );
 
     const payload = {
-      routes: [route1, route2],
+      routes: [route1],
     };
+
+    // Generate and store AES keys for each contract address
+    console.log('🔑 Generating AES key for encrypted communications...');
+    const aesKey = generateAESKey();
+
+    // Store the AES key for all contract addresses in this message
+    for (const route of payload.routes) {
+      proverAESKeys.set(route.addr.toLowerCase(), aesKey);
+      console.log(`   🔐 Stored AES key for contract: ${route.addr}`);
+    }
 
     // Track payload creation
     proverResults.payload.created = true;
@@ -617,11 +800,12 @@ async function initPairingWithProxy() {
     console.log(payloadJson);
     console.log('');
 
-    // Step 3: Encrypt the payload
-    console.log('3️⃣  Encrypting payload...');
-    const encryptedPayload = encryptHybridMessage(
+    // Step 3: Encrypt the payload using the generated AES key
+    console.log('3️⃣  Encrypting payload with specific AES key...');
+    const encryptedPayload = encryptHybridMessageWithKey(
       status.publicKey,
       payloadJson,
+      aesKey,
       true // verbose logging
     );
 

@@ -142,6 +142,139 @@ function decryptHybridMessage(encryptedData, privateKeyPem) {
 }
 
 /**
+ * Encrypt data using AES-256-CBC with a shared key
+ * @param {string} data - Data to encrypt
+ * @param {Buffer} aesKey - 32-byte AES key
+ * @returns {object} Encrypted payload with IV and data
+ */
+function encryptAES(data, aesKey) {
+  try {
+    const iv = crypto.randomBytes(16);
+    const cipher = crypto.createCipheriv('aes-256-cbc', aesKey, iv);
+
+    let encrypted = cipher.update(data, 'utf8', 'base64');
+    encrypted += cipher.final('base64');
+
+    return {
+      iv: iv.toString('base64'),
+      data: encrypted,
+    };
+  } catch (error) {
+    throw new Error(`AES encryption failed: ${error.message}`);
+  }
+}
+
+/**
+ * Decrypt AES-256-CBC encrypted data
+ * @param {object} encryptedPayload - Object with iv and data properties
+ * @param {Buffer} aesKey - 32-byte AES key
+ * @returns {string} Decrypted data
+ */
+function decryptAES(encryptedPayload, aesKey) {
+  try {
+    const iv = Buffer.from(encryptedPayload.iv, 'base64');
+    const decipher = crypto.createDecipheriv('aes-256-cbc', aesKey, iv);
+
+    let decrypted = decipher.update(encryptedPayload.data, 'base64', 'utf8');
+    decrypted += decipher.final('utf8');
+
+    return decrypted;
+  } catch (error) {
+    throw new Error(`AES decryption failed: ${error.message}`);
+  }
+}
+
+/**
+ * Generate a random AES key for session encryption
+ * @returns {Buffer} 32-byte AES key
+ */
+function generateAESKey() {
+  return crypto.randomBytes(32);
+}
+
+/**
+ * Extract AES key from hybrid decryption result and return both the data and key
+ * @param {string} encryptedData - JSON string containing encrypted payload
+ * @param {string} privateKeyPem - RSA private key in PEM format
+ * @returns {object} Decryption result with success flag, data, and extracted AES key
+ */
+function decryptHybridMessageWithKey(encryptedData, privateKeyPem) {
+  try {
+    let decodedPayload;
+
+    // Try to parse as JSON first (direct JSON input)
+    try {
+      const testPayload = JSON.parse(encryptedData);
+      // Check if it has the expected structure for encrypted data
+      if (testPayload.key && testPayload.iv && testPayload.data) {
+        decodedPayload = encryptedData;
+      } else {
+        throw new Error('Not a valid hybrid payload');
+      }
+    } catch (jsonError) {
+      // If JSON parsing fails, try base64 decoding
+      try {
+        decodedPayload = Buffer.from(encryptedData, 'base64').toString('utf8');
+
+        // Check if the result is still base64 (double-encoded)
+        if (/^[A-Za-z0-9+/]+=*$/.test(decodedPayload)) {
+          decodedPayload = Buffer.from(decodedPayload, 'base64').toString(
+            'utf8'
+          );
+        }
+      } catch (base64Error) {
+        throw new Error('Invalid input: not valid JSON or base64');
+      }
+    }
+
+    const hybridPayload = JSON.parse(decodedPayload);
+
+    // Validate payload structure
+    if (!hybridPayload.key || !hybridPayload.iv || !hybridPayload.data) {
+      throw new Error('Invalid hybrid payload structure');
+    }
+
+    // Check for unsupported algorithm if specified
+    if (hybridPayload.algorithm && hybridPayload.algorithm !== 'RSA+AES') {
+      throw new Error('Unsupported encryption algorithm');
+    }
+
+    // Decrypt the AES key using RSA private key
+    const encryptedAesKey = Buffer.from(hybridPayload.key, 'base64');
+    const aesKey = crypto.privateDecrypt(
+      {
+        key: privateKeyPem,
+        padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
+        oaepHash: 'sha256',
+      },
+      encryptedAesKey
+    );
+
+    // Decrypt the data using AES
+    const iv = Buffer.from(hybridPayload.iv, 'base64');
+    const aesDecipher = crypto.createDecipheriv('aes-256-cbc', aesKey, iv);
+    let decryptedData = aesDecipher.update(
+      hybridPayload.data,
+      'base64',
+      'utf8'
+    );
+    decryptedData += aesDecipher.final('utf8');
+
+    return {
+      success: true,
+      decryptedData: decryptedData,
+      aesKey: aesKey, // Return the extracted AES key
+      originalLength: encryptedData.length,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.message,
+    };
+  }
+}
+
+/**
  * Check if a message appears to be encrypted (base64 encoded)
  * @param {string} message - Message to check
  * @returns {boolean} True if message appears to be encrypted
@@ -345,4 +478,8 @@ module.exports = {
   verifyChallenge,
   signChallengeResponse,
   verifyChallengeResponse,
+  encryptAES,
+  decryptAES,
+  generateAESKey,
+  decryptHybridMessageWithKey,
 };

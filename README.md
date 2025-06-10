@@ -32,7 +32,7 @@ A monorepo containing a dynamic JSON-RPC relay proxy that routes Ethereum reques
 
 #### Sequence Diagram
 
-![alt text](docs/flow2.svg "Flow 2: Route Registration & Verification")
+![alt text](docs/flow2.svg 'Flow 2: Route Registration & Verification')
 
 ```mermaid
 sequenceDiagram
@@ -50,18 +50,23 @@ sequenceDiagram
   end
   Prover ->> Proxy: Fetch /status
   Proxy -->> Prover: Answer with Topic ID & RSA Public Key
-  Prover ->> Prover: 🔑 Generate RSA encrypted AES key
-  Prover ->> HCS: 🔐 Submit Route Data (Encrypted, EcDSA signed), 🤑  Pay Fee
+  Prover ->> Prover: 🔑 Generate AES shared secret key
+  Prover ->> HCS: 🔐 Submit Route Data (RSA+AES Encrypted, EcDSA signed), 🤑 Pay Fee
   Prover ->> Prover: ⏳ Listen for Challenge Requests
   HCS -->> Proxy: Deliver Encrypted Message
-  Proxy ->> Proxy: Decrypt Message (AES+RSA)
+  Proxy ->> Proxy: Decrypt Message (RSA+AES), Extract AES key
   Proxy ->> Proxy: Verify Signature, Extract Address (EcDSA)
   Proxy ->> Proxy: ✅ Confirm Smart Contract's ownership (Address + Nonce)
   Proxy ->> Prover: 🔐 Send Challenge Request (RSA Signed, AES Encrypted)
-  Prover -->> Proxy: Respond to Challenge (EcDSA Signed, AES Encrypted)
+  Prover -->> Proxy: 🔐 Respond to Challenge (EcDSA Signed, AES Encrypted)
   Proxy ->> Proxy: Verify Challenge Response, Prover is accessible
   Proxy ->> Proxy: Update Verified Routes Database
-  Proxy ->> Prover: 🎉 Confirm Route Registration Success
+  Proxy ->> Prover: 🎉 Confirm Route Registration Success (AES Encrypted)
+  rect rgb(255, 191, 191)
+    Note over Prover, Proxy: Security Cleanup
+    Prover ->> Prover: 🗑️ Remove AES key from memory
+    Proxy ->> Proxy: 🗑️ Remove AES key from memory
+  end
 ```
 
 #### Updated Description
@@ -69,8 +74,10 @@ sequenceDiagram
 1. **Contract Owner (Prover)**:
 
    - Generates route data, including the contract address and relay information.
-   - Signs the data using ECDSA and encrypts it using the Proxy's RSA public key.
+   - Creates a shared AES secret key for secure communication with the Proxy.
+   - Signs the data using ECDSA and encrypts it using hybrid encryption (RSA for AES key + AES for payload).
    - Submits the encrypted message to the Hedera topic.
+   - Maintains the AES key in memory for subsequent encrypted communications.
 
 2. **Hedera Consensus Service**:
 
@@ -78,7 +85,21 @@ sequenceDiagram
 
 3. **JSON-RPC Relay Proxy**:
 
-   - Decrypts the message using its RSA private key.
+   - Decrypts the message using its RSA private key to extract the AES key.
+   - Uses the AES key to decrypt the route data payload.
+   - Verifies the ECDSA signature to ensure authenticity.
+   - Validates the route data and updates the verified route database.
+   - Sends encrypted challenge requests to the Prover using the shared AES key.
+   - Verifies encrypted challenge responses from the Prover.
+   - Sends encrypted confirmation of successful route registration.
+   - Removes the AES key from memory after successful completion.
+
+4. **Security Features**:
+
+   - **Hybrid Encryption**: RSA encrypts the AES key, AES encrypts all communication payloads.
+   - **Shared Secret**: AES key enables secure bidirectional communication.
+   - **Memory Cleanup**: Both Proxy and Prover remove the AES key after completion.
+   - **Forward Secrecy**: Each registration session uses a unique AES key.
    - Verifies the ECDSA signature to ensure authenticity.
    - Validates the route data and updates the verified route database.
    - Sends a challenge request to the Prover to verify its availability.

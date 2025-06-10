@@ -11,8 +11,11 @@ const {
 } = require('@hashgraph/sdk');
 const {
   decryptHybridMessage,
+  decryptHybridMessageWithKey,
   generateChallenge,
   verifyChallengeResponse,
+  encryptAES,
+  decryptAES,
 } = require('./cryptoUtils');
 const { updateRoutes, saveDatabase } = require('./dbManager');
 
@@ -38,6 +41,8 @@ class HederaManager {
     this.dbFile = config.dbFile;
     // RSA key pair getter for decryption
     this.getRSAKeyPair = config.getRSAKeyPair;
+    // AES key storage for prover sessions
+    this.proverAESKeys = new Map(); // contractAddress -> {aesKey, timestamp}
   }
 
   // Initialize Hedera client
@@ -523,7 +528,7 @@ class HederaManager {
                   ? this.getRSAKeyPair()
                   : null;
                 if (keyPair && keyPair.privateKey) {
-                  const decryptionResult = decryptHybridMessage(
+                  const decryptionResult = decryptHybridMessageWithKey(
                     message.message,
                     keyPair.privateKey
                   );
@@ -536,6 +541,42 @@ class HederaManager {
                     console.log(
                       `      📊 Compression: ${decryptionResult.originalLength} → ${decryptionResult.decryptedData.length} bytes`
                     );
+
+                    // Store AES key for this session (extracted from hybrid decryption)
+                    if (decryptionResult.aesKey) {
+                      console.log(
+                        '      🔑 AES key extracted and stored for secure communication'
+                      );
+                      // Parse message to get contract addresses for AES key mapping
+                      try {
+                        const messageData = JSON.parse(
+                          decryptionResult.decryptedData
+                        );
+                        if (
+                          messageData.routes &&
+                          Array.isArray(messageData.routes)
+                        ) {
+                          // Store AES key for each contract address in this message
+                          for (const route of messageData.routes) {
+                            if (route.addr) {
+                              this.proverAESKeys.set(route.addr.toLowerCase(), {
+                                aesKey: decryptionResult.aesKey,
+                                timestamp: Date.now(),
+                                url: route.url,
+                                sequenceNumber: message.sequence_number,
+                              });
+                              console.log(
+                                `         Stored AES key for contract: ${route.addr}`
+                              );
+                            }
+                          }
+                        }
+                      } catch (parseError) {
+                        console.log(
+                          '      ⚠️  Could not parse message data for AES key storage'
+                        );
+                      }
+                    }
 
                     // Verify ECDSA signatures if message contains routes
                     await this.verifyMessageSignatures(
@@ -879,7 +920,25 @@ class HederaManager {
 
       // Send challenge to the URL
       const challengeUrl = new URL('/challenge', targetUrl);
-      const postData = JSON.stringify(challengeObj);
+
+      // Encrypt challenge using AES key if available
+      let postData;
+      try {
+        const encryptedChallenge = this.encryptForProver(
+          contractAddress,
+          challengeObj
+        );
+        postData = encryptedChallenge;
+        console.log(
+          `         🔐 Challenge encrypted with AES key for contract ${contractAddress}`
+        );
+      } catch (aesError) {
+        // Fallback to unencrypted if no AES key available
+        console.log(
+          `         ⚠️  No AES key for ${contractAddress}, sending unencrypted challenge`
+        );
+        postData = JSON.stringify(challengeObj);
+      }
 
       return new Promise((resolve, reject) => {
         const client = challengeUrl.protocol === 'https:' ? https : http;
@@ -899,7 +958,21 @@ class HederaManager {
             res.on('end', () => {
               try {
                 if (res.statusCode === 200) {
-                  const response = JSON.parse(data);
+                  let response;
+                  try {
+                    // Try to decrypt AES-encrypted response first
+                    response = this.decryptFromProver(contractAddress, data);
+                    console.log(
+                      `         🔓 Challenge response decrypted with AES key`
+                    );
+                  } catch (aesError) {
+                    // Fallback to parsing as unencrypted JSON
+                    console.log(
+                      `         📄 Parsing unencrypted challenge response`
+                    );
+                    response = JSON.parse(data);
+                  }
+
                   resolve({
                     success: true,
                     challenge: challengeObj.challenge,
@@ -1075,13 +1148,8 @@ class HederaManager {
         );
       } else {
         console.log('      ❌ Some challenges failed - routes not updated');
-
-        // Optionally send failure notification
-        await this.sendFailureNotification(
-          messageData,
-          challengeResults,
-          signerAddress
-        );
+        // Note: Failure details are logged but not sent to Hedera topic
+        // Challenge-response communication happens only via direct HTTP
       }
     } catch (error) {
       console.log(`      ❌ Challenge-response flow error: ${error.message}`);
@@ -1150,7 +1218,20 @@ class HederaManager {
             addr: route.addr,
           };
 
-          const postData = JSON.stringify(confirmation);
+          // Encrypt confirmation using AES key if available
+          let postData;
+          try {
+            postData = this.encryptForProver(route.addr, confirmation);
+            console.log(
+              `         🔐 Confirmation encrypted with AES key for contract ${route.addr}`
+            );
+          } catch (aesError) {
+            // Fallback to unencrypted if no AES key available
+            console.log(
+              `         ⚠️  No AES key for ${route.addr}, sending unencrypted confirmation`
+            );
+            postData = JSON.stringify(confirmation);
+          }
 
           await new Promise((resolve, reject) => {
             const client = confirmationUrl.protocol === 'https:' ? https : http;
@@ -1202,6 +1283,12 @@ class HederaManager {
             `      ⚠️  Error sending confirmation to ${route.url}: ${error.message}`
           );
         }
+      }
+
+      // Clean up AES keys for verified routes after confirmation sent
+      console.log('      🧹 Cleaning up AES keys after confirmation...');
+      for (const route of successfulRoutes) {
+        this.removeAESKey(route.addr);
       }
     } catch (error) {
       console.log(
@@ -1259,52 +1346,68 @@ class HederaManager {
   }
 
   /**
-   * Send failure notification to Hedera topic
-   * @param {object} originalMessage - Original message data
-   * @param {array} challengeResults - Results of challenge verification
-   * @param {string} signerAddress - Signer address
+   * Get AES key for a contract address
+   * @param {string} contractAddress - Contract address to get AES key for
+   * @returns {Buffer|null} AES key or null if not found
    */
-  async sendFailureNotification(
-    originalMessage,
-    challengeResults,
-    signerAddress
-  ) {
-    try {
-      if (!this.client || !this.currentTopicId) {
-        console.log(
-          '      ⚠️  No Hedera client or topic - skipping failure notification'
-        );
-        return;
-      }
+  getAESKey(contractAddress) {
+    const keyData = this.proverAESKeys.get(contractAddress.toLowerCase());
+    return keyData ? keyData.aesKey : null;
+  }
 
-      const notification = {
-        type: 'route-verification-failure',
-        timestamp: Date.now(),
-        originalSigner: signerAddress,
-        failedRoutes: challengeResults
-          .filter(r => !r.responseValid)
-          .map(r => ({
-            addr: r.addr,
-            url: r.url,
-            error: r.error || 'Challenge or response verification failed',
-          })),
-        totalRoutes: challengeResults.length,
-        failedCount: challengeResults.filter(r => !r.responseValid).length,
-      };
-
-      const message = JSON.stringify(notification);
-      const transaction = new TopicMessageSubmitTransaction({
-        topicId: this.currentTopicId,
-        message: message,
-      });
-
-      await transaction.execute(this.client);
-      console.log('      📤 Failure notification sent to Hedera topic');
-    } catch (error) {
-      console.log(
-        `      ⚠️  Failed to send failure notification: ${error.message}`
-      );
+  /**
+   * Remove AES key for a contract address (cleanup after verification)
+   * @param {string} contractAddress - Contract address to remove AES key for
+   */
+  removeAESKey(contractAddress) {
+    const removed = this.proverAESKeys.delete(contractAddress.toLowerCase());
+    if (removed) {
+      console.log(`🗑️  Removed AES key for contract: ${contractAddress}`);
     }
+    return removed;
+  }
+
+  /**
+   * Clean up all stored AES keys (called after verification completion)
+   */
+  cleanupAllAESKeys() {
+    const count = this.proverAESKeys.size;
+    this.proverAESKeys.clear();
+    console.log(`🗑️  Cleaned up ${count} stored AES keys from memory`);
+  }
+
+  /**
+   * Encrypt data for sending to prover using stored AES key
+   * @param {string} contractAddress - Contract address to get AES key for
+   * @param {object} data - Data to encrypt
+   * @returns {string} Encrypted JSON string
+   */
+  encryptForProver(contractAddress, data) {
+    const aesKey = this.getAESKey(contractAddress);
+    if (!aesKey) {
+      throw new Error(`No AES key found for contract: ${contractAddress}`);
+    }
+
+    const jsonData = JSON.stringify(data);
+    const encrypted = encryptAES(jsonData, aesKey);
+    return JSON.stringify(encrypted);
+  }
+
+  /**
+   * Decrypt data from prover using stored AES key
+   * @param {string} contractAddress - Contract address to get AES key for
+   * @param {string} encryptedData - Encrypted data from prover
+   * @returns {object} Decrypted data
+   */
+  decryptFromProver(contractAddress, encryptedData) {
+    const aesKey = this.getAESKey(contractAddress);
+    if (!aesKey) {
+      throw new Error(`No AES key found for contract: ${contractAddress}`);
+    }
+
+    const encrypted = JSON.parse(encryptedData);
+    const decrypted = decryptAES(encrypted, aesKey);
+    return JSON.parse(decrypted);
   }
 }
 
