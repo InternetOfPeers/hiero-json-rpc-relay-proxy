@@ -32,7 +32,7 @@ A monorepo containing a dynamic JSON-RPC relay proxy that routes Ethereum reques
 
 #### Sequence Diagram
 
-![alt text](docs/flow2.svg 'Flow 2: Route Registration & Verification')
+[Click here if you don't see the graphical Mermaid flow](docs/flow2.svg)
 
 ```mermaid
 sequenceDiagram

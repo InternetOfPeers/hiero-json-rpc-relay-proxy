@@ -637,7 +637,7 @@ function handleConfirmation(req, res, body, server) {
 
     const latestConfirmation =
       proverResults.confirmation.confirmations[
-        proverResults.confirmation.confirmations.length - 1
+      proverResults.confirmation.confirmations.length - 1
       ];
 
     console.log(
@@ -852,21 +852,23 @@ async function initPairingWithProxy() {
       route2.url
     );
 
+    // CREATE2 route example
     const route3 = {
-      addr: '0xfcec100d41f4bcc889952e1a73ad6d96783c491a',
-      proofType: 'create',
-      nonce: 30,
+      addr: '0xbd8b5269f85c4460b04d5deaaf51022a41783a32',
+      proofType: 'create2',
+      salt: '0x0000000000000000000000000000000000000000000000000000000000000001',
+      initCodeHash: '0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470',
       url: testUrl,
     };
     route3.sig = await signRouteData(
       route3.addr,
       route3.proofType,
-      route3.nonce,
+      route3.salt,
       route3.url
     );
 
     const payload = {
-      routes: [route1, route2],
+      routes: [route1, route2, route3],
     };
 
     // Generate and store AES keys for each contract address

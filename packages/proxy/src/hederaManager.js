@@ -703,7 +703,9 @@ class HederaManager {
           .map(item => item.route.addr || 'unknown')
           .join(', ');
         throw new Error(
-          `Signature verification failed for ${validationResult.invalidCount} route(s): ${invalidAddresses}`
+          `Signature verification failed for ${validationResult.invalidCount} route(s): ${invalidAddresses} , reason: ${validationResult.invalidRoutes
+            .map(item => item.error)
+            .join(', ')}`
         );
       }
 
@@ -1320,16 +1322,14 @@ class HederaManager {
       } else {
         console.log('      ❌ Decryption failed:', decryptionResult.error);
         console.log(
-          `      📄 Raw Content: ${content.substring(0, 200)}${
-            content.length > 200 ? '...' : ''
+          `      📄 Raw Content: ${content.substring(0, 200)}${content.length > 200 ? '...' : ''
           }`
         );
       }
     } else {
       console.log('      ⚠️  No RSA private key available for decryption');
       console.log(
-        `      📄 Raw Content: ${content.substring(0, 200)}${
-          content.length > 200 ? '...' : ''
+        `      📄 Raw Content: ${content.substring(0, 200)}${content.length > 200 ? '...' : ''
         }`
       );
     }
