@@ -310,6 +310,9 @@ cd hiero-json-rpc-relay-proxy
 # Install all dependencies
 npm install
 
+# Install pre-commit hooks (recommended for contributors)
+npm run install:hooks
+
 # Or install for specific packages
 npm install --workspaces
 ```
@@ -627,9 +630,29 @@ Apache-2.0 - See [LICENSE](./LICENSE) file for details.
 
 1. Fork the repository
 2. Create a feature branch
-3. Add tests for new functionality
-4. Ensure all tests pass
-5. Submit a pull request
+3. **Set up pre-commit hooks** (recommended):
+
+   ```bash
+   npm run install:hooks
+   ```
+
+   This ensures your code is automatically formatted before each commit.
+
+4. Add tests for new functionality
+5. Ensure all tests pass
+6. Submit a pull request
+
+### Code Formatting
+
+This project uses Prettier for code formatting. The pre-commit hook will automatically format your code, but you can also run formatting manually:
+
+```bash
+# Format all files
+npm run format
+
+# Check formatting without making changes
+npm run format:check
+```
 
 ## 📞 Support
 

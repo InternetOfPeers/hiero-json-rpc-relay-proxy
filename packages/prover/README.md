@@ -293,9 +293,16 @@ The package includes comprehensive tests:
 
 ### Contributing
 
-1. Ensure all tests pass: `npm test`
-2. Add tests for new functionality
-3. Update documentation as needed
+1. **Set up pre-commit hooks** (recommended):
+
+   ```bash
+   # From the root directory
+   npm run install:hooks
+   ```
+
+2. Ensure all tests pass: `npm test`
+3. Add tests for new functionality
+4. Update documentation as needed
 
 ## License
 

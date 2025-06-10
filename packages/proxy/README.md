@@ -290,8 +290,15 @@ The routing database (`data/routing_db_testnet.json`) stores address-to-URL mapp
 
 1. Clone the repository
 2. Install dependencies: `npm install`
-3. Copy `.env.example` to `.env` and configure
-4. Start the server: `npm start`
+3. **Set up pre-commit hooks** (recommended):
+
+   ```bash
+   # From the root directory
+   npm run install:hooks
+   ```
+
+4. Copy `.env.example` to `.env` and configure
+5. Start the server: `npm start`
 
 ### Testing
 
