@@ -18,13 +18,7 @@ const {
   encryptAES,
   decryptAES,
   validateRouteSignatures,
-  message: {
-    isChunkedMessage: isChunkedMessageCommon,
-    getChunkGroupKey: getChunkGroupKeyCommon,
-    combineChunkedMessages: combineChunkedMessagesCommon,
-    parseMessageContent,
-  },
-  hedera: { getMirrorNodeUrl, isValidAccountId, isValidTopicId },
+  hedera: { getMirrorNodeUrl },
 } = require('@hiero-json-rpc-relay/common');
 const { updateRoutes, saveDatabase } = require('./dbManager');
 
