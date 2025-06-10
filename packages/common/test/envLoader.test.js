@@ -4,7 +4,7 @@ const fs = require('node:fs').promises;
 const path = require('node:path');
 
 // Import module to test
-const { loadEnvFile } = require('../src/envLoader');
+const { loadEnvFile, resetLoadedFiles } = require('../src/envLoader');
 
 describe('envLoader', function () {
   const TEST_ENV_DIR = path.resolve(__dirname, 'data');
@@ -15,6 +15,9 @@ describe('envLoader', function () {
   // This ensures that running tests will never overwrite or delete your actual .env configuration
 
   beforeEach(async function () {
+    // Reset loaded files tracking to ensure clean state for each test
+    resetLoadedFiles();
+
     // Ensure test directory exists
     try {
       await fs.mkdir(TEST_ENV_DIR, { recursive: true });
@@ -125,7 +128,7 @@ TEST_BASE64=dGVzdD1kYXRh`;
       assert.strictEqual(process.env.TEST_BASE64, 'dGVzdD1kYXRh');
     });
 
-    test('should override existing environment variables', async function () {
+    test('should preserve existing environment variables (first wins precedence)', async function () {
       const envContent = 'TEST_EXISTING=new_value';
       await fs.writeFile(TEST_ENV_FILE, envContent);
 
@@ -133,10 +136,10 @@ TEST_BASE64=dGVzdD1kYXRh`;
       process.env.TEST_EXISTING = 'existing_value';
       loadEnvFile(TEST_ENV_FILE);
 
-      assert.strictEqual(process.env.TEST_EXISTING, 'new_value'); // Should override with new value
+      assert.strictEqual(process.env.TEST_EXISTING, 'existing_value'); // Should keep existing value (first wins)
     });
 
-    test('should handle sequential loading with last value winning', async function () {
+    test('should handle sequential loading with first value winning', async function () {
       const envContent1 = 'TEST_SEQUENTIAL=first_value';
       const envFile1 = path.join(TEST_ENV_DIR, 'test1.env');
       await fs.writeFile(envFile1, envContent1);
@@ -152,9 +155,9 @@ TEST_BASE64=dGVzdD1kYXRh`;
       loadEnvFile(envFile1);
       assert.strictEqual(process.env.TEST_SEQUENTIAL, 'first_value');
 
-      // Load second file - should override
+      // Load second file - should NOT override (first wins)
       loadEnvFile(envFile2);
-      assert.strictEqual(process.env.TEST_SEQUENTIAL, 'second_value'); // Last loaded wins
+      assert.strictEqual(process.env.TEST_SEQUENTIAL, 'first_value'); // First loaded wins
 
       // Clean up
       try {

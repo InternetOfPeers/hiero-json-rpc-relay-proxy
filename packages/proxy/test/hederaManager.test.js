@@ -118,11 +118,16 @@ describe('Challenge-Response Flow Methods', () => {
       network: 'testnet',
     });
     hederaManager.currentTopicId = '0.0.999999';
-    hederaManager.client = { /* mock client */ };
+    hederaManager.client = {
+      /* mock client */
+    };
   });
 
   test('should have processChallengeResponseFlow method', () => {
-    assert.strictEqual(typeof hederaManager.processChallengeResponseFlow, 'function');
+    assert.strictEqual(
+      typeof hederaManager.processChallengeResponseFlow,
+      'function'
+    );
   });
 
   test('should have sendChallenge method', () => {
@@ -130,19 +135,31 @@ describe('Challenge-Response Flow Methods', () => {
   });
 
   test('should have verifyChallengeResponseSignature method', () => {
-    assert.strictEqual(typeof hederaManager.verifyChallengeResponseSignature, 'function');
+    assert.strictEqual(
+      typeof hederaManager.verifyChallengeResponseSignature,
+      'function'
+    );
   });
 
   test('should have updateRoutesFromMessage method', () => {
-    assert.strictEqual(typeof hederaManager.updateRoutesFromMessage, 'function');
+    assert.strictEqual(
+      typeof hederaManager.updateRoutesFromMessage,
+      'function'
+    );
   });
 
   test('should have sendConfirmationToProver method', () => {
-    assert.strictEqual(typeof hederaManager.sendConfirmationToProver, 'function');
+    assert.strictEqual(
+      typeof hederaManager.sendConfirmationToProver,
+      'function'
+    );
   });
 
   test('should have sendConfirmationMessage method', () => {
-    assert.strictEqual(typeof hederaManager.sendConfirmationMessage, 'function');
+    assert.strictEqual(
+      typeof hederaManager.sendConfirmationMessage,
+      'function'
+    );
   });
 
   test('verifyChallengeResponseSignature - should return false for missing signature', () => {
@@ -150,7 +167,11 @@ describe('Challenge-Response Flow Methods', () => {
     const response = { challengeId: 'test-challenge-id' }; // Missing signature
     const expectedAddress = '0x1234567890123456789012345678901234567890';
 
-    const result = hederaManager.verifyChallengeResponseSignature(challengeData, response, expectedAddress);
+    const result = hederaManager.verifyChallengeResponseSignature(
+      challengeData,
+      response,
+      expectedAddress
+    );
     assert.strictEqual(result, false);
   });
 
@@ -158,20 +179,30 @@ describe('Challenge-Response Flow Methods', () => {
     const challengeData = { challengeId: 'test-challenge-id' };
     const response = {
       challengeId: 'different-challenge-id',
-      signature: 'test-signature'
+      signature: 'test-signature',
     };
     const expectedAddress = '0x1234567890123456789012345678901234567890';
 
-    const result = hederaManager.verifyChallengeResponseSignature(challengeData, response, expectedAddress);
+    const result = hederaManager.verifyChallengeResponseSignature(
+      challengeData,
+      response,
+      expectedAddress
+    );
     assert.strictEqual(result, false);
   });
 
   test('updateRoutesFromMessage - should handle message with valid routes', async () => {
     const messageData = {
       routes: [
-        { addr: '0x1234567890123456789012345678901234567890', url: 'https://example1.com' },
-        { addr: '0x2345678901234567890123456789012345678901', url: 'https://example2.com' }
-      ]
+        {
+          addr: '0x1234567890123456789012345678901234567890',
+          url: 'https://example1.com',
+        },
+        {
+          addr: '0x2345678901234567890123456789012345678901',
+          url: 'https://example2.com',
+        },
+      ],
     };
 
     // Mock the updateRoutes function - this test verifies the method exists and can be called
@@ -181,7 +212,10 @@ describe('Challenge-Response Flow Methods', () => {
       assert.ok(true);
     } catch (error) {
       // Expected to fail due to missing dependencies, but method should exist
-      assert.ok(error.message.includes('updateRoutes') || error.message.includes('saveDatabase'));
+      assert.ok(
+        error.message.includes('updateRoutes') ||
+          error.message.includes('saveDatabase')
+      );
     }
   });
 
@@ -200,14 +234,20 @@ describe('Challenge-Response Flow Methods', () => {
   test('processChallengeResponseFlow - should handle message with routes', async () => {
     const messageData = {
       routes: [
-        { addr: '0x1234567890123456789012345678901234567890', url: 'https://example.com' }
-      ]
+        {
+          addr: '0x1234567890123456789012345678901234567890',
+          url: 'https://example.com',
+        },
+      ],
     };
     const signerAddress = '0x1234567890123456789012345678901234567890';
 
     // This test verifies the method exists and can be called
     try {
-      await hederaManager.processChallengeResponseFlow(messageData, signerAddress);
+      await hederaManager.processChallengeResponseFlow(
+        messageData,
+        signerAddress
+      );
       assert.ok(true);
     } catch (error) {
       // Expected to fail due to network calls, but method should exist
@@ -365,15 +405,15 @@ describe('Chunked Message Handling Methods', () => {
     const chunkedMessage = {
       chunk_info: {
         initial_transaction_id: {
-          transaction_valid_start: '1640995200.123456789'
+          transaction_valid_start: '1640995200.123456789',
         },
         number: 1,
-        total: 3
-      }
+        total: 3,
+      },
     };
 
     const regularMessage = {
-      message: 'regular message content'
+      message: 'regular message content',
     };
 
     assert.strictEqual(hederaManager.isChunkedMessage(chunkedMessage), true);
@@ -384,11 +424,11 @@ describe('Chunked Message Handling Methods', () => {
     const message = {
       chunk_info: {
         initial_transaction_id: {
-          transaction_valid_start: '1640995200.123456789'
+          transaction_valid_start: '1640995200.123456789',
         },
         number: 1,
-        total: 3
-      }
+        total: 3,
+      },
     };
 
     const groupKey = hederaManager.getChunkGroupKey(message);
@@ -400,14 +440,14 @@ describe('Chunked Message Handling Methods', () => {
       message: Buffer.from('Hello ').toString('base64'),
       sequence_number: 1,
       consensus_timestamp: 1640995200,
-      chunk_info: { number: 1, total: 2 }
+      chunk_info: { number: 1, total: 2 },
     };
 
     const chunk2 = {
       message: Buffer.from('World!').toString('base64'),
       sequence_number: 2,
       consensus_timestamp: 1640995201,
-      chunk_info: { number: 2, total: 2 }
+      chunk_info: { number: 2, total: 2 },
     };
 
     const chunks = [chunk1, chunk2];
@@ -434,14 +474,14 @@ describe('Chunked Message Handling Methods', () => {
     hederaManager.pendingChunks.set('old-group', {
       chunks: new Map(),
       total: 2,
-      timestamp: oldTimestamp
+      timestamp: oldTimestamp,
     });
 
     // Add recent chunk group
     hederaManager.pendingChunks.set('recent-group', {
       chunks: new Map(),
       total: 2,
-      timestamp: recentTimestamp
+      timestamp: recentTimestamp,
     });
 
     assert.strictEqual(hederaManager.pendingChunks.size, 2);
@@ -469,7 +509,10 @@ describe('Message Processing Methods', () => {
   });
 
   test('should have verifyMessageSignatures method', () => {
-    assert.strictEqual(typeof hederaManager.verifyMessageSignatures, 'function');
+    assert.strictEqual(
+      typeof hederaManager.verifyMessageSignatures,
+      'function'
+    );
   });
 
   test('verifyMessageSignatures - should handle invalid JSON gracefully', async () => {
@@ -500,7 +543,7 @@ describe('Message Processing Methods', () => {
       sequence_number: 1,
       consensus_timestamp: 1640995200,
       message: Buffer.from('test message').toString('base64'),
-      payer_account_id: '0.0.123456'
+      payer_account_id: '0.0.123456',
     };
 
     // Should not throw error when no RSA key is available

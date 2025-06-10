@@ -195,9 +195,12 @@ describe('Prover HederaManager', () => {
     it('should throw error when client initialization fails', async () => {
       hederaManager.initClient = mock.fn(() => null);
 
-      await assert.rejects(() => hederaManager.configureTopicForProver('0.0.1234'), {
-        message: 'Failed to initialize Hedera client',
-      });
+      await assert.rejects(
+        () => hederaManager.configureTopicForProver('0.0.1234'),
+        {
+          message: 'Failed to initialize Hedera client',
+        }
+      );
     });
 
     it('should handle topic accessibility check for HIP-991 topics', async () => {

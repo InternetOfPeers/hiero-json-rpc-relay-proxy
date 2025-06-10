@@ -637,7 +637,7 @@ function handleConfirmation(req, res, body, server) {
 
     const latestConfirmation =
       proverResults.confirmation.confirmations[
-      proverResults.confirmation.confirmations.length - 1
+        proverResults.confirmation.confirmations.length - 1
       ];
 
     console.log(
@@ -857,7 +857,8 @@ async function initPairingWithProxy() {
       addr: '0xbd8b5269f85c4460b04d5deaaf51022a41783a32',
       proofType: 'create2',
       salt: '0x0000000000000000000000000000000000000000000000000000000000000001',
-      initCodeHash: '0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470',
+      initCodeHash:
+        '0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470',
       url: testUrl,
     };
     route3.sig = await signRouteData(

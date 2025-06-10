@@ -132,7 +132,9 @@ class HederaManager {
       console.log(`💰 Account balance: ${balance.hbars} HBAR`);
 
       if (balance.hbars.toBigNumber().isLessThan(25)) {
-        console.log('⚠️  Warning: Account balance is low for HIP-991 topic creation');
+        console.log(
+          '⚠️  Warning: Account balance is low for HIP-991 topic creation'
+        );
       }
 
       // Get the proxy's account ID to use as submit key (exempt from fees)
@@ -158,8 +160,12 @@ class HederaManager {
 
       console.log(`✅ HIP-991 paid topic created successfully: ${newTopicId}`);
       console.log(`📝 Topic memo: Hiero JSON-RPC Relay Proxy Topic (HIP-991)`);
-      console.log(`🔓 Submit key: NONE (anyone can post messages by paying fee)`);
-      console.log(`🚫 Fee exempt keys: [${proxyPrivateKey.publicKey.toStringRaw()}] (proxy exempt)`);
+      console.log(
+        `🔓 Submit key: NONE (anyone can post messages by paying fee)`
+      );
+      console.log(
+        `🚫 Fee exempt keys: [${proxyPrivateKey.publicKey.toStringRaw()}] (proxy exempt)`
+      );
       console.log(`💰 Message submission cost for others: $0.50 (0.5 HBAR)`);
       console.log(`💼 Fee collector: ${proxyAccountId} (proxy receives fees)`);
 
@@ -1354,14 +1360,16 @@ class HederaManager {
       } else {
         console.log('      ❌ Decryption failed:', decryptionResult.error);
         console.log(
-          `      📄 Raw Content: ${content.substring(0, 200)}${content.length > 200 ? '...' : ''
+          `      📄 Raw Content: ${content.substring(0, 200)}${
+            content.length > 200 ? '...' : ''
           }`
         );
       }
     } else {
       console.log('      ⚠️  No RSA private key available for decryption');
       console.log(
-        `      📄 Raw Content: ${content.substring(0, 200)}${content.length > 200 ? '...' : ''
+        `      📄 Raw Content: ${content.substring(0, 200)}${
+          content.length > 200 ? '...' : ''
         }`
       );
     }
@@ -1597,14 +1605,16 @@ class HederaManager {
       } else {
         console.log('      ❌ Decryption failed:', decryptionResult.error);
         console.log(
-          `      📄 Raw Content: ${content.substring(0, 200)}${content.length > 200 ? '...' : ''
+          `      📄 Raw Content: ${content.substring(0, 200)}${
+            content.length > 200 ? '...' : ''
           }`
         );
       }
     } else {
       console.log('      ⚠️  No RSA private key available for decryption');
       console.log(
-        `      📄 Raw Content: ${content.substring(0, 200)}${content.length > 200 ? '...' : ''
+        `      📄 Raw Content: ${content.substring(0, 200)}${
+          content.length > 200 ? '...' : ''
         }`
       );
     }

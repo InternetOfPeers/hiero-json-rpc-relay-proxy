@@ -126,7 +126,9 @@ class HederaManager {
       console.log(
         `✅ Message submitted to HIP-991 topic ${topicIdString} successfully`
       );
-      console.log(`💰 Prover paid custom fee for HIP-991 topic (max: 0.6 HBAR)`);
+      console.log(
+        `💰 Prover paid custom fee for HIP-991 topic (max: 0.6 HBAR)`
+      );
       console.log(`   Transaction ID: ${txResponse.transactionId}`);
       console.log(`   Sequence Number: ${receipt.topicSequenceNumber}`);
       return receipt;
