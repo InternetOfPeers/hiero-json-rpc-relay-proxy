@@ -21,6 +21,16 @@ npm install
 npm install --workspace=packages/proxy
 ```
 
+## Dependencies
+
+This package depends on the shared `@hiero-json-rpc-relay/common` package for cryptographic utilities, environment management, validation functions, and HTTP utilities. The common package provides:
+
+- RSA/AES encryption and signature verification
+- Environment variable loading and validation
+- Route signature validation with comprehensive error reporting
+- HTTP request parsing and CORS handling
+- Hedera client utilities and helper functions
+
 ## Configuration
 
 The proxy automatically loads configuration from environment variables and `.env` files.

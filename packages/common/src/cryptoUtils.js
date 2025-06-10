@@ -465,8 +465,64 @@ function verifyChallengeResponse(challengeData, signature, expectedAddress) {
   }
 }
 
-// Note: CREATE2 support will be added in the future
-// TODO: Add getContractAddressFromCreate2(deployerAddress, salt, initCodeHash)
+/**
+ * Compute the deterministic contract address for a CREATE2 deployment
+ * @param {string} deployerAddress - Address of the deployer account (factory contract)
+ * @param {string} salt - Salt value (32 bytes as hex string)
+ * @param {string} initCodeHash - Keccak256 hash of the contract's initialization code
+ * @returns {string|null} The computed contract address (lowercase, 0x prefixed) or null if error
+ */
+function getContractAddressFromCreate2(deployerAddress, salt, initCodeHash) {
+  try {
+    const { ethers } = require('ethers');
+
+    // Clean the deployer address
+    const cleanAddress = deployerAddress.toLowerCase().startsWith('0x')
+      ? deployerAddress.toLowerCase()
+      : `0x${deployerAddress.toLowerCase()}`;
+
+    // Clean the salt (ensure it's 32 bytes / 64 hex chars)
+    let cleanSalt = salt.toLowerCase().startsWith('0x')
+      ? salt.slice(2)
+      : salt.toLowerCase();
+
+    // Pad salt to 64 hex characters (32 bytes) if needed
+    cleanSalt = cleanSalt.padStart(64, '0');
+
+    // Clean the init code hash
+    let cleanInitCodeHash = initCodeHash.toLowerCase().startsWith('0x')
+      ? initCodeHash.slice(2)
+      : initCodeHash.toLowerCase();
+
+    // Validate inputs
+    if (!ethers.isAddress(cleanAddress)) {
+      throw new Error('Invalid deployer address');
+    }
+
+    if (cleanSalt.length !== 64 || !/^[0-9a-f]+$/.test(cleanSalt)) {
+      throw new Error('Invalid salt: must be 32 bytes hex string');
+    }
+
+    if (
+      cleanInitCodeHash.length !== 64 ||
+      !/^[0-9a-f]+$/.test(cleanInitCodeHash)
+    ) {
+      throw new Error('Invalid init code hash: must be 32 bytes hex string');
+    }
+
+    // Use ethers.js getCreate2Address to compute the deterministic address
+    const contractAddress = ethers.getCreate2Address(
+      cleanAddress,
+      '0x' + cleanSalt,
+      '0x' + cleanInitCodeHash
+    );
+
+    return contractAddress.toLowerCase();
+  } catch (error) {
+    console.error('Error computing CREATE2 contract address:', error.message);
+    return null;
+  }
+}
 
 module.exports = {
   encryptHybridMessage,
@@ -474,6 +530,7 @@ module.exports = {
   isEncryptedMessage,
   verifyECDSASignature,
   getContractAddressFromCreate,
+  getContractAddressFromCreate2,
   generateChallenge,
   verifyChallenge,
   signChallengeResponse,

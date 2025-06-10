@@ -10,6 +10,7 @@ const {
   isEncryptedMessage,
   verifyECDSASignature,
   getContractAddressFromCreate,
+  getContractAddressFromCreate2,
   generateChallenge,
   verifyChallenge,
   signChallengeResponse,
@@ -461,6 +462,213 @@ describe('cryptoUtils', function () {
       );
       // This should actually work as ethers can handle negative nonces
       assert.ok(result2 === null || typeof result2 === 'string');
+    });
+  });
+
+  describe('getContractAddressFromCreate2', function () {
+    test('should compute correct contract address for CREATE2 deployment', function () {
+      // Known test case for CREATE2
+      const deployer = '0x0000000000000000000000000000000000000000';
+      const salt =
+        '0x0000000000000000000000000000000000000000000000000000000000000000';
+      const initCodeHash =
+        '0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470';
+      const expected = '0xe33c0c7f7df4809055c3eba6c09cfe4baf1bd9e0';
+
+      const computed = getContractAddressFromCreate2(
+        deployer,
+        salt,
+        initCodeHash
+      );
+
+      assert.strictEqual(computed, expected);
+    });
+
+    test('should handle different deployer addresses', function () {
+      const deployer1 = '0x1234567890123456789012345678901234567890';
+      const deployer2 = '0x0987654321098765432109876543210987654321';
+      const salt =
+        '0x1111111111111111111111111111111111111111111111111111111111111111';
+      const initCodeHash =
+        '0x2222222222222222222222222222222222222222222222222222222222222222';
+
+      const addr1 = getContractAddressFromCreate2(
+        deployer1,
+        salt,
+        initCodeHash
+      );
+      const addr2 = getContractAddressFromCreate2(
+        deployer2,
+        salt,
+        initCodeHash
+      );
+
+      // Different deployers should produce different addresses
+      assert.notStrictEqual(addr1, addr2);
+
+      // Both should be valid Ethereum addresses
+      assert.ok(addr1.startsWith('0x'));
+      assert.ok(addr2.startsWith('0x'));
+      assert.strictEqual(addr1.length, 42);
+      assert.strictEqual(addr2.length, 42);
+    });
+
+    test('should handle different salts', function () {
+      const deployer = '0x1234567890123456789012345678901234567890';
+      const salt1 =
+        '0x1111111111111111111111111111111111111111111111111111111111111111';
+      const salt2 =
+        '0x2222222222222222222222222222222222222222222222222222222222222222';
+      const initCodeHash =
+        '0x3333333333333333333333333333333333333333333333333333333333333333';
+
+      const addr1 = getContractAddressFromCreate2(
+        deployer,
+        salt1,
+        initCodeHash
+      );
+      const addr2 = getContractAddressFromCreate2(
+        deployer,
+        salt2,
+        initCodeHash
+      );
+
+      // Different salts should produce different addresses
+      assert.notStrictEqual(addr1, addr2);
+    });
+
+    test('should handle different init code hashes', function () {
+      const deployer = '0x1234567890123456789012345678901234567890';
+      const salt =
+        '0x1111111111111111111111111111111111111111111111111111111111111111';
+      const initCodeHash1 =
+        '0x3333333333333333333333333333333333333333333333333333333333333333';
+      const initCodeHash2 =
+        '0x4444444444444444444444444444444444444444444444444444444444444444';
+
+      const addr1 = getContractAddressFromCreate2(
+        deployer,
+        salt,
+        initCodeHash1
+      );
+      const addr2 = getContractAddressFromCreate2(
+        deployer,
+        salt,
+        initCodeHash2
+      );
+
+      // Different init code hashes should produce different addresses
+      assert.notStrictEqual(addr1, addr2);
+    });
+
+    test('should handle addresses and hashes without 0x prefix', function () {
+      const deployerWithPrefix = '0x1234567890123456789012345678901234567890';
+      const deployerWithoutPrefix = '1234567890123456789012345678901234567890';
+      const saltWithPrefix =
+        '0x1111111111111111111111111111111111111111111111111111111111111111';
+      const saltWithoutPrefix =
+        '1111111111111111111111111111111111111111111111111111111111111111';
+      const hashWithPrefix =
+        '0x3333333333333333333333333333333333333333333333333333333333333333';
+      const hashWithoutPrefix =
+        '3333333333333333333333333333333333333333333333333333333333333333';
+
+      const result1 = getContractAddressFromCreate2(
+        deployerWithPrefix,
+        saltWithPrefix,
+        hashWithPrefix
+      );
+      const result2 = getContractAddressFromCreate2(
+        deployerWithoutPrefix,
+        saltWithoutPrefix,
+        hashWithoutPrefix
+      );
+
+      assert.strictEqual(result1, result2);
+    });
+
+    test('should handle short salts by padding', function () {
+      const deployer = '0x1234567890123456789012345678901234567890';
+      const shortSalt = '0x1234'; // Will be padded to 32 bytes
+      const initCodeHash =
+        '0x3333333333333333333333333333333333333333333333333333333333333333';
+
+      const result = getContractAddressFromCreate2(
+        deployer,
+        shortSalt,
+        initCodeHash
+      );
+
+      // Should work and return a valid address
+      assert.ok(result);
+      assert.ok(result.startsWith('0x'));
+      assert.strictEqual(result.length, 42);
+    });
+
+    test('should return null for invalid inputs', function () {
+      const validDeployer = '0x1234567890123456789012345678901234567890';
+      const validSalt =
+        '0x1111111111111111111111111111111111111111111111111111111111111111';
+      const validHash =
+        '0x3333333333333333333333333333333333333333333333333333333333333333';
+
+      // Invalid deployer address
+      const result1 = getContractAddressFromCreate2(
+        'invalid-address',
+        validSalt,
+        validHash
+      );
+      assert.strictEqual(result1, null);
+
+      // Invalid salt (too long)
+      const invalidSalt =
+        '0x11111111111111111111111111111111111111111111111111111111111111111'; // 65 chars
+      const result2 = getContractAddressFromCreate2(
+        validDeployer,
+        invalidSalt,
+        validHash
+      );
+      assert.strictEqual(result2, null);
+
+      // Invalid init code hash (not hex)
+      const invalidHash = '0xnothex';
+      const result3 = getContractAddressFromCreate2(
+        validDeployer,
+        validSalt,
+        invalidHash
+      );
+      assert.strictEqual(result3, null);
+
+      // Invalid init code hash (wrong length)
+      const shortHash = '0x1234';
+      const result4 = getContractAddressFromCreate2(
+        validDeployer,
+        validSalt,
+        shortHash
+      );
+      assert.strictEqual(result4, null);
+    });
+
+    test('should be deterministic', function () {
+      const deployer = '0x1234567890123456789012345678901234567890';
+      const salt =
+        '0x1111111111111111111111111111111111111111111111111111111111111111';
+      const initCodeHash =
+        '0x3333333333333333333333333333333333333333333333333333333333333333';
+
+      const result1 = getContractAddressFromCreate2(
+        deployer,
+        salt,
+        initCodeHash
+      );
+      const result2 = getContractAddressFromCreate2(
+        deployer,
+        salt,
+        initCodeHash
+      );
+
+      // Should always produce the same result for same inputs
+      assert.strictEqual(result1, result2);
     });
   });
 

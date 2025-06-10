@@ -38,7 +38,7 @@ Chunked messages have the following structure:
 ### Processing Flow
 
 1. **Detection**: The proxy detects chunked messages by checking for the `chunk_info` field
-2. **Grouping**: Messages are grouped by `transaction_valid_start` 
+2. **Grouping**: Messages are grouped by `transaction_valid_start`
 3. **Assembly**: When all chunks are received, they are combined in correct order
 4. **Processing**: The combined message is processed normally (decryption, verification, etc.)
 
@@ -47,21 +47,27 @@ Chunked messages have the following structure:
 ### New Methods in HederaManager
 
 #### `isChunkedMessage(message)`
+
 Checks if a message is chunked by looking for the `chunk_info` field.
 
 #### `getChunkGroupKey(message)`
+
 Extracts the group identifier from `transaction_valid_start`.
 
 #### `addChunk(message)`
+
 Adds a chunk to the pending chunks collection and returns the complete message if all chunks are received.
 
 #### `combineChunkedMessages(chunks)`
+
 Combines multiple chunks into a single message by concatenating their content.
 
 #### `cleanupOldChunks(maxAgeMs)`
+
 Removes expired chunk groups that have been waiting too long (default: 5 minutes).
 
 #### `processCompleteMessage(message)`
+
 Processes a complete message (either regular or assembled from chunks).
 
 ### Modified Message Listener
@@ -81,7 +87,7 @@ const { HederaManager } = require('./src/hederaManager');
 const hederaManager = new HederaManager({
   accountId: '0.0.1545',
   privateKey: 'your-private-key',
-  network: 'testnet'
+  network: 'testnet',
 });
 
 // Chunked messages are handled automatically
@@ -106,6 +112,7 @@ hederaManager.startMessageListener();
 ## Testing
 
 Comprehensive tests cover:
+
 - Chunk detection and grouping
 - Order-independent assembly
 - Error handling for mismatched totals
@@ -113,6 +120,7 @@ Comprehensive tests cover:
 - Integration with existing message processing
 
 Run tests with:
+
 ```bash
 npm test
 ```

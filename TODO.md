@@ -1,8 +1,9 @@
 # todo list
 
-- support chunking of messages
-- support CREATE2 contract address computation and verification (getContractAddressFromCreate2)
+- ✅ support CREATE2 contract address computation and verification (getContractAddressFromCreate2) - COMPLETED
+- send a confirmation for each route
 - support removing routes
+- invert the order of loading environment variables (first wins)
 
 ## Example cURL command to send a raw transaction
 

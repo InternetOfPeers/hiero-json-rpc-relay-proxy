@@ -16,6 +16,7 @@
     "dev:proxy": "npm run dev --workspace=packages/proxy",
     "dev:prover": "npm run dev --workspace=packages/prover",
     "test": "npm run test:workspaces && npm run test:integration",
+    "test:common": "npm test --workspace=packages/common",
     "test:proxy": "npm test --workspace=packages/proxy",
     "test:prover": "npm test --workspace=packages/prover",
     "test:integration": "node --test test/*.test.js",
@@ -23,6 +24,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "install:all": "npm install --workspaces",
+    "workspace:common": "npm --workspace=packages/common",
     "workspace:proxy": "npm --workspace=packages/proxy",
     "workspace:prover": "npm --workspace=packages/prover"
   },

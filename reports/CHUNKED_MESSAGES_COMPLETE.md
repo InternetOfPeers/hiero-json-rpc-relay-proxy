@@ -7,6 +7,7 @@ Successfully implemented comprehensive chunked message handling for the Hiero JS
 ## ✅ What Was Delivered
 
 ### 1. **Core Implementation**
+
 - ✅ **Automatic chunk detection** using `chunk_info` field
 - ✅ **Order-independent assembly** - chunks can arrive in any order
 - ✅ **Group management** using `transaction_valid_start` identifier
@@ -15,12 +16,14 @@ Successfully implemented comprehensive chunked message handling for the Hiero JS
 - ✅ **Backward compatibility** - no breaking changes to existing functionality
 
 ### 2. **Test Coverage**
+
 - ✅ **126 proxy tests** - all passing including 6 new chunked message tests
 - ✅ **49 prover tests** - all passing, no regressions
 - ✅ **15 integration tests** - all passing, end-to-end functionality verified
 - ✅ **190 total tests** across the entire monorepo
 
 ### 3. **Documentation**
+
 - ✅ **Technical documentation** (`docs/chunked-messages.md`)
 - ✅ **Implementation summary** (`docs/chunked-messages-implementation.md`)
 - ✅ **README updates** with chunked message section
@@ -33,12 +36,12 @@ Successfully implemented comprehensive chunked message handling for the Hiero JS
 
 ```javascript
 // Chunk detection and management
-isChunkedMessage(message)           // Detects chunked vs regular messages
-getChunkGroupKey(message)           // Extracts group identifier
-addChunk(message)                   // Adds chunks and returns complete message
-combineChunkedMessages(chunks)      // Assembles chunks in correct order
-cleanupOldChunks(maxAgeMs)         // Removes expired chunk groups
-processCompleteMessage(message)     // Processes assembled messages
+isChunkedMessage(message); // Detects chunked vs regular messages
+getChunkGroupKey(message); // Extracts group identifier
+addChunk(message); // Adds chunks and returns complete message
+combineChunkedMessages(chunks); // Assembles chunks in correct order
+cleanupOldChunks(maxAgeMs); // Removes expired chunk groups
+processCompleteMessage(message); // Processes assembled messages
 ```
 
 ### Message Processing Flow
@@ -69,9 +72,10 @@ $ node examples/chunked-messages-demo.js
 ## 🧪 Test Results
 
 ### Chunked Message Tests
+
 ```
 ✔ should detect chunked messages correctly
-✔ should get correct chunk group key  
+✔ should get correct chunk group key
 ✔ should handle adding chunks and return complete message when all received
 ✔ should handle chunks arriving out of order
 ✔ should handle chunk total mismatch
@@ -79,9 +83,10 @@ $ node examples/chunked-messages-demo.js
 ```
 
 ### Overall Test Status
+
 ```
 ✅ Proxy Tests:     126 passed, 0 failed
-✅ Prover Tests:     49 passed, 0 failed  
+✅ Prover Tests:     49 passed, 0 failed
 ✅ Integration:      15 passed, 0 failed
 ✅ Total:           190 passed, 0 failed
 ```
@@ -89,18 +94,21 @@ $ node examples/chunked-messages-demo.js
 ## 📊 Key Benefits
 
 ### For Users
+
 - ✅ **Transparent Operation** - No code changes needed in existing prover or proxy logic
 - ✅ **Large Message Support** - Can now handle messages >1024KB automatically
 - ✅ **Reliability** - Handles network issues and out-of-order delivery gracefully
 - ✅ **Performance** - Minimal overhead for regular (non-chunked) messages
 
-### For Developers  
+### For Developers
+
 - ✅ **Well-Tested** - Comprehensive test coverage for all edge cases
 - ✅ **Well-Documented** - Clear documentation and examples
 - ✅ **Maintainable** - Clean, modular implementation with proper error handling
 - ✅ **Extensible** - Easy to add future enhancements
 
 ### For Operations
+
 - ✅ **Monitoring** - Comprehensive logging for chunk operations
 - ✅ **Memory Safe** - Automatic cleanup prevents memory leaks
 - ✅ **Zero Downtime** - Can be deployed without service interruption
@@ -109,18 +117,21 @@ $ node examples/chunked-messages-demo.js
 ## 🚀 Production Ready
 
 ### Security
+
 - ✅ Input validation for all chunk fields
 - ✅ Protection against chunk bomb attacks
 - ✅ Memory limits through automatic cleanup
 - ✅ Preserves all existing security features
 
 ### Performance
+
 - ✅ O(n log n) chunk sorting complexity
 - ✅ Configurable cleanup timeouts
 - ✅ No blocking operations
 - ✅ Minimal memory footprint
 
 ### Reliability
+
 - ✅ Handles partial chunk loss
 - ✅ Network delay tolerance
 - ✅ Out-of-order delivery support
@@ -144,7 +155,7 @@ The implementation successfully handles the exact chunked message example provid
   "message": "eyJrZXkiOiJkYzFwVWVydFRMbUhhQjFHNm9zdURhTExjUUoyNDVTVGp0cHZ1RGhJQ3plWThsb3FmTzhFOUZSLyswZ2lzMFBITHFOWnVpUU4yU2h5Z2ljb3kzOEZTUnpMVlVENms5OXc1WWxrK3pjV2dsL0NqRjJvR0tVbVVkTjVadFlzb1I0T3o4ZTVRdkErYnpRK0trcHZHdkhsM05ZajdycUIrTkhFd1BXU0JhL0ZNNitIODUvdURvOUlrRW02dkYybkkyaDVOS3cvUWM1djNtSG56a3UvZytsTTBGK2M0ejUwVFlvMzVrS2pCb3dzMmo3eHp2VStVMFpreHRvOERIMjNOOHJralNhQnA0R2tLSngwY3pXZzk1K2x3UXBQTTBySHJock5YYUQvYWt3dTd4YmRrc3pKZ1lFZEV0WVREZEtxakdycnlXTlBad0l1N0ZVODF6dDkrOGhvRGc9PSIsIml2Ijoib2lHMWVBOXp0ZGhGYjlYVEZ0WEFvUT09IiwiZGF0YSI6IjlaajFkaW1JTmd6bU5qZHNCZU9XYUxweTZwbHduaG1VVUJJajV6R1pCNVc2MmNDU2ZGUVVoajVHTys0L0UyNXlLTDRnb3BzVnhXZG4wWjBRKytuVTJYUXJyTytWWnRhQzRUM3RtMVBzMGdrYit3blNocmNwa09KVFRxeTlzdGtSSGFkaUtxTDNwZUdEUWg2c05FR01PTDFKdGdQTGhBcDdMYll0OVdKa2J4YXdvKzNXZEptUVpaZUNOelI1NHFDUDk1dXJIM2xCcWYxb3M0UzRUL2xzQ1o1YW1YSUx1YWkwQkc2cFM4ZmhHUXdVcXNCL0NzR0ppVkR6M2FHQmtuY0FDUE0wLytDR3MrNlNoMERCYjBseTNTVDlWc1R0ZXZieUk3QVZDVk5oOFVYM1kyNEhpOVdBL1kxNHV0Wko4V3ljb0pNSEZxYUhPNXNqZ2VoajhVWnVpdDhjUU9pcjd2NWJrbmhZZU4zVGl2MHRRaTUrb0R4UXgrcmE1NENlcnhnMXlLeTBLeWdNWk1LM0xtcGZKaytzY1Jla2hqR2RLK2ZlSDBTUmQwdnZvb2hWTHpldVZNTkR5ZG5JRjlvQkxuVzd3WDRHTTlpcWNPa3dkdlBWY1B4MGV1RlI5VFdJNTFFM3NUUDc0NytuRGp0b0lkYm1ZeUZVdVMvajJNaXBlbjcyMXhkTDNuY0h4MURHVithWnByTkdTWURkZXg5eWFrREQ2RmJNZXltREliT0luU1h4NUlXYUJsM0NEeTM5Z25YL2FsK3hlOUJHWmRYTFRhZWlRK1FYZVBYT3RGL1JKUHlHYzVJODdMUFNlbzNWMFJVV0NVMEduZA=="
 }
 
-// Chunk 2  
+// Chunk 2
 {
   "chunk_info": {
     "initial_transaction_id": {

@@ -299,7 +299,7 @@ describe('HederaManager Message Listener', () => {
 
     const lastCall =
       mockStoreLastProcessedSequence.mock.calls[
-      mockStoreLastProcessedSequence.mock.callCount() - 1
+        mockStoreLastProcessedSequence.mock.callCount() - 1
       ];
     assert.strictEqual(lastCall.arguments[0], '0.0.789012'); // topic ID
     assert.strictEqual(lastCall.arguments[1], 2); // sequence number
@@ -363,31 +363,35 @@ describe('HederaManager Message Listener', () => {
       const chunkedMessage = {
         chunk_info: {
           initial_transaction_id: {
-            account_id: "0.0.1545",
+            account_id: '0.0.1545',
             nonce: 0,
             scheduled: false,
-            transaction_valid_start: "1749506740.674505590"
+            transaction_valid_start: '1749506740.674505590',
           },
           number: 1,
-          total: 2
+          total: 2,
         },
-        consensus_timestamp: "1749506748.960591000",
-        message: "eyJrZXkiOiJkYzFwVWVydFRMbUhhQjFHNm9zdURhTExjUUoyNDVTVGp0cHZ1RGhJQ3plWThsb3FmTzhFOUZSLyswZ2lzMFBITHFOWnVpUU4yU2h5Z2ljb3kzOEZTUnpMVlVENms5OXc1WWxrK3pjV2dsL0NqRjJvR0tVbVVkTjVadFlzb1I0T3o4ZTVRdkErYnpRK0trcHZHdkhsM05ZajdycUIrTkhFd1BXU0JhL0ZNNitIODUvdURvOUlrRW02dkYybkkyaDVOS3cvUWM1djNtSG56a3UvZytsTTBGK2M0ejUwVFlvMzVrS2pCb3dzMmo3eHp2VStVMFpreHRvOERIMjNOOHJralNhQnA0R2tLSngwY3pXZzk1K2x3UXBQTTBySHJock5YYUQvYWt3dTd4YmRrc3pKZ1lFZEV0WVREZEtxakdycnlXTlBad0l1N0ZVODF6dDkrOGhvRGc9PSIsIml2Ijoib2lHMWVBOXp0ZGhGYjlYVEZ0WEFvUT09IiwiZGF0YSI6IjlaajFkaW1JTmd6bU5qZHNCZU9XYUxweTZwbHduaG1VVUJJajV6R1pCNVc2MmNDU2ZGUVVoajVHTys0L0UyNXlLTDRnb3BzVnhXZG4wWjBRKytuVTJYUXJyTytWWnRhQzRUM3RtMVBzMGdrYit3blNocmNwa09KVFRxeTlzdGtSSGFkaUtxTDNwZUdEUWg2c05FR01PTDFKdGdQTGhBcDdMYll0OVdKa2J4YXdvKzNXZEptUVpaZUNOelI1NHFDUDk1dXJIM2xCcWYxb3M0UzRUL2xzQ1o1YW1YSUx1YWkwQkc2cFM4ZmhHUXdVcXNCL0NzR0ppVkR6M2FHQmtuY0FDUE0wLytDR3MrNlNoMERCYjBseTNTVDlWc1R0ZXZieUk3QVZDVk5oOFVYM1kyNEhpOVdBL1kxNHV0Wko4V3ljb0pNSEZxYUhPNXNqZ2VoajhVWnVpdDhjUU9pcjd2NWJrbmhZZU4zVGl2MHRRaTUrb0R4UXgrcmE1NENlcnhnMXlLeTBLeWdNWk1LM0xtcGZKaytzY1Jla2hqR2RLK2ZlSDBTUmQwdnZvb2hWTHpldVZNTkR5ZG5JRjlvQkxuVzd3WDRHTTlpcWNPa3dkdlBWY1B4MGV1RlI5VFdJNTFFM3NUUDc0NytuRGp0b0lkYm1ZeUZVdVMvajJNaXBlbjcyMXhkTDNuY0h4MURHVithWnByTkdTWURkZXg5eWFrREQ2RmJNZXltREliT0luU1h4NUlXYUJsM0NEeTM5Z25YL2FsK3hlOUJHWmRYTFRhZWlRK1FYZVBYT3RGL1JKUHlHYzVJODdMUFNlbzNWMFJVV0NVMEduZA==",
-        payer_account_id: "0.0.1545",
-        running_hash: "5xsTd9M3S1hh5QyeqTYTrFRnT3CXn1t5TKxo9jlFrl7qK9/tszIA9p9AuuRL2hj3",
+        consensus_timestamp: '1749506748.960591000',
+        message:
+          'eyJrZXkiOiJkYzFwVWVydFRMbUhhQjFHNm9zdURhTExjUUoyNDVTVGp0cHZ1RGhJQ3plWThsb3FmTzhFOUZSLyswZ2lzMFBITHFOWnVpUU4yU2h5Z2ljb3kzOEZTUnpMVlVENms5OXc1WWxrK3pjV2dsL0NqRjJvR0tVbVVkTjVadFlzb1I0T3o4ZTVRdkErYnpRK0trcHZHdkhsM05ZajdycUIrTkhFd1BXU0JhL0ZNNitIODUvdURvOUlrRW02dkYybkkyaDVOS3cvUWM1djNtSG56a3UvZytsTTBGK2M0ejUwVFlvMzVrS2pCb3dzMmo3eHp2VStVMFpreHRvOERIMjNOOHJralNhQnA0R2tLSngwY3pXZzk1K2x3UXBQTTBySHJock5YYUQvYWt3dTd4YmRrc3pKZ1lFZEV0WVREZEtxakdycnlXTlBad0l1N0ZVODF6dDkrOGhvRGc9PSIsIml2Ijoib2lHMWVBOXp0ZGhGYjlYVEZ0WEFvUT09IiwiZGF0YSI6IjlaajFkaW1JTmd6bU5qZHNCZU9XYUxweTZwbHduaG1VVUJJajV6R1pCNVc2MmNDU2ZGUVVoajVHTys0L0UyNXlLTDRnb3BzVnhXZG4wWjBRKytuVTJYUXJyTytWWnRhQzRUM3RtMVBzMGdrYit3blNocmNwa09KVFRxeTlzdGtSSGFkaUtxTDNwZUdEUWg2c05FR01PTDFKdGdQTGhBcDdMYll0OVdKa2J4YXdvKzNXZEptUVpaZUNOelI1NHFDUDk1dXJIM2xCcWYxb3M0UzRUL2xzQ1o1YW1YSUx1YWkwQkc2cFM4ZmhHUXdVcXNCL0NzR0ppVkR6M2FHQmtuY0FDUE0wLytDR3MrNlNoMERCYjBseTNTVDlWc1R0ZXZieUk3QVZDVk5oOFVYM1kyNEhpOVdBL1kxNHV0Wko4V3ljb0pNSEZxYUhPNXNqZ2VoajhVWnVpdDhjUU9pcjd2NWJrbmhZZU4zVGl2MHRRaTUrb0R4UXgrcmE1NENlcnhnMXlLeTBLeWdNWk1LM0xtcGZKaytzY1Jla2hqR2RLK2ZlSDBTUmQwdnZvb2hWTHpldVZNTkR5ZG5JRjlvQkxuVzd3WDRHTTlpcWNPa3dkdlBWY1B4MGV1RlI5VFdJNTFFM3NUUDc0NytuRGp0b0lkYm1ZeUZVdVMvajJNaXBlbjcyMXhkTDNuY0h4MURHVithWnByTkdTWURkZXg5eWFrREQ2RmJNZXltREliT0luU1h4NUlXYUJsM0NEeTM5Z25YL2FsK3hlOUJHWmRYTFRhZWlRK1FYZVBYT3RGL1JKUHlHYzVJODdMUFNlbzNWMFJVV0NVMEduZA==',
+        payer_account_id: '0.0.1545',
+        running_hash:
+          '5xsTd9M3S1hh5QyeqTYTrFRnT3CXn1t5TKxo9jlFrl7qK9/tszIA9p9AuuRL2hj3',
         running_hash_version: 3,
         sequence_number: 2,
-        topic_id: "0.0.6139083"
+        topic_id: '0.0.6139083',
       };
 
       const regularMessage = {
-        consensus_timestamp: "1749506748.960591000",
-        message: "eyJrZXkiOiJkYzFwVWVydFRMbUhhQjFHNm9zdURhTExjUUoyNDVTVGp0cHZ1RGhJQ3plWThsb3FmTzhFOUZSLyswZ2lzMFBITHFOWnVpUU4yU2h5Z2ljb3kzOEZTUnpMVlVENms5OXc1WWxrK3pjV2dsL0NqRjJvR0tVbVVkTjVadFlzb1I0T3o4ZTVRdkErYnpRK0trcHZHdkhsM05ZajdycUIrTkhFd1BXU0JhL0ZNNitIODUvdURvOUlrRW02dkYybkkyaDVOS3cvUWM1djNtSG56a3UvZytsTTBGK2M0ejUwVFlvMzVrS2pCb3dzMmo3eHp2VStVMFpreHRvOERIMjNOOHJralNhQnA0R2tLSngwY3pXZzk1K2x3UXBQTTBySHJock5YYUQvYWt3dTd4YmRrc3pKZ1lFZEV0WVREZEtxakdycnlXTlBad0l1N0ZVODF6dDkrOGhvRGc9PSIsIml2Ijoib2lHMWVBOXp0ZGhGYjlYVEZ0WEFvUT09IiwiZGF0YSI6IjlaajFkaW1JTmd6bU5qZHNCZU9XYUxweTZwbHduaG1VVUJJajV6R1pCNVc2MmNDU2ZGUVVoajVHTys0L0UyNXlLTDRnb3BzVnhXZG4wWjBRKytuVTJYUXJyTytWWnRhQzRUM3RtMVBzMGdrYit3blNocmNwa09KVFRxeTlzdGtSSGFkaUtxTDNwZUdEUWg2c05FR01PTDFKdGdQTGhBcDdMYll0OVdKa2J4YXdvKzNXZEptUVpaZUNOelI1NHFDUDk1dXJIM2xCcWYxb3M0UzRUL2xzQ1o1YW1YSUx1YWkwQkc2cFM4ZmhHUXdVcXNCL0NzR0ppVkR6M2FHQmtuY0FDUE0wLytDR3MrNlNoMERCYjBseTNTVDlWc1R0ZXZieUk3QVZDVk5oOFVYM1kyNEhpOVdBL1kxNHV0Wko4V3ljb0pNSEZxYUhPNXNqZ2VoajhVWnVpdDhjUU9pcjd2NWJrbmhZZU4zVGl2MHRRaTUrb0R4UXgrcmE1NENlcnhnMXlLeTBLeWdNWk1LM0xtcGZKaytzY1Jla2hqR2RLK2ZlSDBTUmQwdnZvb2hWTHpldVZNTkR5ZG5JRjlvQkxuVzd3WDRHTTlpcWNPa3dkdlBWY1B4MGV1RlI5VFdJNTFFM3NUUDc0NytuRGp0b0lkYm1ZeUZVdVMvajJNaXBlbjcyMXhkTDNuY0h4MURHVithWnByTkdTWURkZXg5eWFrREQ2RmJNZXltREliT0luU1h4NUlXYUJsM0NEeTM5Z25YL2FsK3hlOUJHWmRYTFRhZWlRK1FYZVBYT3RGL1JKUHlHYzVJODdMUFNlbzNWMFJVV0NVMEduZA==",
-        payer_account_id: "0.0.1545",
-        running_hash: "5xsTd9M3S1hh5QyeqTYTrFRnT3CXn1t5TKxo9jlFrl7qK9/tszIA9p9AuuRL2hj3",
+        consensus_timestamp: '1749506748.960591000',
+        message:
+          'eyJrZXkiOiJkYzFwVWVydFRMbUhhQjFHNm9zdURhTExjUUoyNDVTVGp0cHZ1RGhJQ3plWThsb3FmTzhFOUZSLyswZ2lzMFBITHFOWnVpUU4yU2h5Z2ljb3kzOEZTUnpMVlVENms5OXc1WWxrK3pjV2dsL0NqRjJvR0tVbVVkTjVadFlzb1I0T3o4ZTVRdkErYnpRK0trcHZHdkhsM05ZajdycUIrTkhFd1BXU0JhL0ZNNitIODUvdURvOUlrRW02dkYybkkyaDVOS3cvUWM1djNtSG56a3UvZytsTTBGK2M0ejUwVFlvMzVrS2pCb3dzMmo3eHp2VStVMFpreHRvOERIMjNOOHJralNhQnA0R2tLSngwY3pXZzk1K2x3UXBQTTBySHJock5YYUQvYWt3dTd4YmRrc3pKZ1lFZEV0WVREZEtxakdycnlXTlBad0l1N0ZVODF6dDkrOGhvRGc9PSIsIml2Ijoib2lHMWVBOXp0ZGhGYjlYVEZ0WEFvUT09IiwiZGF0YSI6IjlaajFkaW1JTmd6bU5qZHNCZU9XYUxweTZwbHduaG1VVUJJajV6R1pCNVc2MmNDU2ZGUVVoajVHTys0L0UyNXlLTDRnb3BzVnhXZG4wWjBRKytuVTJYUXJyTytWWnRhQzRUM3RtMVBzMGdrYit3blNocmNwa09KVFRxeTlzdGtSSGFkaUtxTDNwZUdEUWg2c05FR01PTDFKdGdQTGhBcDdMYll0OVdKa2J4YXdvKzNXZEptUVpaZUNOelI1NHFDUDk1dXJIM2xCcWYxb3M0UzRUL2xzQ1o1YW1YSUx1YWkwQkc2cFM4ZmhHUXdVcXNCL0NzR0ppVkR6M2FHQmtuY0FDUE0wLytDR3MrNlNoMERCYjBseTNTVDlWc1R0ZXZieUk3QVZDVk5oOFVYM1kyNEhpOVdBL1kxNHV0Wko4V3ljb0pNSEZxYUhPNXNqZ2VoajhVWnVpdDhjUU9pcjd2NWJrbmhZZU4zVGl2MHRRaTUrb0R4UXgrcmE1NENlcnhnMXlLeTBLeWdNWk1LM0xtcGZKaytzY1Jla2hqR2RLK2ZlSDBTUmQwdnZvb2hWTHpldVZNTkR5ZG5JRjlvQkxuVzd3WDRHTTlpcWNPa3dkdlBWY1B4MGV1RlI5VFdJNTFFM3NUUDc0NytuRGp0b0lkYm1ZeUZVdVMvajJNaXBlbjcyMXhkTDNuY0h4MURHVithWnByTkdTWURkZXg5eWFrREQ2RmJNZXltREliT0luU1h4NUlXYUJsM0NEeTM5Z25YL2FsK3hlOUJHWmRYTFRhZWlRK1FYZVBYT3RGL1JKUHlHYzVJODdMUFNlbzNWMFJVV0NVMEduZA==',
+        payer_account_id: '0.0.1545',
+        running_hash:
+          '5xsTd9M3S1hh5QyeqTYTrFRnT3CXn1t5TKxo9jlFrl7qK9/tszIA9p9AuuRL2hj3',
         running_hash_version: 3,
         sequence_number: 2,
-        topic_id: "0.0.6139083"
+        topic_id: '0.0.6139083',
       };
 
       assert.strictEqual(hederaManager.isChunkedMessage(chunkedMessage), true);
@@ -398,55 +402,55 @@ describe('HederaManager Message Listener', () => {
       const message = {
         chunk_info: {
           initial_transaction_id: {
-            account_id: "0.0.1545",
+            account_id: '0.0.1545',
             nonce: 0,
             scheduled: false,
-            transaction_valid_start: "1749506740.674505590"
+            transaction_valid_start: '1749506740.674505590',
           },
           number: 1,
-          total: 2
-        }
+          total: 2,
+        },
       };
 
       const groupKey = hederaManager.getChunkGroupKey(message);
-      assert.strictEqual(groupKey, "1749506740.674505590");
+      assert.strictEqual(groupKey, '1749506740.674505590');
     });
 
     it('should handle adding chunks and return complete message when all received', () => {
       const chunk1 = {
         chunk_info: {
           initial_transaction_id: {
-            account_id: "0.0.1545",
+            account_id: '0.0.1545',
             nonce: 0,
             scheduled: false,
-            transaction_valid_start: "1749506740.674505590"
+            transaction_valid_start: '1749506740.674505590',
           },
           number: 1,
-          total: 2
+          total: 2,
         },
-        consensus_timestamp: "1749506748.960591000",
-        message: Buffer.from("First part of message").toString('base64'),
-        payer_account_id: "0.0.1545",
+        consensus_timestamp: '1749506748.960591000',
+        message: Buffer.from('First part of message').toString('base64'),
+        payer_account_id: '0.0.1545',
         sequence_number: 2,
-        topic_id: "0.0.6139083"
+        topic_id: '0.0.6139083',
       };
 
       const chunk2 = {
         chunk_info: {
           initial_transaction_id: {
-            account_id: "0.0.1545",
+            account_id: '0.0.1545',
             nonce: 0,
             scheduled: false,
-            transaction_valid_start: "1749506740.674505590"
+            transaction_valid_start: '1749506740.674505590',
           },
           number: 2,
-          total: 2
+          total: 2,
         },
-        consensus_timestamp: "1749506749.452717106",
-        message: Buffer.from(" - Second part of message").toString('base64'),
-        payer_account_id: "0.0.1545",
+        consensus_timestamp: '1749506749.452717106',
+        message: Buffer.from(' - Second part of message').toString('base64'),
+        payer_account_id: '0.0.1545',
         sequence_number: 3,
-        topic_id: "0.0.6139083"
+        topic_id: '0.0.6139083',
       };
 
       // Add first chunk - should return null (not complete)
@@ -458,11 +462,19 @@ describe('HederaManager Message Listener', () => {
       assert.notStrictEqual(result2, null);
 
       // Verify combined message
-      const combinedContent = Buffer.from(result2.message, 'base64').toString('utf8');
-      assert.strictEqual(combinedContent, "First part of message - Second part of message");
+      const combinedContent = Buffer.from(result2.message, 'base64').toString(
+        'utf8'
+      );
+      assert.strictEqual(
+        combinedContent,
+        'First part of message - Second part of message'
+      );
 
       // Should have latest timestamp and sequence number
-      assert.strictEqual(result2.consensus_timestamp, chunk2.consensus_timestamp);
+      assert.strictEqual(
+        result2.consensus_timestamp,
+        chunk2.consensus_timestamp
+      );
       assert.strictEqual(result2.sequence_number, chunk2.sequence_number);
 
       // Should not have chunk_info
@@ -473,49 +485,49 @@ describe('HederaManager Message Listener', () => {
       const chunk1 = {
         chunk_info: {
           initial_transaction_id: {
-            account_id: "0.0.1545",
+            account_id: '0.0.1545',
             nonce: 0,
             scheduled: false,
-            transaction_valid_start: "1749506740.674505590"
+            transaction_valid_start: '1749506740.674505590',
           },
           number: 1,
-          total: 3
+          total: 3,
         },
-        consensus_timestamp: "1749506748.960591000",
-        message: Buffer.from("Part1").toString('base64'),
-        sequence_number: 2
+        consensus_timestamp: '1749506748.960591000',
+        message: Buffer.from('Part1').toString('base64'),
+        sequence_number: 2,
       };
 
       const chunk3 = {
         chunk_info: {
           initial_transaction_id: {
-            account_id: "0.0.1545",
+            account_id: '0.0.1545',
             nonce: 0,
             scheduled: false,
-            transaction_valid_start: "1749506740.674505590"
+            transaction_valid_start: '1749506740.674505590',
           },
           number: 3,
-          total: 3
+          total: 3,
         },
-        consensus_timestamp: "1749506750.000000000",
-        message: Buffer.from("Part3").toString('base64'),
-        sequence_number: 4
+        consensus_timestamp: '1749506750.000000000',
+        message: Buffer.from('Part3').toString('base64'),
+        sequence_number: 4,
       };
 
       const chunk2 = {
         chunk_info: {
           initial_transaction_id: {
-            account_id: "0.0.1545",
+            account_id: '0.0.1545',
             nonce: 0,
             scheduled: false,
-            transaction_valid_start: "1749506740.674505590"
+            transaction_valid_start: '1749506740.674505590',
           },
           number: 2,
-          total: 3
+          total: 3,
         },
-        consensus_timestamp: "1749506749.452717106",
-        message: Buffer.from("Part2").toString('base64'),
-        sequence_number: 3
+        consensus_timestamp: '1749506749.452717106',
+        message: Buffer.from('Part2').toString('base64'),
+        sequence_number: 3,
       };
 
       // Add chunks out of order
@@ -527,37 +539,39 @@ describe('HederaManager Message Listener', () => {
       assert.notStrictEqual(result, null);
 
       // Verify chunks are combined in correct order
-      const combinedContent = Buffer.from(result.message, 'base64').toString('utf8');
-      assert.strictEqual(combinedContent, "Part1Part2Part3");
+      const combinedContent = Buffer.from(result.message, 'base64').toString(
+        'utf8'
+      );
+      assert.strictEqual(combinedContent, 'Part1Part2Part3');
     });
 
     it('should handle chunk total mismatch', () => {
       const chunk1 = {
         chunk_info: {
           initial_transaction_id: {
-            account_id: "0.0.1545",
+            account_id: '0.0.1545',
             nonce: 0,
             scheduled: false,
-            transaction_valid_start: "1749506740.674505590"
+            transaction_valid_start: '1749506740.674505590',
           },
           number: 1,
-          total: 2
+          total: 2,
         },
-        message: Buffer.from("Part1").toString('base64')
+        message: Buffer.from('Part1').toString('base64'),
       };
 
       const chunk2WithWrongTotal = {
         chunk_info: {
           initial_transaction_id: {
-            account_id: "0.0.1545",
+            account_id: '0.0.1545',
             nonce: 0,
             scheduled: false,
-            transaction_valid_start: "1749506740.674505590"
+            transaction_valid_start: '1749506740.674505590',
           },
           number: 2,
-          total: 3  // Different total!
+          total: 3, // Different total!
         },
-        message: Buffer.from("Part2").toString('base64')
+        message: Buffer.from('Part2').toString('base64'),
       };
 
       // Add first chunk
@@ -574,15 +588,15 @@ describe('HederaManager Message Listener', () => {
       const oldChunk = {
         chunk_info: {
           initial_transaction_id: {
-            account_id: "0.0.1545",
+            account_id: '0.0.1545',
             nonce: 0,
             scheduled: false,
-            transaction_valid_start: "1749506740.674505590"
+            transaction_valid_start: '1749506740.674505590',
           },
           number: 1,
-          total: 2
+          total: 2,
         },
-        message: Buffer.from("Old chunk").toString('base64')
+        message: Buffer.from('Old chunk').toString('base64'),
       };
 
       // Add old chunk
@@ -593,14 +607,17 @@ describe('HederaManager Message Listener', () => {
 
       // Manually set timestamp to be old
       const groupKey = hederaManager.getChunkGroupKey(oldChunk);
-      hederaManager.pendingChunks.get(groupKey).timestamp = Date.now() - (6 * 60 * 1000); // 6 minutes ago
+      hederaManager.pendingChunks.get(groupKey).timestamp =
+        Date.now() - 6 * 60 * 1000; // 6 minutes ago
 
       // Clean up old chunks (5 minute threshold)
       hederaManager.cleanupOldChunks();
 
       // Verify chunk was cleaned up
       assert.strictEqual(hederaManager.pendingChunks.size, 0);
-      assert.ok(logOutput.some(log => log.includes('Cleaning up expired chunk group')));
+      assert.ok(
+        logOutput.some(log => log.includes('Cleaning up expired chunk group'))
+      );
     });
   });
 });

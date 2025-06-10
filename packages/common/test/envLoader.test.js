@@ -304,5 +304,50 @@ TEST_MIXED5=value with "quotes in middle"`;
         'value with "quotes in middle"'
       );
     });
+
+    test('should auto-detect working directory for .env files', async function () {
+      const originalCwd = process.cwd();
+
+      // Test 1: When running from a package directory (contains 'packages/')
+      const mockPackageDir = path.join(TEST_ENV_DIR, 'packages', 'proxy');
+      await fs.mkdir(mockPackageDir, { recursive: true });
+
+      const packageEnvFile = path.join(mockPackageDir, '.env');
+      const packageEnvContent = 'AUTO_DETECT_PACKAGE=from_package_dir';
+      await fs.writeFile(packageEnvFile, packageEnvContent);
+
+      // Mock process.cwd to return package directory
+      const originalProcessCwd = process.cwd;
+      process.cwd = () => mockPackageDir;
+
+      delete process.env.AUTO_DETECT_PACKAGE;
+      loadEnvFile(); // No path provided, should auto-detect
+
+      assert.strictEqual(process.env.AUTO_DETECT_PACKAGE, 'from_package_dir');
+
+      // Test 2: When running from workspace root
+      // Note: We need to create a workspace that looks like a real workspace structure
+      const mockRootDir = path.join(TEST_ENV_DIR, 'mock-workspace');
+      const mockProxyDir = path.join(mockRootDir, 'packages', 'proxy');
+      await fs.mkdir(mockProxyDir, { recursive: true });
+
+      const rootEnvFile = path.join(mockProxyDir, '.env');
+      const rootEnvContent = 'AUTO_DETECT_ROOT=from_root_default';
+      await fs.writeFile(rootEnvFile, rootEnvContent);
+
+      process.cwd = () => mockRootDir;
+
+      delete process.env.AUTO_DETECT_ROOT;
+      loadEnvFile(); // No path provided, should default to packages/proxy/.env
+
+      assert.strictEqual(process.env.AUTO_DETECT_ROOT, 'from_root_default');
+
+      // Cleanup: Restore original process.cwd
+      process.cwd = originalProcessCwd;
+
+      // Clean up test files
+      await fs.unlink(packageEnvFile).catch(() => {});
+      await fs.unlink(rootEnvFile).catch(() => {});
+    });
   });
 });

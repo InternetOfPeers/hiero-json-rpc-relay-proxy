@@ -1,30 +1,26 @@
 {
-  "name": "@hiero-json-rpc-relay/prover",
+  "name": "@hiero-json-rpc-relay/common",
   "version": "1.0.0",
-  "description": "Hedera prover component for sending encrypted messages to Hedera Consensus Service",
-  "main": "src/prover.js",
-  "bin": {
-    "prover": "./src/prover.js"
-  },
+  "description": "Common utilities and shared code for the Hiero JSON-RPC Relay system",
+  "main": "src/index.js",
   "scripts": {
-    "start": "node src/prover.js",
     "test": "node --test test/*.test.js",
     "test:watch": "node --test --watch test/*.test.js",
     "test:coverage": "node --test --experimental-test-coverage test/*.test.js"
   },
   "keywords": [
+    "ethereum",
     "hedera",
     "consensus",
-    "prover",
     "encryption",
-    "blockchain"
+    "blockchain",
+    "utilities"
   ],
   "author": "Giuseppe Bertone <giuseppe.bertone@proton.me>",
   "license": "Apache-2.0",
   "dependencies": {
     "@hashgraph/sdk": "^2.65.1",
-    "ethers": "^6.14.3",
-    "@hiero-json-rpc-relay/common": "^1.0.0"
+    "ethers": "^6.14.3"
   },
   "engines": {
     "node": ">=18.0.0"

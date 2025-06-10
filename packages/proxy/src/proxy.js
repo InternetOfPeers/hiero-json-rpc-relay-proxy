@@ -15,7 +15,13 @@ const {
   storeLastProcessedSequence,
 } = require('./dbManager');
 const { HederaManager } = require('./hederaManager');
-const { loadEnvFile } = require('./envLoader');
+const {
+  loadEnvFile,
+  parseRequestBody,
+  sendJsonResponse,
+  sendErrorResponse,
+  setCorsHeaders,
+} = require('@hiero-json-rpc-relay/common');
 
 // Load .env file before accessing environment variables (unless explicitly disabled)
 if (!process.env.SKIP_ENV_FILE) {
@@ -54,32 +60,6 @@ const hederaManager = new HederaManager({
   dbFile: getDBFilePath(),
   getRSAKeyPair,
 });
-
-// Parse request body
-function parseRequestBody(req) {
-  return new Promise((resolve, reject) => {
-    let body = '';
-
-    req.on('data', chunk => {
-      body += chunk.toString();
-    });
-
-    req.on('end', () => {
-      try {
-        let jsonData = null;
-        if (body.trim()) {
-          jsonData = JSON.parse(body);
-        }
-        resolve({ body, jsonData });
-      } catch (error) {
-        console.error('JSON parse error:', error.message);
-        resolve({ body, jsonData: null });
-      }
-    });
-
-    req.on('error', reject);
-  });
-}
 
 // Forward request to target server
 function forwardRequest(targetServer, req, res, requestBody) {

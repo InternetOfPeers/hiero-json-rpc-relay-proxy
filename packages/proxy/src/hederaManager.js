@@ -16,7 +16,10 @@ const {
   verifyChallengeResponse,
   encryptAES,
   decryptAES,
-} = require('./cryptoUtils');
+  validateRouteSignatures,
+  ErrorTypes,
+  createError,
+} = require('@hiero-json-rpc-relay/common');
 const { updateRoutes, saveDatabase } = require('./dbManager');
 
 // Hedera Manager Module
@@ -538,9 +541,7 @@ class HederaManager {
                     completeMessages.push(completeMessage);
                   } else {
                     // Still waiting for more chunks, skip processing for now
-                    console.log(
-                      `      ⏳ Waiting for remaining chunks...`
-                    );
+                    console.log(`      ⏳ Waiting for remaining chunks...`);
                     continue;
                   }
                 } else {
@@ -689,123 +690,36 @@ class HederaManager {
         );
         return;
       }
+
       console.log(
         '      🔍 Verifying ECDSA signatures and contract ownership...'
       );
 
-      let totalSignatures = 0;
-      let validSignatures = 0;
-      let derivedSignerAddress = null;
-      let invalidRoutes = [];
+      // Use common validation function
+      const validationResult = validateRouteSignatures(messageData.routes);
 
-      const { getContractAddressFromCreate } = require('./cryptoUtils');
-
-      // Verify each route's signature and contract ownership
-      for (const route of messageData.routes) {
-        if (
-          route.addr &&
-          route.proofType &&
-          route.nonce !== undefined &&
-          route.url &&
-          route.sig
-        ) {
-          totalSignatures++;
-
-          try {
-            const { ethers } = require('ethers');
-
-            // Create the message that was signed (addr+proofType+nonce+url)
-            const signedMessage =
-              route.addr + route.proofType + route.nonce + route.url;
-
-            // Derive the signer address from the signature
-            const signerFromThisSignature = ethers.verifyMessage(
-              signedMessage,
-              route.sig
-            );
-
-            // For the first signature, establish the expected signer
-            if (!derivedSignerAddress) {
-              derivedSignerAddress = signerFromThisSignature.toLowerCase();
-              console.log(
-                `      🔑 Derived signer address: ${derivedSignerAddress}`
-              );
-            }
-
-            // Check if this signature matches the established signer
-            const isValidSigner =
-              signerFromThisSignature.toLowerCase() === derivedSignerAddress;
-
-            if (isValidSigner) {
-              // Additional check: verify that the signer is the owner of the contract at the specified address
-              let isValidOwnership = false;
-
-              if (route.proofType === 'create') {
-                // For CREATE, compute the deterministic contract address
-                const computedAddress = getContractAddressFromCreate(
-                  derivedSignerAddress,
-                  route.nonce
-                );
-                isValidOwnership =
-                  computedAddress &&
-                  computedAddress.toLowerCase() === route.addr.toLowerCase();
-
-                console.log(
-                  `      🏗️ Contract address verification (CREATE): computed=${computedAddress}, expected=${route.addr}, valid=${isValidOwnership}`
-                );
-              } else if (route.proofType === 'create2') {
-                console.log(
-                  `      ⚠️ CREATE2 verification not yet implemented - skipping ownership check`
-                );
-              }
-
-              if (isValidOwnership) {
-                validSignatures++;
-                console.log(
-                  `      ✅ Valid signature and ownership for ${route.addr} (${route.proofType}, nonce ${route.nonce})`
-                );
-              } else {
-                console.error(
-                  `      ❌ Valid signature but invalid ownership for ${route.addr} (${route.proofType}, nonce ${route.nonce})`
-                );
-                invalidRoutes.push(route);
-              }
-            } else {
-              console.error(
-                `      ❌ Invalid signature for ${route.addr} (${route.proofType}, nonce ${route.nonce})`
-              );
-              invalidRoutes.push(route);
-            }
-          } catch (error) {
-            console.error(
-              `      ❌ Error verifying signature for ${route.addr}: ${error.message}`
-            );
-            invalidRoutes.push(route);
-          }
-        } else {
-          console.error(
-            `      ❌ Missing required fields for route: ${JSON.stringify(route)}`
-          );
-          invalidRoutes.push(route);
-        }
-      }
-
-      if (invalidRoutes.length > 0) {
+      if (!validationResult.success) {
+        const invalidAddresses = validationResult.invalidRoutes
+          .map(item => item.route.addr || 'unknown')
+          .join(', ');
         throw new Error(
-          `Signature verification failed for ${invalidRoutes.length} route(s): ${invalidRoutes.map(r => r.addr).join(', ')}`
+          `Signature verification failed for ${validationResult.invalidCount} route(s): ${invalidAddresses}`
         );
       }
 
       console.log(
-        `      ✅ Signature verification completed: ${validSignatures}/${totalSignatures} valid`
+        `      ✅ Signature verification completed: ${validationResult.validCount}/${validationResult.validCount + validationResult.invalidCount} valid`
+      );
+      console.log(
+        `      🔑 Derived signer address: ${validationResult.derivedSignerAddress}`
       );
 
       // If all signatures are valid, initiate challenge-response flow
-      if (validSignatures === totalSignatures && derivedSignerAddress) {
+      if (validationResult.success && validationResult.derivedSignerAddress) {
         console.log('      🚀 Starting challenge-response verification...');
         await this.processChallengeResponseFlow(
           messageData,
-          derivedSignerAddress
+          validationResult.derivedSignerAddress
         );
       }
     } catch (error) {
@@ -1348,7 +1262,9 @@ class HederaManager {
     console.log(
       `      🔐 Processing complete message #${message.sequence_number} (${timestamp})`
     );
-    console.log('      🔐 Encrypted message detected, attempting decryption...');
+    console.log(
+      '      🔐 Encrypted message detected, attempting decryption...'
+    );
 
     // Get RSA private key for decryption
     const keyPair = this.getRSAKeyPair ? this.getRSAKeyPair() : null;
@@ -1404,14 +1320,16 @@ class HederaManager {
       } else {
         console.log('      ❌ Decryption failed:', decryptionResult.error);
         console.log(
-          `      📄 Raw Content: ${content.substring(0, 200)}${content.length > 200 ? '...' : ''
+          `      📄 Raw Content: ${content.substring(0, 200)}${
+            content.length > 200 ? '...' : ''
           }`
         );
       }
     } else {
       console.log('      ⚠️  No RSA private key available for decryption');
       console.log(
-        `      📄 Raw Content: ${content.substring(0, 200)}${content.length > 200 ? '...' : ''
+        `      📄 Raw Content: ${content.substring(0, 200)}${
+          content.length > 200 ? '...' : ''
         }`
       );
     }
@@ -1425,11 +1343,13 @@ class HederaManager {
    * @returns {boolean} True if message is chunked
    */
   isChunkedMessage(message) {
-    return !!(message.chunk_info &&
+    return !!(
+      message.chunk_info &&
       message.chunk_info.initial_transaction_id &&
       message.chunk_info.initial_transaction_id.transaction_valid_start &&
       typeof message.chunk_info.number === 'number' &&
-      typeof message.chunk_info.total === 'number');
+      typeof message.chunk_info.total === 'number'
+    );
   }
 
   /**
@@ -1451,14 +1371,16 @@ class HederaManager {
     const chunkNumber = message.chunk_info.number;
     const totalChunks = message.chunk_info.total;
 
-    console.log(`      📦 Processing chunk ${chunkNumber}/${totalChunks} for group ${groupKey}`);
+    console.log(
+      `      📦 Processing chunk ${chunkNumber}/${totalChunks} for group ${groupKey}`
+    );
 
     // Initialize chunk group if it doesn't exist
     if (!this.pendingChunks.has(groupKey)) {
       this.pendingChunks.set(groupKey, {
         chunks: new Map(),
         total: totalChunks,
-        timestamp: Date.now()
+        timestamp: Date.now(),
       });
     }
 
@@ -1466,18 +1388,24 @@ class HederaManager {
 
     // Validate total chunks consistency
     if (chunkGroup.total !== totalChunks) {
-      console.log(`      ⚠️  Chunk total mismatch for group ${groupKey}: expected ${chunkGroup.total}, got ${totalChunks}`);
+      console.log(
+        `      ⚠️  Chunk total mismatch for group ${groupKey}: expected ${chunkGroup.total}, got ${totalChunks}`
+      );
       return null;
     }
 
     // Add chunk to the group
     chunkGroup.chunks.set(chunkNumber, message);
 
-    console.log(`      📊 Chunk group ${groupKey} now has ${chunkGroup.chunks.size}/${totalChunks} chunks`);
+    console.log(
+      `      📊 Chunk group ${groupKey} now has ${chunkGroup.chunks.size}/${totalChunks} chunks`
+    );
 
     // Check if we have all chunks
     if (chunkGroup.chunks.size === totalChunks) {
-      console.log(`      ✅ All chunks received for group ${groupKey}, assembling complete message`);
+      console.log(
+        `      ✅ All chunks received for group ${groupKey}, assembling complete message`
+      );
 
       // Sort chunks by number and combine messages
       const sortedChunks = Array.from(chunkGroup.chunks.entries())
@@ -1512,12 +1440,16 @@ class HederaManager {
     // Combine all message content
     let combinedContent = '';
     for (const chunk of chunks) {
-      const chunkContent = Buffer.from(chunk.message, 'base64').toString('utf8');
+      const chunkContent = Buffer.from(chunk.message, 'base64').toString(
+        'utf8'
+      );
       combinedContent += chunkContent;
     }
 
     // Encode the combined content back to base64
-    baseMessage.message = Buffer.from(combinedContent, 'utf8').toString('base64');
+    baseMessage.message = Buffer.from(combinedContent, 'utf8').toString(
+      'base64'
+    );
 
     // Remove chunk_info from the combined message since it's no longer chunked
     delete baseMessage.chunk_info;
@@ -1527,7 +1459,9 @@ class HederaManager {
     baseMessage.consensus_timestamp = latestChunk.consensus_timestamp;
     baseMessage.sequence_number = latestChunk.sequence_number;
 
-    console.log(`      🔗 Combined ${chunks.length} chunks into single message (sequence: ${baseMessage.sequence_number})`);
+    console.log(
+      `      🔗 Combined ${chunks.length} chunks into single message (sequence: ${baseMessage.sequence_number})`
+    );
 
     return baseMessage;
   }
@@ -1542,7 +1476,9 @@ class HederaManager {
 
     for (const [groupKey, chunkGroup] of this.pendingChunks) {
       if (now - chunkGroup.timestamp > maxAgeMs) {
-        console.log(`      🧹 Cleaning up expired chunk group ${groupKey} (${chunkGroup.chunks.size}/${chunkGroup.total} chunks)`);
+        console.log(
+          `      🧹 Cleaning up expired chunk group ${groupKey} (${chunkGroup.chunks.size}/${chunkGroup.total} chunks)`
+        );
         keysToDelete.push(groupKey);
       }
     }

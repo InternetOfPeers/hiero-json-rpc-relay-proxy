@@ -8,15 +8,21 @@
 // 4. Send the encrypted message to the Hedera topic
 
 const { HederaManager } = require('./hederaManager');
-const { loadEnvFile } = require('../../proxy/src/envLoader');
 const {
+  loadEnvFile,
   encryptHybridMessage,
   verifyChallenge,
   signChallengeResponse,
   encryptAES,
   decryptAES,
   generateAESKey,
-} = require('../../proxy/src/cryptoUtils');
+  validateRouteSignatures,
+  signRouteData,
+  parseRequestBody,
+  sendJsonResponse,
+  sendErrorResponse,
+  setCorsHeaders,
+} = require('@hiero-json-rpc-relay/common');
 const { ethers } = require('ethers');
 const http = require('http');
 const path = require('path');
@@ -64,16 +70,17 @@ let proverResults = {
   errors: [],
 };
 
-// Load environment variables from the prover folder first, then fallback to packages/proxy
+// Load environment variables from the prover's .env file
 const proverEnvPath = path.join(__dirname, '..', '.env');
 
-try {
-  loadEnvFile(proverEnvPath);
-  console.log('📁 Using prover-specific .env file');
-} catch (error) {
+// Check if prover .env exists before loading
+if (!require('fs').existsSync(proverEnvPath)) {
   console.log('📁 Prover .env not found, stopping the prover');
   process.exit(0);
 }
+
+loadEnvFile(proverEnvPath);
+console.log('📁 Using prover-specific .env file');
 
 // Configuration
 const PROXY_SERVER_URL =
@@ -556,27 +563,7 @@ function handleChallenge(req, res, body, proxyPublicKey, privateKey) {
   }
 }
 
-/**
- * Enhance confirmation handling to validate route signatures
- */
-function validateRouteSignatures(routes) {
-  return routes.every(route => {
-    if (!route.sig) {
-      console.error(`❌ Missing signature for route: ${route.addr}`);
-      return false;
-    }
-
-    const message = route.addr + route.proofType + route.nonce + route.url;
-    const wallet = new ethers.Wallet(privateKey);
-    const isValid = wallet.verifyMessage(message, route.sig);
-
-    if (!isValid) {
-      console.error(`❌ Invalid signature for route: ${route.addr}`);
-    }
-
-    return isValid;
-  });
-}
+// validateRouteSignatures function is now imported from common package
 
 /**
  * Handle incoming confirmation from proxy
@@ -624,9 +611,18 @@ function handleConfirmation(req, res, body, server) {
       }
     }
 
-    // if (!validateRouteSignatures(confirmation.routes)) {
-    //   throw new Error('One or more routes have invalid or missing signatures');
-    // }
+    // Validate route signatures if routes are present
+    if (confirmation.routes && Array.isArray(confirmation.routes)) {
+      const validationResult = validateRouteSignatures(confirmation.routes);
+      if (!validationResult.success) {
+        throw new Error(
+          `Route signature validation failed: ${validationResult.errors.join(', ')}`
+        );
+      }
+      console.log(
+        `   ✅ ${validationResult.validCount} route signatures validated`
+      );
+    }
 
     // Track confirmation received
     proverResults.confirmation.receivedCount++;
@@ -639,13 +635,20 @@ function handleConfirmation(req, res, body, server) {
       totalRoutes: confirmation.totalRoutes || 0,
     });
 
-    const latestConfirmation = proverResults.confirmation.confirmations[proverResults.confirmation.confirmations.length - 1];
+    const latestConfirmation =
+      proverResults.confirmation.confirmations[
+        proverResults.confirmation.confirmations.length - 1
+      ];
 
-    console.log(`   📨 Confirmation ${proverResults.confirmation.receivedCount}/${proverResults.confirmation.expectedCount} received`);
+    console.log(
+      `   📨 Confirmation ${proverResults.confirmation.receivedCount}/${proverResults.confirmation.expectedCount} received`
+    );
     console.log(`   Contract: ${latestConfirmation.addr}`);
     console.log(`   Status: ${latestConfirmation.status}`);
     console.log(`   Message: ${latestConfirmation.message}`);
-    console.log(`   Verified Routes: ${latestConfirmation.verifiedRoutes}/${latestConfirmation.totalRoutes}`);
+    console.log(
+      `   Verified Routes: ${latestConfirmation.verifiedRoutes}/${latestConfirmation.totalRoutes}`
+    );
 
     // Send successful response
     res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -660,8 +663,13 @@ function handleConfirmation(req, res, body, server) {
     console.log('   ✅ Confirmation acknowledged');
 
     // Check if we have received all expected confirmations
-    if (proverResults.confirmation.receivedCount >= proverResults.confirmation.expectedCount) {
-      console.log(`\n🎯 All ${proverResults.confirmation.expectedCount} confirmations received!`);
+    if (
+      proverResults.confirmation.receivedCount >=
+      proverResults.confirmation.expectedCount
+    ) {
+      console.log(
+        `\n🎯 All ${proverResults.confirmation.expectedCount} confirmations received!`
+      );
 
       // Mark overall confirmation as received
       proverResults.confirmation.received = true;
@@ -687,15 +695,18 @@ function handleConfirmation(req, res, body, server) {
         process.exit(0);
       });
     } else if (proverResults.confirmation.expectedCount === 0) {
-      // Fallback for backwards compatibility - if expectedCount was never set, 
+      // Fallback for backwards compatibility - if expectedCount was never set,
       // behave like the old version and shutdown after first confirmation
-      console.log(`\n⚠️  Expected count not set - using legacy single confirmation mode`);
+      console.log(
+        `\n⚠️  Expected count not set - using legacy single confirmation mode`
+      );
 
       // Mark overall confirmation as received
       proverResults.confirmation.received = true;
       proverResults.confirmation.timestamp = new Date().toISOString();
       proverResults.confirmation.status = 'completed';
-      proverResults.confirmation.message = 'Verification completed successfully (legacy mode)';
+      proverResults.confirmation.message =
+        'Verification completed successfully (legacy mode)';
 
       // Clean up AES keys from memory for security
       console.log('   🧹 Cleaning up AES keys from memory...');
@@ -715,7 +726,9 @@ function handleConfirmation(req, res, body, server) {
         process.exit(0);
       });
     } else {
-      console.log(`   ⏳ Waiting for ${proverResults.confirmation.expectedCount - proverResults.confirmation.receivedCount} more confirmation(s)...`);
+      console.log(
+        `   ⏳ Waiting for ${proverResults.confirmation.expectedCount - proverResults.confirmation.receivedCount} more confirmation(s)...`
+      );
     }
   } catch (error) {
     console.log(`   ❌ Confirmation handling error: ${error.message}`);
@@ -824,7 +837,7 @@ async function initPairingWithProxy() {
       route1.proofType,
       route1.nonce,
       route1.url
-    )
+    );
 
     const route2 = {
       addr: '0xfcec100d41f4bcc889952e1a73ad6d96783c491f',
@@ -837,10 +850,10 @@ async function initPairingWithProxy() {
       route2.proofType,
       route2.nonce,
       route2.url
-    )
+    );
 
     const route3 = {
-      addr: '0xfcec100d41f4bcc889952e1a73ad6d96783c491f',
+      addr: '0xfcec100d41f4bcc889952e1a73ad6d96783c491a',
       proofType: 'create',
       nonce: 30,
       url: testUrl,
@@ -850,10 +863,10 @@ async function initPairingWithProxy() {
       route3.proofType,
       route3.nonce,
       route3.url
-    )
+    );
 
     const payload = {
-      routes: [route1, route2, route3],
+      routes: [route1, route2],
     };
 
     // Generate and store AES keys for each contract address
@@ -871,7 +884,9 @@ async function initPairingWithProxy() {
 
     // Set expected confirmation count based on number of routes submitted
     proverResults.confirmation.expectedCount = payload.routes.length;
-    console.log(`📊 Expecting ${proverResults.confirmation.expectedCount} confirmations (one per route)`);
+    console.log(
+      `📊 Expecting ${proverResults.confirmation.expectedCount} confirmations (one per route)`
+    );
 
     const payloadJson = JSON.stringify(payload);
     proverResults.payload.originalSize = payloadJson.length;

@@ -118,22 +118,23 @@ describe('Prover Integration Tests', () => {
   });
 
   describe('File Structure and Dependencies', () => {
-    it('should verify prover can access proxy utilities', () => {
+    it('should verify prover can access common utilities', () => {
       if (process.env.SKIP_INTEGRATION_TESTS) {
         return;
       }
 
-      // Test that prover can require proxy modules
-      const proxyModules = [
-        '../../proxy/src/envLoader',
-        '../../proxy/src/cryptoUtils',
-      ];
+      // Test that prover can require common package modules
+      const commonModules = ['@hiero-json-rpc-relay/common'];
 
-      proxyModules.forEach(modulePath => {
+      commonModules.forEach(modulePath => {
         try {
-          // This should not throw if the file exists and is accessible
-          const resolvedPath = require.resolve(modulePath);
-          assert.ok(resolvedPath.includes('proxy'));
+          // This should not throw if the package exists and is accessible
+          const common = require(modulePath);
+          // Verify expected exports exist
+          assert.ok(typeof common.encryptHybridMessage === 'function');
+          assert.ok(typeof common.decryptHybridMessage === 'function');
+          assert.ok(typeof common.loadEnvFile === 'function');
+          assert.ok(typeof common.validateRouteSignatures === 'function');
         } catch (error) {
           assert.fail(
             `Prover should be able to access ${modulePath}: ${error.message}`

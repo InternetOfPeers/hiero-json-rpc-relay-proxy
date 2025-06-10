@@ -1,12 +1,43 @@
 # Hiero JSON-RPC Relay Proxy
 
-A monorepo containing a dynamic JSON-RPC relay proxy that routes Ethereum requests to different backend servers based on contract addresses. The system uses Hedera Consensus Service for secure route registration and includes cryptographic verification of contract ownership. It consists of two main packages: a proxy server that acts as a JSON-RPC relay with dynamic routing, and a prover client that demonstrates secure route registration.
+A monorepo containing a dynamic JSON-RPC relay proxy that routes Ethereum requests to different backend servers based on contract addresses. The system uses Hedera Consensus Service for secure route registration and includes cryptographic verification of contract ownership. It consists of three main packages: a common utilities package, a proxy server that acts as a JSON-RPC relay with dynamic routing, and a prover client that demonstrates secure route registration.
+
+## 📁 Project Structure
+
+```
+hiero-json-rpc-relay-proxy/
+├── packages/
+│   ├── common/                     # 📦 Shared utilities and components
+│   │   ├── src/
+│   │   │   ├── cryptoUtils.js      # RSA+AES encryption, ECDSA signing
+│   │   │   ├── envLoader.js        # Environment variable loading
+│   │   │   ├── hederaUtils.js      # Hedera SDK utilities
+│   │   │   ├── httpUtils.js        # HTTP request/response handling
+│   │   │   ├── validation.js       # Route signature validation
+│   │   │   └── index.js            # Main exports
+│   │   └── test/                   # Unit tests for common utilities
+│   ├── proxy/                      # 🔀 JSON-RPC relay proxy server
+│   │   ├── src/
+│   │   │   ├── proxy.js            # Main proxy server
+│   │   │   ├── hederaManager.js    # Hedera integration
+│   │   │   ├── dbManager.js        # Route database management
+│   │   │   └── ethTxDecoder.js     # Ethereum transaction parsing
+│   │   └── test/                   # Proxy-specific tests
+│   └── prover/                     # 🔐 Route registration client
+│       ├── src/
+│       │   ├── prover.js           # Main prover client
+│       │   └── hederaManager.js    # Hedera integration for prover
+│       └── test/                   # Prover-specific tests
+├── docs/                           # 📚 Documentation
+├── test/                           # 🧪 Integration tests
+└── scripts/                       # 🛠️ Utility scripts
+```
 
 ## 🏗️ Architecture
 
 ### Flow 1: Normal JSON-RPC Routing (Daily Operations)
 
-```txt
+```text
 ┌─────────────────┐     ┌─────────────────────────────────────────────────────────┐     ┌─────────────────┐
 │   Ethereum      │     │              JSON-RPC Relay PROXY                       │     │   JSON-RPC      │
 │   dApps/        │────►│                                                         │────►│   Relay         │
@@ -117,7 +148,7 @@ sequenceDiagram
 
 #### Flow 2: Route Registration Process
 
-1. **Contract Address Generation**: Owner generates deterministic address (deployer + nonce)
+1. **Contract Address Generation**: Owner generates deterministic address using either CREATE (deployer + nonce) or CREATE2 (deployer + salt + init code hash)
 2. **Cryptographic Proof**: Signs route data with ECDSA to prove ownership
 3. **Secure Submission**: Encrypts and submits route data to Hedera Consensus Service
 4. **Message Processing**: Proxy decrypts, verifies signatures, and validates ownership
@@ -137,7 +168,7 @@ The main JSON-RPC relay proxy server that:
 - **Provides fallback routing** to default JSON-RPC relay (e.g., hashio.io) for unregistered addresses
 - **Manages secure route registration** via verified Hedera Consensus Service messages
 - **Handles RSA hybrid encryption** for secure message communication on Hedera topics
-- **Verifies contract ownership** through deterministic address computation and ECDSA signatures
+- **Verifies contract ownership** through deterministic address computation and ECDSA signatures for both CREATE and CREATE2 deployments
 - **Implements challenge-response verification** for URL reachability and endpoint validation
 - **Sends direct HTTP confirmation** to provers upon successful route verification
 - **Provides status and management endpoints** for monitoring and configuration
@@ -157,8 +188,8 @@ A demonstration client that shows the complete route registration flow for JSON-
 
 - **Fetches proxy configuration** and RSA public keys from proxy status endpoints
 - **Creates route registration payloads** mapping contract addresses to JSON-RPC relay endpoints
-- **Generates deterministic contract addresses** using CREATE deployment parameters (deployer + nonce)
-- **Signs route data with ECDSA** for ownership verification (signs `addr+proofType+nonce+url`)
+- **Generates deterministic contract addresses** using CREATE deployment parameters (deployer + nonce) or CREATE2 parameters (deployer + salt + init code hash)
+- **Signs route data with ECDSA** for ownership verification (signs `addr+proofType+nonce+url` for CREATE or `addr+proofType+salt+url` for CREATE2)
 - **Encrypts messages using RSA** hybrid encryption (RSA + AES) for secure Hedera transmission
 - **Submits encrypted route data to Hedera topics** for proxy processing
 - **Starts HTTP challenge server** to respond to proxy verification requests
@@ -167,6 +198,27 @@ A demonstration client that shows the complete route registration flow for JSON-
 - **Saves comprehensive results** to timestamped JSON files and exits automatically
 
 **Purpose**: Demonstrates how contract owners can securely register their preferred JSON-RPC relay endpoints with the proxy, enabling custom routing for their contract interactions.
+
+### [@hiero-json-rpc-relay/common](./packages/common)
+
+A shared utility package providing common functionality used by both proxy and prover packages:
+
+- **Cryptographic utilities** for RSA/AES encryption, decryption, and ECDSA signature verification
+- **Environment variable management** with validation and secure configuration loading
+- **Route signature validation** with comprehensive error reporting and batch validation
+- **HTTP utilities** for request parsing, CORS handling, and server creation helpers
+- **Hedera utilities** for client initialization, ID validation, and timestamp conversion
+- **Validation functions** for contract addresses, configuration, and data integrity checks
+
+**Key Components**:
+
+- **cryptoUtils**: RSA key generation, AES encryption/decryption, signature verification
+- **envLoader**: Environment variable loading with validation and defaults
+- **validation**: Route signature validation and error handling
+- **httpUtils**: HTTP request parsing, CORS, and server utilities
+- **hederaUtils**: Hedera client setup and utility functions
+
+**Benefits**: Centralizes common functionality, reduces code duplication, ensures consistent behavior across packages, and provides comprehensive test coverage for all shared utilities.
 
 ## 🚀 Quick Start
 
@@ -208,6 +260,13 @@ npm install --workspaces
    # Edit .env with your Hedera credentials
    ```
 
+3. **Common Package**: The `@hiero-json-rpc-relay/common` package is automatically installed as a dependency for both proxy and prover packages. It provides shared utilities for:
+   - Cryptographic operations (RSA+AES encryption, ECDSA signing)
+   - HTTP request/response handling
+   - Route signature validation
+   - Environment variable loading
+   - Hedera integration utilities
+
 ### Running the System
 
 1. **Start the Proxy Server**:
@@ -245,6 +304,7 @@ npm install --workspaces
 npm run test:all
 
 # Individual packages
+npm run test:common
 npm run test:proxy
 npm run test:prover
 
@@ -272,6 +332,7 @@ npm run test:coverage --workspace=packages/prover
 | `npm run prover`           | Run the prover client                |
 | `npm run dev`              | Start proxy in development mode      |
 | `npm test`                 | Run all package tests                |
+| `npm run test:common`      | Run common utilities tests only      |
 | `npm run test:proxy`       | Run proxy tests only                 |
 | `npm run test:prover`      | Run prover tests only                |
 | `npm run test:integration` | Run integration tests                |
@@ -350,17 +411,20 @@ The proxy now includes robust security features to ensure only legitimate contra
 
 #### 1. Deterministic Address Computation
 
-- Uses CREATE deployment pattern with `deployer_address + nonce`
-- Computes expected contract addresses using `ethers.getContractAddress()`
-- Verifies that the provided address matches the computed address
+- **CREATE deployment**: Uses `deployer_address + nonce` pattern with `ethers.getCreateAddress()`
+- **CREATE2 deployment**: Uses `deployer_address + salt + init_code_hash` pattern with `ethers.getCreate2Address()`
+- Computes expected contract addresses and verifies they match the provided address
 
 #### 2. ECDSA Signature Verification
 
 - Route registrations must be signed by the contract deployer
-- Signature covers: `addr + proofType + nonce + url`
+- **CREATE signature**: Covers `addr + proofType + nonce + url`
+- **CREATE2 signature**: Covers `addr + proofType + salt + url`
 - Uses `ethers.verifyMessage()` for signature recovery and validation
 
-#### 3. New Payload Format
+#### 3. Enhanced Payload Format
+
+The proxy supports both CREATE and CREATE2 deployment proofs:
 
 ```json
 {
@@ -371,6 +435,14 @@ The proxy now includes robust security features to ensure only legitimate contra
       "nonce": 33,
       "url": "http://localhost:7546",
       "sig": "0x1234567890abcdef..."
+    },
+    {
+      "addr": "0x8ba1f109551bd432803012645hac136c5edf4aef",
+      "proofType": "create2",
+      "salt": "0x0000000000000000000000000000000000000000000000000000000000000001",
+      "initCodeHash": "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+      "url": "http://localhost:7546",
+      "sig": "0x9876543210fedcba..."
     }
   ]
 }
@@ -378,8 +450,9 @@ The proxy now includes robust security features to ensure only legitimate contra
 
 #### 4. Supported Proof Types
 
-- **CREATE**: Standard contract deployment (implemented)
-- **CREATE2**: Deterministic deployment (planned - see TODO.md)
+- **CREATE**: Standard contract deployment using deployer address and nonce
+- **CREATE2**: Deterministic deployment using deployer address, salt, and init code hash
+- Both proof types ensure cryptographic verification of contract ownership
 
 ### Network Security
 

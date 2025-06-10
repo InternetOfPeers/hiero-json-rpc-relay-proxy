@@ -11,7 +11,7 @@ const {
   encryptAES,
   decryptAES,
   generateAESKey,
-} = require('../src/cryptoUtils');
+} = require('@hiero-json-rpc-relay/common');
 const { ethers } = require('ethers');
 
 describe('AES Challenge Handling', function () {

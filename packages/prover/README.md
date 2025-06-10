@@ -20,6 +20,15 @@ npm install
 npm install --workspace=packages/prover
 ```
 
+## Dependencies
+
+This package depends on the shared `@hiero-json-rpc-relay/common` package for cryptographic utilities, environment management, and validation functions. The common package provides:
+
+- RSA encryption and ECDSA signature verification
+- Environment variable loading with validation
+- Route signature validation for ensuring data integrity
+- Hedera client initialization and utility functions
+
 ## Configuration
 
 Create a `.env` file in the prover package directory:
@@ -100,7 +109,9 @@ The prover uses direct confirmation from the proxy:
 
 ### Payload Format
 
-The prover now uses a new array-based routes format with contract ownership verification:
+The prover now uses a new array-based routes format with contract ownership verification for both CREATE and CREATE2 deployments:
+
+**CREATE deployment example:**
 
 ```json
 {
@@ -116,13 +127,37 @@ The prover now uses a new array-based routes format with contract ownership veri
 }
 ```
 
-Where:
+**CREATE2 deployment example:**
+
+```json
+{
+  "routes": [
+    {
+      "addr": "0x8ba1f109551bd432803012645hac136c5edf4aef",
+      "proofType": "create2",
+      "salt": "0x0000000000000000000000000000000000000000000000000000000000000001",
+      "initCodeHash": "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+      "url": "http://localhost:7546",
+      "sig": "0x9876543210fedcba..."
+    }
+  ]
+}
+```
+
+**Field descriptions:**
 
 - `addr`: Contract address that should route to the URL
 - `proofType`: Type of contract deployment proof (`create` or `create2`)
-- `nonce`: Deployment nonce used for deterministic address computation
+- `nonce`: Deployment nonce used for CREATE address computation
+- `salt`: 32-byte salt used for CREATE2 address computation
+- `initCodeHash`: 32-byte hash of the init code used for CREATE2 address computation
 - `url`: JSON-RPC endpoint URL for this address
-- `sig`: ECDSA signature of `addr+proofType+nonce+url`
+- `sig`: ECDSA signature of concatenated fields (see below)
+
+**Signature format:**
+
+- **CREATE**: Signs `addr+proofType+nonce+url`
+- **CREATE2**: Signs `addr+proofType+salt+url`
 
 The signature verification ensures that only the deployer of the contract at `addr` can register routes for it.
 

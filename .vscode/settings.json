@@ -1,6 +1,15 @@
 {
     "cSpell.words": [
+        "cryptoutils",
+        "envloader",
         "hashgraph",
-        "hashio"
+        "hashio",
+        "hedera",
+        "hederautils",
+        "hiero",
+        "httputils",
+        "monorepo",
+        "prover",
+        "workspaces"
     ]
 }
