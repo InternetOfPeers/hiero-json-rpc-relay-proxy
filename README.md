@@ -387,6 +387,46 @@ The proxy now includes robust security features to ensure only legitimate contra
 - Implement proper firewall rules
 - Monitor Hedera topic access patterns
 
+## 📦 Chunked Message Handling
+
+### Large Message Support
+
+When the prover sends messages larger than 1024 KB to Hedera, the messages are automatically split into multiple chunks. The proxy now supports seamless handling of these chunked messages:
+
+#### Key Features
+
+- **✅ Automatic Detection**: Identifies chunked messages using `chunk_info` field
+- **✅ Order Independence**: Assembles chunks correctly regardless of arrival order
+- **✅ Group Management**: Uses `transaction_valid_start` to group related chunks
+- **✅ Error Handling**: Validates chunk totals and handles mismatched chunks
+- **✅ Automatic Cleanup**: Expires old chunk groups to prevent memory leaks
+- **✅ Backward Compatibility**: Works seamlessly with existing message processing
+
+#### How It Works
+
+1. **Detection**: Proxy detects chunked messages by checking for `chunk_info` field
+2. **Grouping**: Messages are grouped by `transaction_valid_start` timestamp
+3. **Assembly**: When all chunks are received, they are combined in correct order
+4. **Processing**: Combined message is processed normally (decryption, verification, etc.)
+
+#### Example Chunk Structure
+
+```json
+{
+  "chunk_info": {
+    "initial_transaction_id": {
+      "transaction_valid_start": "1749506740.674505590"
+    },
+    "number": 1,
+    "total": 2
+  },
+  "message": "base64-encoded-chunk-content",
+  "sequence_number": 2
+}
+```
+
+For detailed implementation information, see [docs/chunked-messages.md](./docs/chunked-messages.md).
+
 ## 🐛 Troubleshooting
 
 ### Common Issues

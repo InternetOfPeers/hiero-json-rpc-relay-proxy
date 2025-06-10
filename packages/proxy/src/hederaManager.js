@@ -43,6 +43,8 @@ class HederaManager {
     this.getRSAKeyPair = config.getRSAKeyPair;
     // AES key storage for prover sessions
     this.proverAESKeys = new Map(); // contractAddress -> {aesKey, timestamp}
+    // Chunked message storage
+    this.pendingChunks = new Map(); // transaction_valid_start -> {chunks: Map(number -> message), total: number, timestamp: number}
   }
 
   // Initialize Hedera client
@@ -507,104 +509,50 @@ class HederaManager {
                 `\n🆕 Found ${newMessages.length} new message(s) in topic ${this.currentTopicId}:`
               );
 
+              // Clean up old pending chunks before processing new messages
+              this.cleanupOldChunks();
+
+              // Array to collect complete messages (either regular or combined from chunks)
+              const completeMessages = [];
+
               for (const message of newMessages) {
                 const timestamp = new Date(
                   message.consensus_timestamp * 1000
                 ).toISOString();
-                const content = Buffer.from(message.message, 'base64').toString(
-                  'utf8'
-                );
 
                 console.log(
                   `   📝 Message #${message.sequence_number} (${timestamp}):`
                 );
 
-                console.log(
-                  '      🔐 Encrypted message detected, attempting decryption...'
-                );
-
-                // Get RSA private key for decryption
-                const keyPair = this.getRSAKeyPair
-                  ? this.getRSAKeyPair()
-                  : null;
-                if (keyPair && keyPair.privateKey) {
-                  const decryptionResult = decryptHybridMessageWithKey(
-                    message.message,
-                    keyPair.privateKey
+                // Check if this is a chunked message
+                if (this.isChunkedMessage(message)) {
+                  console.log(
+                    `      📦 Chunked message detected (chunk ${message.chunk_info.number}/${message.chunk_info.total})`
                   );
 
-                  if (decryptionResult.success) {
-                    console.log('      ✅ Message decrypted successfully!');
-                    console.log(
-                      `      📄 Decrypted Content: ${decryptionResult.decryptedData}`
-                    );
-                    console.log(
-                      `      📊 Compression: ${decryptionResult.originalLength} → ${decryptionResult.decryptedData.length} bytes`
-                    );
+                  // Add chunk and check if we have all chunks
+                  const completeMessage = this.addChunk(message);
 
-                    // Store AES key for this session (extracted from hybrid decryption)
-                    if (decryptionResult.aesKey) {
-                      console.log(
-                        '      🔑 AES key extracted and stored for secure communication'
-                      );
-                      // Parse message to get contract addresses for AES key mapping
-                      try {
-                        const messageData = JSON.parse(
-                          decryptionResult.decryptedData
-                        );
-                        if (
-                          messageData.routes &&
-                          Array.isArray(messageData.routes)
-                        ) {
-                          // Store AES key for each contract address in this message
-                          for (const route of messageData.routes) {
-                            if (route.addr) {
-                              this.proverAESKeys.set(route.addr.toLowerCase(), {
-                                aesKey: decryptionResult.aesKey,
-                                timestamp: Date.now(),
-                                url: route.url,
-                                sequenceNumber: message.sequence_number,
-                              });
-                              console.log(
-                                `         Stored AES key for contract: ${route.addr}`
-                              );
-                            }
-                          }
-                        }
-                      } catch (parseError) {
-                        console.log(
-                          '      ⚠️  Could not parse message data for AES key storage'
-                        );
-                      }
-                    }
-
-                    // Verify ECDSA signatures if message contains routes
-                    await this.verifyMessageSignatures(
-                      decryptionResult.decryptedData
-                    );
+                  if (completeMessage) {
+                    // All chunks received, add to complete messages for processing
+                    completeMessages.push(completeMessage);
                   } else {
+                    // Still waiting for more chunks, skip processing for now
                     console.log(
-                      '      ❌ Decryption failed:',
-                      decryptionResult.error
+                      `      ⏳ Waiting for remaining chunks...`
                     );
-                    console.log(
-                      `      📄 Raw Content: ${content.substring(0, 200)}${
-                        content.length > 200 ? '...' : ''
-                      }`
-                    );
+                    continue;
                   }
                 } else {
-                  console.log(
-                    '      ⚠️  No RSA private key available for decryption'
-                  );
-                  console.log(
-                    `      📄 Raw Content: ${content.substring(0, 200)}${
-                      content.length > 200 ? '...' : ''
-                    }`
-                  );
+                  // Regular non-chunked message
+                  console.log('      📄 Regular message (not chunked)');
+                  completeMessages.push(message);
                 }
+              }
 
-                console.log(`      💳 Payer: ${message.payer_account_id}`);
+              // Process all complete messages
+              for (const message of completeMessages) {
+                await this.processCompleteMessage(message);
               }
 
               // Update last sequence number
@@ -847,8 +795,7 @@ class HederaManager {
             }
           } catch (error) {
             console.log(
-              `      ❌ Failed to verify signature for ${
-                route.addr
+              `      ❌ Failed to verify signature for ${route.addr
               } (${route.proofType}, nonce ${route.nonce}): ${error.message}`
             );
           }
@@ -858,8 +805,7 @@ class HederaManager {
       if (totalSignatures > 0) {
         const success = validSignatures === totalSignatures;
         console.log(
-          `      🎯 Signature and ownership verification: ${validSignatures}/${totalSignatures} routes valid ${
-            success ? '✅' : '❌'
+          `      🎯 Signature and ownership verification: ${validSignatures}/${totalSignatures} routes valid ${success ? '✅' : '❌'
           }`
         );
 
@@ -1408,6 +1354,221 @@ class HederaManager {
     const encrypted = JSON.parse(encryptedData);
     const decrypted = decryptAES(encrypted, aesKey);
     return JSON.parse(decrypted);
+  }
+
+  /**
+   * Process a complete message (either regular or assembled from chunks)
+   * @param {object} message - The complete message to process
+   */
+  async processCompleteMessage(message) {
+    const timestamp = new Date(
+      message.consensus_timestamp * 1000
+    ).toISOString();
+    const content = Buffer.from(message.message, 'base64').toString('utf8');
+
+    console.log(
+      `      🔐 Processing complete message #${message.sequence_number} (${timestamp})`
+    );
+    console.log('      🔐 Encrypted message detected, attempting decryption...');
+
+    // Get RSA private key for decryption
+    const keyPair = this.getRSAKeyPair ? this.getRSAKeyPair() : null;
+
+    if (keyPair && keyPair.privateKey) {
+      const decryptionResult = decryptHybridMessageWithKey(
+        message.message,
+        keyPair.privateKey
+      );
+
+      if (decryptionResult.success) {
+        console.log('      ✅ Message decrypted successfully!');
+        console.log(
+          `      📄 Decrypted Content: ${decryptionResult.decryptedData}`
+        );
+        console.log(
+          `      📊 Compression: ${decryptionResult.originalLength} → ${decryptionResult.decryptedData.length} bytes`
+        );
+
+        // Store AES key for this session (extracted from hybrid decryption)
+        if (decryptionResult.aesKey) {
+          console.log(
+            '      🔑 AES key extracted and stored for secure communication'
+          );
+          // Parse message to get contract addresses for AES key mapping
+          try {
+            const messageData = JSON.parse(decryptionResult.decryptedData);
+            if (messageData.routes && Array.isArray(messageData.routes)) {
+              // Store AES key for each contract address in this message
+              for (const route of messageData.routes) {
+                if (route.addr) {
+                  this.proverAESKeys.set(route.addr.toLowerCase(), {
+                    aesKey: decryptionResult.aesKey,
+                    timestamp: Date.now(),
+                    url: route.url,
+                    sequenceNumber: message.sequence_number,
+                  });
+                  console.log(
+                    `         Stored AES key for contract: ${route.addr}`
+                  );
+                }
+              }
+            }
+          } catch (parseError) {
+            console.log(
+              '      ⚠️  Could not parse message data for AES key storage'
+            );
+          }
+        }
+
+        // Verify ECDSA signatures if message contains routes
+        await this.verifyMessageSignatures(decryptionResult.decryptedData);
+      } else {
+        console.log('      ❌ Decryption failed:', decryptionResult.error);
+        console.log(
+          `      📄 Raw Content: ${content.substring(0, 200)}${content.length > 200 ? '...' : ''
+          }`
+        );
+      }
+    } else {
+      console.log('      ⚠️  No RSA private key available for decryption');
+      console.log(
+        `      📄 Raw Content: ${content.substring(0, 200)}${content.length > 200 ? '...' : ''
+        }`
+      );
+    }
+
+    console.log(`      💳 Payer: ${message.payer_account_id}`);
+  }
+
+  /**
+   * Check if a message is chunked by looking for chunk_info
+   * @param {object} message - The message object from Hedera
+   * @returns {boolean} True if message is chunked
+   */
+  isChunkedMessage(message) {
+    return !!(message.chunk_info &&
+      message.chunk_info.initial_transaction_id &&
+      message.chunk_info.initial_transaction_id.transaction_valid_start &&
+      typeof message.chunk_info.number === 'number' &&
+      typeof message.chunk_info.total === 'number');
+  }
+
+  /**
+   * Get the chunk group key for identifying related chunks
+   * @param {object} message - The message object from Hedera
+   * @returns {string} The chunk group key based on transaction_valid_start
+   */
+  getChunkGroupKey(message) {
+    return message.chunk_info.initial_transaction_id.transaction_valid_start;
+  }
+
+  /**
+   * Add a chunk to the pending chunks collection
+   * @param {object} message - The chunked message from Hedera
+   * @returns {object|null} Complete message if all chunks received, null otherwise
+   */
+  addChunk(message) {
+    const groupKey = this.getChunkGroupKey(message);
+    const chunkNumber = message.chunk_info.number;
+    const totalChunks = message.chunk_info.total;
+
+    console.log(`      📦 Processing chunk ${chunkNumber}/${totalChunks} for group ${groupKey}`);
+
+    // Initialize chunk group if it doesn't exist
+    if (!this.pendingChunks.has(groupKey)) {
+      this.pendingChunks.set(groupKey, {
+        chunks: new Map(),
+        total: totalChunks,
+        timestamp: Date.now()
+      });
+    }
+
+    const chunkGroup = this.pendingChunks.get(groupKey);
+
+    // Validate total chunks consistency
+    if (chunkGroup.total !== totalChunks) {
+      console.log(`      ⚠️  Chunk total mismatch for group ${groupKey}: expected ${chunkGroup.total}, got ${totalChunks}`);
+      return null;
+    }
+
+    // Add chunk to the group
+    chunkGroup.chunks.set(chunkNumber, message);
+
+    console.log(`      📊 Chunk group ${groupKey} now has ${chunkGroup.chunks.size}/${totalChunks} chunks`);
+
+    // Check if we have all chunks
+    if (chunkGroup.chunks.size === totalChunks) {
+      console.log(`      ✅ All chunks received for group ${groupKey}, assembling complete message`);
+
+      // Sort chunks by number and combine messages
+      const sortedChunks = Array.from(chunkGroup.chunks.entries())
+        .sort(([a], [b]) => a - b)
+        .map(([_, chunk]) => chunk);
+
+      // Combine the message content from all chunks
+      const combinedMessage = this.combineChunkedMessages(sortedChunks);
+
+      // Clean up the chunk group
+      this.pendingChunks.delete(groupKey);
+
+      return combinedMessage;
+    }
+
+    return null; // Not all chunks received yet
+  }
+
+  /**
+   * Combine multiple chunked messages into a single message
+   * @param {object[]} chunks - Array of chunk messages sorted by chunk number
+   * @returns {object} Combined message object
+   */
+  combineChunkedMessages(chunks) {
+    if (!chunks || chunks.length === 0) {
+      throw new Error('No chunks provided for combining');
+    }
+
+    // Use the first chunk as the base message structure
+    const baseMessage = { ...chunks[0] };
+
+    // Combine all message content
+    let combinedContent = '';
+    for (const chunk of chunks) {
+      const chunkContent = Buffer.from(chunk.message, 'base64').toString('utf8');
+      combinedContent += chunkContent;
+    }
+
+    // Encode the combined content back to base64
+    baseMessage.message = Buffer.from(combinedContent, 'utf8').toString('base64');
+
+    // Remove chunk_info from the combined message since it's no longer chunked
+    delete baseMessage.chunk_info;
+
+    // Use the latest consensus timestamp and highest sequence number
+    const latestChunk = chunks[chunks.length - 1];
+    baseMessage.consensus_timestamp = latestChunk.consensus_timestamp;
+    baseMessage.sequence_number = latestChunk.sequence_number;
+
+    console.log(`      🔗 Combined ${chunks.length} chunks into single message (sequence: ${baseMessage.sequence_number})`);
+
+    return baseMessage;
+  }
+
+  /**
+   * Clean up old pending chunks that have been waiting too long
+   * @param {number} maxAgeMs - Maximum age in milliseconds (default: 5 minutes)
+   */
+  cleanupOldChunks(maxAgeMs = 5 * 60 * 1000) {
+    const now = Date.now();
+    const keysToDelete = [];
+
+    for (const [groupKey, chunkGroup] of this.pendingChunks) {
+      if (now - chunkGroup.timestamp > maxAgeMs) {
+        console.log(`      🧹 Cleaning up expired chunk group ${groupKey} (${chunkGroup.chunks.size}/${chunkGroup.total} chunks)`);
+        keysToDelete.push(groupKey);
+      }
+    }
+
+    keysToDelete.forEach(key => this.pendingChunks.delete(key));
   }
 }
 

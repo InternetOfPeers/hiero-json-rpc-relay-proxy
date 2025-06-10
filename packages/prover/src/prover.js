@@ -57,6 +57,9 @@ let proverResults = {
     timestamp: null,
     status: null,
     message: null,
+    expectedCount: 0,
+    receivedCount: 0,
+    confirmations: [],
   },
   errors: [],
 };
@@ -600,17 +603,23 @@ function handleConfirmation(req, res, body, server) {
     }
 
     // Track confirmation received
-    proverResults.confirmation.received = true;
-    proverResults.confirmation.timestamp = new Date().toISOString();
-    proverResults.confirmation.status = confirmation.status || 'completed';
-    proverResults.confirmation.message =
-      confirmation.message || 'Verification completed successfully';
+    proverResults.confirmation.receivedCount++;
+    proverResults.confirmation.confirmations.push({
+      timestamp: new Date().toISOString(),
+      status: confirmation.status || 'completed',
+      message: confirmation.message || 'Verification completed successfully',
+      addr: confirmation.addr || 'unknown',
+      verifiedRoutes: confirmation.verifiedRoutes || 0,
+      totalRoutes: confirmation.totalRoutes || 0,
+    });
 
-    console.log(`   Status: ${proverResults.confirmation.status}`);
-    console.log(`   Message: ${proverResults.confirmation.message}`);
-    console.log(
-      `   Verified Routes: ${confirmation.verifiedRoutes || 0}/${confirmation.totalRoutes || 0}`
-    );
+    const latestConfirmation = proverResults.confirmation.confirmations[proverResults.confirmation.confirmations.length - 1];
+
+    console.log(`   📨 Confirmation ${proverResults.confirmation.receivedCount}/${proverResults.confirmation.expectedCount} received`);
+    console.log(`   Contract: ${latestConfirmation.addr}`);
+    console.log(`   Status: ${latestConfirmation.status}`);
+    console.log(`   Message: ${latestConfirmation.message}`);
+    console.log(`   Verified Routes: ${latestConfirmation.verifiedRoutes}/${latestConfirmation.totalRoutes}`);
 
     // Send successful response
     res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -624,30 +633,77 @@ function handleConfirmation(req, res, body, server) {
 
     console.log('   ✅ Confirmation acknowledged');
 
-    // Clean up AES keys from memory for security
-    console.log('   🧹 Cleaning up AES keys from memory...');
-    const keyCount = proverAESKeys.size;
-    proverAESKeys.clear();
-    console.log(`   🗑️  Removed ${keyCount} AES keys from memory`);
+    // Check if we have received all expected confirmations
+    if (proverResults.confirmation.receivedCount >= proverResults.confirmation.expectedCount) {
+      console.log(`\n🎯 All ${proverResults.confirmation.expectedCount} confirmations received!`);
 
-    // Save results and shutdown
-    console.log('\n✅ Verification flow completed successfully!');
-    server.close(() => {
-      console.log('🛑 Challenge server stopped');
-      saveResults(
-        'completed',
-        'Verification flow completed with confirmation from proxy'
-      );
-      console.log('🎯 Prover session completed successfully');
-      process.exit(0);
-    });
+      // Mark overall confirmation as received
+      proverResults.confirmation.received = true;
+      proverResults.confirmation.timestamp = new Date().toISOString();
+      proverResults.confirmation.status = 'completed';
+      proverResults.confirmation.message = `All ${proverResults.confirmation.expectedCount} routes verified successfully`;
+
+      // Clean up AES keys from memory for security
+      console.log('   🧹 Cleaning up AES keys from memory...');
+      const keyCount = proverAESKeys.size;
+      proverAESKeys.clear();
+      console.log(`   🗑️  Removed ${keyCount} AES keys from memory`);
+
+      // Save results and shutdown
+      console.log('\n✅ Verification flow completed successfully!');
+      server.close(() => {
+        console.log('🛑 Challenge server stopped');
+        saveResults(
+          'completed',
+          'Verification flow completed with confirmation from proxy'
+        );
+        console.log('🎯 Prover session completed successfully');
+        process.exit(0);
+      });
+    } else if (proverResults.confirmation.expectedCount === 0) {
+      // Fallback for backwards compatibility - if expectedCount was never set, 
+      // behave like the old version and shutdown after first confirmation
+      console.log(`\n⚠️  Expected count not set - using legacy single confirmation mode`);
+
+      // Mark overall confirmation as received
+      proverResults.confirmation.received = true;
+      proverResults.confirmation.timestamp = new Date().toISOString();
+      proverResults.confirmation.status = 'completed';
+      proverResults.confirmation.message = 'Verification completed successfully (legacy mode)';
+
+      // Clean up AES keys from memory for security
+      console.log('   🧹 Cleaning up AES keys from memory...');
+      const keyCount = proverAESKeys.size;
+      proverAESKeys.clear();
+      console.log(`   🗑️  Removed ${keyCount} AES keys from memory`);
+
+      // Save results and shutdown
+      console.log('\n✅ Verification flow completed successfully!');
+      server.close(() => {
+        console.log('🛑 Challenge server stopped');
+        saveResults(
+          'completed',
+          'Verification flow completed with confirmation from proxy'
+        );
+        console.log('🎯 Prover session completed successfully');
+        process.exit(0);
+      });
+    } else {
+      console.log(`   ⏳ Waiting for ${proverResults.confirmation.expectedCount - proverResults.confirmation.receivedCount} more confirmation(s)...`);
+    }
   } catch (error) {
     console.log(`   ❌ Confirmation handling error: ${error.message}`);
 
     // Track confirmation error
-    proverResults.confirmation.received = false;
-    proverResults.confirmation.status = 'error';
-    proverResults.confirmation.message = error.message;
+    proverResults.confirmation.confirmations.push({
+      timestamp: new Date().toISOString(),
+      status: 'error',
+      message: error.message,
+      addr: 'unknown',
+      verifiedRoutes: 0,
+      totalRoutes: 0,
+    });
+
     proverResults.errors.push({
       type: 'confirmation_error',
       message: error.message,
@@ -739,9 +795,28 @@ async function initPairingWithProxy() {
     };
 
     const route2 = {
-      addr: '0x4f1a953df9df8d1c6073ce57f7493e50515fa73f',
+      addr: '0xfcec100d41f4bcc889952e1a73ad6d96783c491f',
       proofType: 'create',
-      nonce: 60,
+      nonce: 30,
+      url: testUrl,
+    };
+
+    const route3 = {
+      addr: '0xfcec100d41f4bcc889952e1a73ad6d96783c491f',
+      proofType: 'create',
+      nonce: 30,
+      url: testUrl,
+    };
+    const route4 = {
+      addr: '0xfcec100d41f4bcc889952e1a73ad6d96783c491f',
+      proofType: 'create',
+      nonce: 30,
+      url: testUrl,
+    };
+    const route5 = {
+      addr: '0xfcec100d41f4bcc889952e1a73ad6d96783c491f',
+      proofType: 'create',
+      nonce: 30,
       url: testUrl,
     };
 
@@ -760,7 +835,7 @@ async function initPairingWithProxy() {
     );
 
     const payload = {
-      routes: [route1],
+      routes: [route1, route2, route3, route4, route5],
     };
 
     // Generate and store AES keys for each contract address
@@ -784,6 +859,10 @@ async function initPairingWithProxy() {
         signaturePrefix: route1.sig.slice(0, 20) + '...',
       },
     ];
+
+    // Set expected confirmation count based on number of routes submitted
+    proverResults.confirmation.expectedCount = payload.routes.length;
+    console.log(`📊 Expecting ${proverResults.confirmation.expectedCount} confirmations (one per route)`);
 
     console.log('🔑 Signed route data with ethers.js ECDSA...');
     console.log(
