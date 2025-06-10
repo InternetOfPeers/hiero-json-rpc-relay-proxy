@@ -32,7 +32,10 @@ The main proxy server that:
 - Listens to Hedera topics for routing updates
 - **Verifies contract ownership through deterministic address computation**
 - **Validates ECDSA signatures for route registration**
+- **Implements challenge-response mechanism for URL verification**
 - Provides status and configuration endpoints
+
+**Note**: Route updates can only be done through verified Hedera messages with challenge-response verification. Manual route updates via HTTP endpoints have been removed for security.
 
 ### [@hiero-json-rpc-relay/prover](./packages/prover)
 
@@ -42,6 +45,7 @@ A demonstration client that:
 - Creates and signs routing payloads with contract ownership proof
 - **Generates deterministic contract addresses using CREATE deployment**
 - **Signs route data with ECDSA for ownership verification**
+- **Responds to proxy challenges for URL reachability verification**
 - Encrypts messages using RSA
 - Submits encrypted data to Hedera topics
 
@@ -224,16 +228,19 @@ hiero-json-rpc-relay-proxy/
 The proxy now includes robust security features to ensure only legitimate contract owners can register routing endpoints:
 
 #### 1. Deterministic Address Computation
+
 - Uses CREATE deployment pattern with `deployer_address + nonce`
 - Computes expected contract addresses using `ethers.getContractAddress()`
 - Verifies that the provided address matches the computed address
 
 #### 2. ECDSA Signature Verification
+
 - Route registrations must be signed by the contract deployer
 - Signature covers: `addr + proofType + nonce + url`
 - Uses `ethers.verifyMessage()` for signature recovery and validation
 
 #### 3. New Payload Format
+
 ```json
 {
   "routes": [
@@ -249,6 +256,7 @@ The proxy now includes robust security features to ensure only legitimate contra
 ```
 
 #### 4. Supported Proof Types
+
 - **CREATE**: Standard contract deployment (implemented)
 - **CREATE2**: Deterministic deployment (planned - see TODO.md)
 

@@ -207,13 +207,128 @@ function getContractAddressFromCreate(deployerAddress, nonce) {
     // In ethers v6, it's ethers.getCreateAddress, not ethers.getContractAddress
     const contractAddress = ethers.getCreateAddress({
       from: cleanAddress,
-      nonce: nonce
+      nonce: nonce,
     });
 
     return contractAddress.toLowerCase();
   } catch (error) {
     console.error('Error computing contract address:', error.message);
     return null;
+  }
+}
+
+/**
+ * Generate a challenge for URL reachability verification
+ * @param {string} privateKeyPem - RSA private key for signing the challenge
+ * @param {string} targetUrl - URL being challenged
+ * @param {string} contractAddress - Contract address for this challenge
+ * @returns {object} Challenge object with challenge data and signature
+ */
+function generateChallenge(privateKeyPem, targetUrl, contractAddress) {
+  try {
+    // Generate a random challenge ID and timestamp
+    const challengeId = crypto.randomBytes(32).toString('hex');
+    const timestamp = Date.now();
+
+    // Create challenge data
+    const challengeData = {
+      challengeId,
+      timestamp,
+      url: targetUrl,
+      contractAddress: contractAddress.toLowerCase(),
+      action: 'url-verification',
+    };
+
+    // Sign the challenge with RSA private key
+    const challengeString = JSON.stringify(challengeData);
+    const signer = crypto.createSign('sha256');
+    signer.update(challengeString);
+    const signature = signer.sign(privateKeyPem, 'base64');
+
+    return {
+      challenge: challengeData,
+      signature: signature,
+    };
+  } catch (error) {
+    throw new Error(`Challenge generation failed: ${error.message}`);
+  }
+}
+
+/**
+ * Verify a challenge signature using RSA public key
+ * @param {object} challengeData - Challenge data object
+ * @param {string} signature - Base64 encoded RSA signature
+ * @param {string} publicKeyPem - RSA public key for verification
+ * @returns {boolean} True if challenge signature is valid
+ */
+function verifyChallenge(challengeData, signature, publicKeyPem) {
+  try {
+    const challengeString = JSON.stringify(challengeData);
+
+    const verifier = crypto.createVerify('sha256');
+    verifier.update(challengeString);
+
+    return verifier.verify(publicKeyPem, signature, 'base64');
+  } catch (error) {
+    console.error('Error verifying challenge:', error.message);
+    return false;
+  }
+}
+
+/**
+ * Sign a challenge response using ECDSA
+ * @param {object} challengeData - Original challenge data
+ * @param {string} ecdsaPrivateKey - ECDSA private key (hex string)
+ * @returns {string} ECDSA signature of the challenge
+ */
+function signChallengeResponse(challengeData, ecdsaPrivateKey) {
+  try {
+    const { ethers } = require('ethers');
+
+    // Create wallet from private key
+    const wallet = new ethers.Wallet(ecdsaPrivateKey);
+
+    // Sign the stringified challenge data
+    const challengeString = JSON.stringify(challengeData);
+    const signature = wallet.signMessageSync(challengeString);
+
+    return signature;
+  } catch (error) {
+    throw new Error(`Challenge response signing failed: ${error.message}`);
+  }
+}
+
+/**
+ * Verify a challenge response signature
+ * @param {object} challengeData - Original challenge data
+ * @param {string} signature - ECDSA signature from prover
+ * @param {string} expectedAddress - Expected Ethereum address
+ * @returns {boolean} True if signature is valid and from expected address
+ */
+function verifyChallengeResponse(challengeData, signature, expectedAddress) {
+  try {
+    const { ethers } = require('ethers');
+
+    const challengeString = JSON.stringify(challengeData);
+    const recoveredAddress = ethers.verifyMessage(challengeString, signature);
+
+    const cleanExpected = expectedAddress.toLowerCase().startsWith('0x')
+      ? expectedAddress.toLowerCase()
+      : `0x${expectedAddress.toLowerCase()}`;
+    const cleanRecovered = recoveredAddress.toLowerCase();
+
+    console.log('🔐 Challenge response verification:');
+    console.log(
+      `   Challenge: ${challengeData.challengeId?.substring(0, 16)}...`
+    );
+    console.log(`   Expected: ${cleanExpected}`);
+    console.log(`   Recovered: ${cleanRecovered}`);
+    console.log(`   Valid: ${cleanRecovered === cleanExpected}`);
+
+    return cleanRecovered === cleanExpected;
+  } catch (error) {
+    console.error('Error verifying challenge response:', error.message);
+    return false;
   }
 }
 
@@ -226,4 +341,8 @@ module.exports = {
   isEncryptedMessage,
   verifyECDSASignature,
   getContractAddressFromCreate,
+  generateChallenge,
+  verifyChallenge,
+  signChallengeResponse,
+  verifyChallengeResponse,
 };

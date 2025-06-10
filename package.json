@@ -8,7 +8,6 @@
   ],
   "scripts": {
     "clean": "node scripts/clean.js",
-    "clean:old": "node scripts/clean-db.js",
     "clean:all": "npm run clean && rm -rf node_modules packages/*/node_modules",
     "start": "npm run start --workspace=packages/proxy",
     "start:proxy": "npm run start --workspace=packages/proxy",

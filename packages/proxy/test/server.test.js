@@ -10,16 +10,16 @@ const mockHederaManager = {
   getTopicId: () => '0.0.12345',
   getTopicInfo: () => ({ topicId: '0.0.12345', network: 'testnet' }),
   startMessageListener: () => 'mock-interval-id',
-  stopMessageListener: () => {},
+  stopMessageListener: () => { },
 };
 
 const mockDbManager = {
-  initDatabase: async () => {},
-  saveDatabase: async () => {},
+  initDatabase: async () => { },
+  saveDatabase: async () => { },
   getTargetServer: () => 'https://testnet.hashio.io/api',
   getRoutingDB: () => ({ '0x1234': 'https://testnet.hashio.io/api' }),
-  updateRoutes: async () => {},
-  initRSAKeyPair: async () => {},
+  updateRoutes: async () => { },
+  initRSAKeyPair: async () => { },
   getRSAKeyPair: () => ({
     publicKey: 'mock-public-key',
     privateKey: 'mock-private-key',
@@ -27,7 +27,7 @@ const mockDbManager = {
   }),
   hasRSAKeyPair: () => true,
   getLastProcessedSequence: () => 0,
-  storeLastProcessedSequence: async () => {},
+  storeLastProcessedSequence: async () => { },
 };
 
 // Mock the required modules
@@ -183,137 +183,6 @@ describe('server functions', function () {
           done(error);
         });
 
-        req.end();
-      });
-    });
-
-    test('should handle POST /routes request with valid JSON', function (done) {
-      const testServer = http.createServer(async (req, res) => {
-        if (req.url === '/routes' && req.method === 'POST') {
-          let body = '';
-          req.on('data', chunk => {
-            body += chunk.toString();
-          });
-          req.on('end', () => {
-            try {
-              const jsonData = JSON.parse(body);
-              res.writeHead(200, { 'Content-Type': 'application/json' });
-              res.end(
-                JSON.stringify({
-                  message: 'Routes updated',
-                  routes: jsonData,
-                })
-              );
-            } catch (error) {
-              res.writeHead(400, { 'Content-Type': 'application/json' });
-              res.end(JSON.stringify({ error: 'Invalid JSON payload' }));
-            }
-          });
-        } else {
-          res.writeHead(404);
-          res.end();
-        }
-      });
-
-      testServers.push(testServer); // Track server for cleanup
-
-      testServer.listen(getCurrentTestPort(), () => {
-        const postData = JSON.stringify({
-          '0x5678': 'https://mainnet.hashio.io/api',
-        });
-
-        const options = {
-          hostname: 'localhost',
-          port: getCurrentTestPort(),
-          path: '/routes',
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Content-Length': Buffer.byteLength(postData),
-          },
-        };
-
-        const req = http.request(options, res => {
-          let data = '';
-          res.on('data', chunk => {
-            data += chunk;
-          });
-          res.on('end', () => {
-            assert.strictEqual(res.statusCode, 200);
-            const response = JSON.parse(data);
-            assert.strictEqual(response.message, 'Routes updated');
-            testServer.close(done);
-          });
-        });
-
-        req.on('error', error => {
-          testServer.close();
-          done(error);
-        });
-
-        req.write(postData);
-        req.end();
-      });
-    });
-
-    test('should handle POST /routes request with invalid JSON', function (done) {
-      const testServer = http.createServer(async (req, res) => {
-        if (req.url === '/routes' && req.method === 'POST') {
-          let body = '';
-          req.on('data', chunk => {
-            body += chunk.toString();
-          });
-          req.on('end', () => {
-            try {
-              JSON.parse(body);
-              res.writeHead(200, { 'Content-Type': 'application/json' });
-              res.end(JSON.stringify({ message: 'Routes updated' }));
-            } catch (error) {
-              res.writeHead(400, { 'Content-Type': 'application/json' });
-              res.end(JSON.stringify({ error: 'Invalid JSON payload' }));
-            }
-          });
-        } else {
-          res.writeHead(404);
-          res.end();
-        }
-      });
-
-      testServers.push(testServer); // Track server for cleanup
-
-      testServer.listen(getCurrentTestPort(), () => {
-        const postData = 'invalid-json{';
-
-        const options = {
-          hostname: 'localhost',
-          port: getCurrentTestPort(),
-          path: '/routes',
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Content-Length': Buffer.byteLength(postData),
-          },
-        };
-
-        const req = http.request(options, res => {
-          let data = '';
-          res.on('data', chunk => {
-            data += chunk;
-          });
-          res.on('end', () => {
-            assert.strictEqual(res.statusCode, 400);
-            const response = JSON.parse(data);
-            assert.strictEqual(response.error, 'Invalid JSON payload');
-            testServer.close(done);
-          });
-        });
-
-        req.on('error', error => {
-          testServer.close();
-          done(error);
-        });
-
-        req.write(postData);
         req.end();
       });
     });

@@ -10,6 +10,10 @@ const {
   isEncryptedMessage,
   verifyECDSASignature,
   getContractAddressFromCreate,
+  generateChallenge,
+  verifyChallenge,
+  signChallengeResponse,
+  verifyChallengeResponse,
 } = require('../src/cryptoUtils');
 
 describe('cryptoUtils', function () {
@@ -415,7 +419,10 @@ describe('cryptoUtils', function () {
       const nonce = 33;
 
       const result1 = getContractAddressFromCreate(deployerWithPrefix, nonce);
-      const result2 = getContractAddressFromCreate(deployerWithoutPrefix, nonce);
+      const result2 = getContractAddressFromCreate(
+        deployerWithoutPrefix,
+        nonce
+      );
 
       assert.strictEqual(result1, result2);
       assert.strictEqual(result1, '0x3ed660420aa9bc674e8f80f744f8062603da385e');
@@ -448,7 +455,10 @@ describe('cryptoUtils', function () {
       assert.strictEqual(result1, null);
 
       // Negative nonce should also work (edge case)
-      const result2 = getContractAddressFromCreate('0xe0b73f64b0de6032b193648c08899f20b5a6141d', -1);
+      const result2 = getContractAddressFromCreate(
+        '0xe0b73f64b0de6032b193648c08899f20b5a6141d',
+        -1
+      );
       // This should actually work as ethers can handle negative nonces
       assert.ok(result2 === null || typeof result2 === 'string');
     });
@@ -492,6 +502,448 @@ describe('cryptoUtils', function () {
         // Use decrypted data for next iteration
         data = result.decryptedData + ` (cycle ${i + 1})`;
       }
+    });
+  });
+
+  describe('Challenge-Response Functions', function () {
+    let testPrivateKey;
+    let testWallet;
+    let testAddress;
+
+    beforeEach(function () {
+      // Generate a test ECDSA wallet for challenge responses
+      testPrivateKey =
+        '0x1234567890123456789012345678901234567890123456789012345678901234';
+      testWallet = new ethers.Wallet(testPrivateKey);
+      testAddress = testWallet.address;
+    });
+
+    describe('generateChallenge', function () {
+      test('should generate a valid challenge with RSA signature', function () {
+        const targetUrl = 'http://localhost:7546';
+        const contractAddress = '0x1234567890123456789012345678901234567890';
+
+        const challengeObj = generateChallenge(
+          keyPair.privateKey,
+          targetUrl,
+          contractAddress
+        );
+
+        // Should return an object with challenge and signature
+        assert.ok(challengeObj.challenge);
+        assert.ok(challengeObj.signature);
+
+        // Challenge should have required fields
+        assert.ok(challengeObj.challenge.challengeId);
+        assert.ok(challengeObj.challenge.timestamp);
+        assert.strictEqual(challengeObj.challenge.url, targetUrl);
+        assert.strictEqual(
+          challengeObj.challenge.contractAddress,
+          contractAddress.toLowerCase()
+        );
+        assert.strictEqual(challengeObj.challenge.action, 'url-verification');
+
+        // Challenge ID should be a 64-character hex string
+        assert.strictEqual(challengeObj.challenge.challengeId.length, 64);
+        assert.ok(/^[a-f0-9]+$/.test(challengeObj.challenge.challengeId));
+
+        // Timestamp should be a number close to now
+        assert.strictEqual(typeof challengeObj.challenge.timestamp, 'number');
+        assert.ok(
+          Math.abs(challengeObj.challenge.timestamp - Date.now()) < 1000
+        );
+
+        // Signature should be base64 encoded
+        assert.ok(typeof challengeObj.signature === 'string');
+        assert.ok(challengeObj.signature.length > 0);
+      });
+
+      test('should throw error with invalid private key', function () {
+        assert.throws(() => {
+          generateChallenge('invalid-key', 'http://test.com', '0x123');
+        }, /Challenge generation failed/);
+      });
+
+      test('should generate different challenge IDs for same inputs', function () {
+        const targetUrl = 'http://localhost:7546';
+        const contractAddress = '0x1234567890123456789012345678901234567890';
+
+        const challenge1 = generateChallenge(
+          keyPair.privateKey,
+          targetUrl,
+          contractAddress
+        );
+        const challenge2 = generateChallenge(
+          keyPair.privateKey,
+          targetUrl,
+          contractAddress
+        );
+
+        // Should have different challenge IDs
+        assert.notStrictEqual(
+          challenge1.challenge.challengeId,
+          challenge2.challenge.challengeId
+        );
+
+        // But same other fields
+        assert.strictEqual(challenge1.challenge.url, challenge2.challenge.url);
+        assert.strictEqual(
+          challenge1.challenge.contractAddress,
+          challenge2.challenge.contractAddress
+        );
+        assert.strictEqual(
+          challenge1.challenge.action,
+          challenge2.challenge.action
+        );
+      });
+    });
+
+    describe('verifyChallenge', function () {
+      test('should verify a valid challenge signature', function () {
+        const targetUrl = 'http://localhost:7546';
+        const contractAddress = '0x1234567890123456789012345678901234567890';
+
+        const challengeObj = generateChallenge(
+          keyPair.privateKey,
+          targetUrl,
+          contractAddress
+        );
+
+        // Should verify successfully with correct public key
+        const isValid = verifyChallenge(
+          challengeObj.challenge,
+          challengeObj.signature,
+          keyPair.publicKey
+        );
+        assert.strictEqual(isValid, true);
+      });
+
+      test('should reject challenge with wrong public key', function () {
+        const targetUrl = 'http://localhost:7546';
+        const contractAddress = '0x1234567890123456789012345678901234567890';
+
+        const challengeObj = generateChallenge(
+          keyPair.privateKey,
+          targetUrl,
+          contractAddress
+        );
+
+        // Generate a different key pair
+        const wrongKeyPair = crypto.generateKeyPairSync('rsa', {
+          modulusLength: 2048,
+          publicKeyEncoding: { type: 'spki', format: 'pem' },
+          privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+        });
+
+        // Should fail verification with wrong public key
+        const isValid = verifyChallenge(
+          challengeObj.challenge,
+          challengeObj.signature,
+          wrongKeyPair.publicKey
+        );
+        assert.strictEqual(isValid, false);
+      });
+
+      test('should reject modified challenge data', function () {
+        const targetUrl = 'http://localhost:7546';
+        const contractAddress = '0x1234567890123456789012345678901234567890';
+
+        const challengeObj = generateChallenge(
+          keyPair.privateKey,
+          targetUrl,
+          contractAddress
+        );
+
+        // Modify the challenge data
+        const modifiedChallenge = {
+          ...challengeObj.challenge,
+          url: 'http://different.com',
+        };
+
+        // Should fail verification with modified data
+        const isValid = verifyChallenge(
+          modifiedChallenge,
+          challengeObj.signature,
+          keyPair.publicKey
+        );
+        assert.strictEqual(isValid, false);
+      });
+
+      test('should handle invalid signature gracefully', function () {
+        const challengeData = {
+          challengeId: '1234567890abcdef',
+          timestamp: Date.now(),
+          url: 'http://localhost:7546',
+          contractAddress: '0x1234567890123456789012345678901234567890',
+          action: 'url-verification',
+        };
+
+        // Should return false for invalid signature
+        const isValid = verifyChallenge(
+          challengeData,
+          'invalid-signature',
+          keyPair.publicKey
+        );
+        assert.strictEqual(isValid, false);
+      });
+    });
+
+    describe('signChallengeResponse', function () {
+      test('should sign challenge data with ECDSA', function () {
+        const challengeData = {
+          challengeId: '1234567890abcdef',
+          timestamp: Date.now(),
+          url: 'http://localhost:7546',
+          contractAddress: '0x1234567890123456789012345678901234567890',
+          action: 'url-verification',
+        };
+
+        const signature = signChallengeResponse(challengeData, testPrivateKey);
+
+        // Should return a valid ECDSA signature
+        assert.ok(typeof signature === 'string');
+        assert.ok(signature.startsWith('0x'));
+        assert.strictEqual(signature.length, 132); // 0x + 130 hex chars for ECDSA signature
+      });
+
+      test('should throw error with invalid private key', function () {
+        const challengeData = {
+          challengeId: '1234567890abcdef',
+          timestamp: Date.now(),
+          url: 'http://localhost:7546',
+          contractAddress: '0x1234567890123456789012345678901234567890',
+          action: 'url-verification',
+        };
+
+        assert.throws(() => {
+          signChallengeResponse(challengeData, 'invalid-key');
+        }, /Challenge response signing failed/);
+      });
+
+      test('should produce different signatures for different data', function () {
+        const challengeData1 = {
+          challengeId: '1234567890abcdef',
+          timestamp: Date.now(),
+          url: 'http://localhost:7546',
+          contractAddress: '0x1234567890123456789012345678901234567890',
+          action: 'url-verification',
+        };
+
+        const challengeData2 = {
+          ...challengeData1,
+          challengeId: 'fedcba0987654321',
+        };
+
+        const sig1 = signChallengeResponse(challengeData1, testPrivateKey);
+        const sig2 = signChallengeResponse(challengeData2, testPrivateKey);
+
+        assert.notStrictEqual(sig1, sig2);
+      });
+    });
+
+    describe('verifyChallengeResponse', function () {
+      test('should verify a valid challenge response signature', function () {
+        const challengeData = {
+          challengeId: '1234567890abcdef',
+          timestamp: Date.now(),
+          url: 'http://localhost:7546',
+          contractAddress: '0x1234567890123456789012345678901234567890',
+          action: 'url-verification',
+        };
+
+        const signature = signChallengeResponse(challengeData, testPrivateKey);
+        const isValid = verifyChallengeResponse(
+          challengeData,
+          signature,
+          testAddress
+        );
+
+        assert.strictEqual(isValid, true);
+      });
+
+      test('should reject signature from wrong address', function () {
+        const challengeData = {
+          challengeId: '1234567890abcdef',
+          timestamp: Date.now(),
+          url: 'http://localhost:7546',
+          contractAddress: '0x1234567890123456789012345678901234567890',
+          action: 'url-verification',
+        };
+
+        const signature = signChallengeResponse(challengeData, testPrivateKey);
+        const wrongAddress = '0x9876543210987654321098765432109876543210';
+        const isValid = verifyChallengeResponse(
+          challengeData,
+          signature,
+          wrongAddress
+        );
+
+        assert.strictEqual(isValid, false);
+      });
+
+      test('should handle address with and without 0x prefix', function () {
+        const challengeData = {
+          challengeId: '1234567890abcdef',
+          timestamp: Date.now(),
+          url: 'http://localhost:7546',
+          contractAddress: '0x1234567890123456789012345678901234567890',
+          action: 'url-verification',
+        };
+
+        const signature = signChallengeResponse(challengeData, testPrivateKey);
+
+        // Test with 0x prefix
+        const isValid1 = verifyChallengeResponse(
+          challengeData,
+          signature,
+          testAddress
+        );
+
+        // Test without 0x prefix
+        const addressWithoutPrefix = testAddress.substring(2);
+        const isValid2 = verifyChallengeResponse(
+          challengeData,
+          signature,
+          addressWithoutPrefix
+        );
+
+        assert.strictEqual(isValid1, true);
+        assert.strictEqual(isValid2, true);
+      });
+
+      test('should be case insensitive for address comparison', function () {
+        const challengeData = {
+          challengeId: '1234567890abcdef',
+          timestamp: Date.now(),
+          url: 'http://localhost:7546',
+          contractAddress: '0x1234567890123456789012345678901234567890',
+          action: 'url-verification',
+        };
+
+        const signature = signChallengeResponse(challengeData, testPrivateKey);
+
+        // Test with uppercase address
+        const isValid = verifyChallengeResponse(
+          challengeData,
+          signature,
+          testAddress.toUpperCase()
+        );
+
+        assert.strictEqual(isValid, true);
+      });
+
+      test('should reject modified challenge data', function () {
+        const challengeData = {
+          challengeId: '1234567890abcdef',
+          timestamp: Date.now(),
+          url: 'http://localhost:7546',
+          contractAddress: '0x1234567890123456789012345678901234567890',
+          action: 'url-verification',
+        };
+
+        const signature = signChallengeResponse(challengeData, testPrivateKey);
+
+        // Modify the challenge data
+        const modifiedData = { ...challengeData, url: 'http://different.com' };
+        const isValid = verifyChallengeResponse(
+          modifiedData,
+          signature,
+          testAddress
+        );
+
+        assert.strictEqual(isValid, false);
+      });
+
+      test('should handle invalid signature gracefully', function () {
+        const challengeData = {
+          challengeId: '1234567890abcdef',
+          timestamp: Date.now(),
+          url: 'http://localhost:7546',
+          contractAddress: '0x1234567890123456789012345678901234567890',
+          action: 'url-verification',
+        };
+
+        const isValid = verifyChallengeResponse(
+          challengeData,
+          'invalid-signature',
+          testAddress
+        );
+        assert.strictEqual(isValid, false);
+      });
+    });
+
+    describe('Full Challenge-Response Flow', function () {
+      test('should complete full challenge-response cycle', function () {
+        const targetUrl = 'http://localhost:7546';
+        const contractAddress = '0x1234567890123456789012345678901234567890';
+
+        // 1. Proxy generates challenge
+        const challengeObj = generateChallenge(
+          keyPair.privateKey,
+          targetUrl,
+          contractAddress
+        );
+
+        // 2. Prover verifies challenge signature
+        const challengeValid = verifyChallenge(
+          challengeObj.challenge,
+          challengeObj.signature,
+          keyPair.publicKey
+        );
+        assert.strictEqual(challengeValid, true);
+
+        // 3. Prover signs challenge response
+        const responseSignature = signChallengeResponse(
+          challengeObj.challenge,
+          testPrivateKey
+        );
+
+        // 4. Proxy verifies challenge response
+        const responseValid = verifyChallengeResponse(
+          challengeObj.challenge,
+          responseSignature,
+          testAddress
+        );
+        assert.strictEqual(responseValid, true);
+      });
+
+      test('should fail if prover uses wrong private key for response', function () {
+        const targetUrl = 'http://localhost:7546';
+        const contractAddress = '0x1234567890123456789012345678901234567890';
+
+        // Different valid private key (but wrong one)
+        const wrongPrivateKey =
+          '0x1111111111111111111111111111111111111111111111111111111111111111';
+
+        // 1. Proxy generates challenge
+        const challengeObj = generateChallenge(
+          keyPair.privateKey,
+          targetUrl,
+          contractAddress
+        );
+
+        // 2. Prover verifies challenge signature (should pass)
+        const challengeValid = verifyChallenge(
+          challengeObj.challenge,
+          challengeObj.signature,
+          keyPair.publicKey
+        );
+        assert.strictEqual(challengeValid, true);
+
+        // 3. Prover signs with wrong key
+        const responseSignature = signChallengeResponse(
+          challengeObj.challenge,
+          wrongPrivateKey
+        );
+
+        // 4. Proxy verifies challenge response (should fail because wrong signer)
+        const responseValid = verifyChallengeResponse(
+          challengeObj.challenge,
+          responseSignature,
+          testAddress
+        );
+        assert.strictEqual(responseValid, false);
+      });
     });
   });
 });

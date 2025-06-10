@@ -122,6 +122,20 @@ Response:
 }
 ```
 
+### Route Management
+
+**Important**: Route updates can only be done through verified Hedera messages with challenge-response verification. Manual route updates via HTTP endpoints have been removed for security.
+
+To update routes:
+
+1. Sign route data with ECDSA (proving contract ownership)
+2. Encrypt the payload with the proxy's RSA public key
+3. Submit to the Hedera topic
+4. Proxy verifies signatures and sends challenges to URLs
+5. Respond to challenges to complete verification
+
+```
+
 ## Architecture
 
 ### Core Components
@@ -150,29 +164,31 @@ Response:
 ## Project Structure
 
 ```
+
 proxy/
 ├── src/
-│   ├── proxy.js           # Main proxy server
-│   ├── hederaManager.js   # Hedera client management
-│   ├── messageListener.js # Hedera message processing
-│   ├── cryptoUtils.js     # RSA encryption utilities
-│   ├── dbManager.js       # Database operations
-│   ├── ethTxDecoder.js    # Transaction analysis
-│   └── envLoader.js       # Environment configuration
+│ ├── proxy.js # Main proxy server
+│ ├── hederaManager.js # Hedera client management
+│ ├── messageListener.js # Hedera message processing
+│ ├── cryptoUtils.js # RSA encryption utilities
+│ ├── dbManager.js # Database operations
+│ ├── ethTxDecoder.js # Transaction analysis
+│ └── envLoader.js # Environment configuration
 ├── test/
-│   ├── server.test.js     # Proxy server tests
-│   ├── hederaManager.test.js
-│   ├── messageListener.test.js
-│   ├── cryptoUtils.test.js
-│   ├── dbManager.test.js
-│   ├── ethTxDecoder.test.js
-│   ├── envLoader.test.js
-│   └── integration.test.js
+│ ├── server.test.js # Proxy server tests
+│ ├── hederaManager.test.js
+│ ├── messageListener.test.js
+│ ├── cryptoUtils.test.js
+│ ├── dbManager.test.js
+│ ├── ethTxDecoder.test.js
+│ ├── envLoader.test.js
+│ └── integration.test.js
 ├── data/
-│   └── routing_db_testnet.json
+│ └── routing_db_testnet.json
 ├── package.json
 └── README.md
-```
+
+````
 
 ## Configuration Files
 
@@ -191,7 +207,7 @@ The routing database (`data/routing_db_testnet.json`) stores address-to-URL mapp
     "version": "1.0.0"
   }
 }
-```
+````
 
 ## Security
 

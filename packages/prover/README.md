@@ -70,6 +70,33 @@ npm run test:coverage
 3. **Sign Routes**: Uses ECDSA to sign concatenated `addr+proofType+nonce+url` for authentication
 4. **Encrypt Payload**: Encrypts the JSON payload using the proxy's RSA public key
 5. **Submit to Hedera**: Sends the encrypted message to the specified Hedera topic
+6. **Start Challenge Server**: Starts HTTP server to respond to URL reachability challenges and receive confirmation
+7. **Handle Challenges**: Responds to challenge-response verification requests from proxy
+8. **Receive Confirmation**: Waits for confirmation message from proxy when verification is complete
+9. **Save Results**: Saves comprehensive session results to a JSON file
+10. **Exit Gracefully**: Automatically exits when confirmation is received from proxy
+
+## Results and Logging
+
+The prover automatically saves detailed results to a JSON file in the `data/` directory when the flow completes. The results include:
+
+- **Session Information**: Start/end times, duration, status, proxy URL, Hedera network
+- **Payload Details**: Route information, original/encrypted sizes
+- **Hedera Submission**: Success status, sequence number, errors
+- **Challenge Processing**: Server status, received challenges, success/failure counts
+- **Error Log**: Detailed error information throughout the process
+
+Example results file: `data/prover-results-2025-06-09T23-42-15-745Z.json`
+
+## Completion Detection
+
+The prover uses direct confirmation from the proxy:
+
+- **Challenge Responses**: Responds to challenges from the proxy for each route
+- **Direct Confirmation**: Waits for confirmation message from proxy to `/confirmation` endpoint
+- **Timeout Protection**: Maximum 5-minute execution time to prevent indefinite hanging
+- **Graceful Shutdown**: Handles SIGINT (Ctrl+C) for manual termination
+- **Automatic Exit**: Exits automatically when confirmation is received from proxy
 
 ### Payload Format
 
@@ -90,6 +117,7 @@ The prover now uses a new array-based routes format with contract ownership veri
 ```
 
 Where:
+
 - `addr`: Contract address that should route to the URL
 - `proofType`: Type of contract deployment proof (`create` or `create2`)
 - `nonce`: Deployment nonce used for deterministic address computation

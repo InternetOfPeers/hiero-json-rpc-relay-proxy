@@ -161,19 +161,30 @@ describe('proxy.js integration', function () {
     // Check for the default route that should always exist
     assert.ok(
       data['0x0000000000000000000000000000000000000000'] ||
-        data['0x742d35cc6634c0532925a3b8d0c0f3e5c5c07c20']
+      data['0x742d35cc6634c0532925a3b8d0c0f3e5c5c07c20']
     );
   });
 
-  test('should update routes on POST /routes', async function () {
+  test('should not support POST /routes (endpoint removed)', async function () {
+    // Get initial state of routes before testing
+    const initialRoutesRes = await makeRequest(`${BASE_URL}/routes`);
+    const initialRoutesData = await initialRoutesRes.json();
+    const initialAbcRoute = initialRoutesData['0xabc'];
+
     const res = await makeRequest(`${BASE_URL}/routes`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ '0xabc': 'https://new.example.com' }),
+      body: JSON.stringify({ '0xabc': 'https://different-new.example.com' }),
     });
-    assert.strictEqual(res.status, 200);
-    const data = await res.json();
-    assert.strictEqual(data.routes['0xabc'], 'https://new.example.com');
+    // POST requests to /routes should be treated as JSON-RPC requests and forwarded
+    // Since the body is not valid JSON-RPC, the target server should return an error
+    // The important thing is that routes are NOT updated via POST anymore
+    assert.notStrictEqual(res.status, 200); // Should not succeed
+
+    // Verify that routes were not actually updated (should remain unchanged)
+    const routesRes = await makeRequest(`${BASE_URL}/routes`);
+    const routesData = await routesRes.json();
+    assert.strictEqual(routesData['0xabc'], initialAbcRoute); // Route should be unchanged
   });
 
   test('should return Hedera topic info on GET /status/topic', async function () {

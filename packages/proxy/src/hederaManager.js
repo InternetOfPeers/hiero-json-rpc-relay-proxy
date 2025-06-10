@@ -9,7 +9,12 @@ const {
   TopicMessageSubmitTransaction,
   Hbar,
 } = require('@hashgraph/sdk');
-const { decryptHybridMessage } = require('./cryptoUtils');
+const {
+  decryptHybridMessage,
+  generateChallenge,
+  verifyChallengeResponse,
+} = require('./cryptoUtils');
+const { updateRoutes, saveDatabase } = require('./dbManager');
 
 // Hedera Manager Module
 // Handles all Hedera Consensus Service functionality including:
@@ -693,7 +698,9 @@ class HederaManager {
         );
         return;
       }
-      console.log('      🔍 Verifying ECDSA signatures and contract ownership...');
+      console.log(
+        '      🔍 Verifying ECDSA signatures and contract ownership...'
+      );
 
       let totalSignatures = 0;
       let validSignatures = 0;
@@ -703,14 +710,21 @@ class HederaManager {
 
       // Verify each route's signature and contract ownership
       for (const route of messageData.routes) {
-        if (route.addr && route.proofType && route.nonce !== undefined && route.url && route.sig) {
+        if (
+          route.addr &&
+          route.proofType &&
+          route.nonce !== undefined &&
+          route.url &&
+          route.sig
+        ) {
           totalSignatures++;
 
           try {
             const { ethers } = require('ethers');
 
             // Create the message that was signed (addr+proofType+nonce+url)
-            const signedMessage = route.addr + route.proofType + route.nonce + route.url;
+            const signedMessage =
+              route.addr + route.proofType + route.nonce + route.url;
 
             // Derive the signer address from the signature
             const signerFromThisSignature = ethers.verifyMessage(
@@ -736,8 +750,13 @@ class HederaManager {
 
               if (route.proofType === 'create') {
                 // For CREATE, compute the deterministic contract address
-                const computedAddress = getContractAddressFromCreate(derivedSignerAddress, route.nonce);
-                isValidOwnership = computedAddress && computedAddress.toLowerCase() === route.addr.toLowerCase();
+                const computedAddress = getContractAddressFromCreate(
+                  derivedSignerAddress,
+                  route.nonce
+                );
+                isValidOwnership =
+                  computedAddress &&
+                  computedAddress.toLowerCase() === route.addr.toLowerCase();
 
                 console.log(
                   `      🏗️ Contract address verification (CREATE): computed=${computedAddress}, expected=${route.addr}, valid=${isValidOwnership}`
@@ -749,9 +768,7 @@ class HederaManager {
                 );
                 isValidOwnership = true; // Temporary - allow CREATE2 for now
               } else {
-                console.log(
-                  `      ❌ Unknown proof type: ${route.proofType}`
-                );
+                console.log(`      ❌ Unknown proof type: ${route.proofType}`);
                 isValidOwnership = false;
               }
 
@@ -805,6 +822,16 @@ class HederaManager {
           console.log(
             '      ⚠️  Message contains invalid signatures or ownership proofs - potential security risk!'
           );
+          return; // Don't proceed with challenge-response if signatures are invalid
+        }
+
+        // If all signatures are valid, initiate challenge-response flow
+        if (success && derivedSignerAddress) {
+          console.log('      🚀 Starting challenge-response verification...');
+          await this.processChallengeResponseFlow(
+            messageData,
+            derivedSignerAddress
+          );
         }
       } else {
         console.log(
@@ -815,6 +842,453 @@ class HederaManager {
       console.log('      ❌ Signature verification failed:', error.message);
       console.log(
         '      📝 Message may not be in expected format or contain valid JSON'
+      );
+    }
+  }
+
+  /**
+   * Send a challenge to a URL for verification
+   * @param {string} targetUrl - URL to send challenge to
+   * @param {string} contractAddress - Contract address being verified
+   * @returns {Promise<object>} Challenge data and response
+   */
+  async sendChallenge(targetUrl, contractAddress) {
+    try {
+      // Get RSA key pair for signing challenge
+      const keyPair = this.getRSAKeyPair ? this.getRSAKeyPair() : null;
+      if (!keyPair) {
+        throw new Error('No RSA key pair available for challenge generation');
+      }
+
+      // Generate challenge
+      const challengeObj = generateChallenge(
+        keyPair.privateKey,
+        targetUrl,
+        contractAddress
+      );
+      console.log(
+        `      🎯 Sending challenge to ${targetUrl} for contract ${contractAddress}`
+      );
+      console.log(
+        `         Challenge ID: ${challengeObj.challenge.challengeId.substring(0, 16)}...`
+      );
+
+      // Send challenge to the URL
+      const challengeUrl = new URL('/challenge', targetUrl);
+      const postData = JSON.stringify(challengeObj);
+
+      return new Promise((resolve, reject) => {
+        const client = challengeUrl.protocol === 'https:' ? https : http;
+        const req = client.request(
+          challengeUrl,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Content-Length': Buffer.byteLength(postData),
+            },
+            timeout: 10000, // 10 second timeout
+          },
+          res => {
+            let data = '';
+            res.on('data', chunk => (data += chunk));
+            res.on('end', () => {
+              try {
+                if (res.statusCode === 200) {
+                  const response = JSON.parse(data);
+                  resolve({
+                    success: true,
+                    challenge: challengeObj.challenge,
+                    response: response,
+                  });
+                } else {
+                  reject(
+                    new Error(
+                      `Challenge failed with status ${res.statusCode}: ${data}`
+                    )
+                  );
+                }
+              } catch (error) {
+                reject(new Error(`Invalid response format: ${error.message}`));
+              }
+            });
+          }
+        );
+
+        req.on('error', error => {
+          reject(new Error(`Challenge request failed: ${error.message}`));
+        });
+
+        req.on('timeout', () => {
+          req.destroy();
+          reject(new Error('Challenge request timed out'));
+        });
+
+        req.write(postData);
+        req.end();
+      });
+    } catch (error) {
+      throw new Error(`Challenge generation failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Verify challenge response from prover
+   * @param {object} challengeData - Original challenge data
+   * @param {object} response - Response from prover
+   * @param {string} expectedAddress - Expected signer address
+   * @returns {boolean} True if response is valid
+   */
+  verifyChallengeResponseSignature(challengeData, response, expectedAddress) {
+    try {
+      if (!response.signature || !response.challengeId) {
+        console.log(
+          '      ❌ Invalid response format - missing signature or challengeId'
+        );
+        return false;
+      }
+
+      if (response.challengeId !== challengeData.challengeId) {
+        console.log('      ❌ Challenge ID mismatch');
+        return false;
+      }
+
+      // Verify the ECDSA signature on the challenge
+      const isValid = verifyChallengeResponse(
+        challengeData,
+        response.signature,
+        expectedAddress
+      );
+
+      if (isValid) {
+        console.log(
+          `      ✅ Challenge response verified for ${challengeData.url}`
+        );
+      } else {
+        console.log(
+          `      ❌ Challenge response verification failed for ${challengeData.url}`
+        );
+      }
+
+      return isValid;
+    } catch (error) {
+      console.log(
+        `      ❌ Challenge response verification error: ${error.message}`
+      );
+      return false;
+    }
+  }
+
+  /**
+   * Process the complete challenge-response flow for route verification
+   * @param {object} messageData - Parsed message data containing routes
+   * @param {string} signerAddress - Verified signer address
+   */
+  async processChallengeResponseFlow(messageData, signerAddress) {
+    try {
+      const challengeResults = [];
+      let allChallengesSuccessful = true;
+
+      // Send challenges to all URLs
+      for (const route of messageData.routes) {
+        if (route.url && route.addr) {
+          try {
+            console.log(
+              `      📤 Challenging URL: ${route.url} for contract ${route.addr}`
+            );
+
+            const challengeResult = await this.sendChallenge(
+              route.url,
+              route.addr
+            );
+
+            if (challengeResult.success) {
+              // Verify the challenge response
+              const responseValid = this.verifyChallengeResponseSignature(
+                challengeResult.challenge,
+                challengeResult.response,
+                signerAddress
+              );
+
+              challengeResults.push({
+                url: route.url,
+                addr: route.addr,
+                challengeSuccess: true,
+                responseValid: responseValid,
+              });
+
+              if (!responseValid) {
+                allChallengesSuccessful = false;
+                console.log(
+                  `      ❌ Challenge response verification failed for ${route.url}`
+                );
+              }
+            } else {
+              challengeResults.push({
+                url: route.url,
+                addr: route.addr,
+                challengeSuccess: false,
+                responseValid: false,
+                error: challengeResult.error || 'Challenge failed',
+              });
+              allChallengesSuccessful = false;
+              console.log(`      ❌ Challenge failed for ${route.url}`);
+            }
+          } catch (error) {
+            challengeResults.push({
+              url: route.url,
+              addr: route.addr,
+              challengeSuccess: false,
+              responseValid: false,
+              error: error.message,
+            });
+            allChallengesSuccessful = false;
+            console.log(
+              `      ❌ Challenge error for ${route.url}: ${error.message}`
+            );
+          }
+        }
+      }
+
+      // Summary of challenge results
+      const successfulChallenges = challengeResults.filter(
+        r => r.challengeSuccess && r.responseValid
+      ).length;
+      console.log(
+        `      🎯 Challenge-response results: ${successfulChallenges}/${challengeResults.length} successful`
+      );
+
+      // Update routes if all challenges were successful
+      if (allChallengesSuccessful && challengeResults.length > 0) {
+        console.log('      ✅ All challenges successful - updating routes...');
+        await this.updateRoutesFromMessage(messageData);
+
+        // Send confirmation message directly to prover
+        await this.sendConfirmationToProver(
+          messageData,
+          challengeResults,
+          signerAddress
+        );
+      } else {
+        console.log('      ❌ Some challenges failed - routes not updated');
+
+        // Optionally send failure notification
+        await this.sendFailureNotification(
+          messageData,
+          challengeResults,
+          signerAddress
+        );
+      }
+    } catch (error) {
+      console.log(`      ❌ Challenge-response flow error: ${error.message}`);
+    }
+  }
+
+  /**
+   * Update routes in database from verified message
+   * @param {object} messageData - Message data containing routes
+   */
+  async updateRoutesFromMessage(messageData) {
+    try {
+      const routesToUpdate = {};
+
+      for (const route of messageData.routes) {
+        if (route.addr && route.url) {
+          routesToUpdate[route.addr.toLowerCase()] = route.url;
+        }
+      }
+
+      if (Object.keys(routesToUpdate).length > 0) {
+        await updateRoutes(routesToUpdate, saveDatabase, this.dbFile);
+        console.log(
+          `      📝 Updated ${Object.keys(routesToUpdate).length} routes in database`
+        );
+      }
+    } catch (error) {
+      console.log(`      ❌ Route update error: ${error.message}`);
+    }
+  }
+
+  /**
+   * Send confirmation message directly to prover
+   * @param {object} originalMessage - Original message data
+   * @param {array} challengeResults - Results of challenge verification
+   * @param {string} signerAddress - Signer address
+   */
+  async sendConfirmationToProver(
+    originalMessage,
+    challengeResults,
+    signerAddress
+  ) {
+    try {
+      // Send confirmation to each URL that was successfully verified
+      const successfulRoutes = challengeResults.filter(r => r.responseValid);
+
+      if (successfulRoutes.length === 0) {
+        console.log('      ⚠️  No successful routes to send confirmation to');
+        return;
+      }
+
+      console.log(`      📤 Sending confirmation to ${successfulRoutes.length} prover(s)...`);
+
+      for (const route of successfulRoutes) {
+        try {
+          const confirmationUrl = new URL('/confirmation', route.url);
+          const confirmation = {
+            status: 'completed',
+            message: 'Route verification completed successfully',
+            verifiedRoutes: successfulRoutes.length,
+            totalRoutes: challengeResults.length,
+            timestamp: Date.now(),
+            originalSigner: signerAddress,
+            addr: route.addr,
+          };
+
+          const postData = JSON.stringify(confirmation);
+
+          await new Promise((resolve, reject) => {
+            const client = confirmationUrl.protocol === 'https:' ? https : http;
+            const req = client.request(
+              confirmationUrl,
+              {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Content-Length': Buffer.byteLength(postData),
+                },
+                timeout: 10000, // 10 second timeout
+              },
+              res => {
+                let data = '';
+                res.on('data', chunk => (data += chunk));
+                res.on('end', () => {
+                  if (res.statusCode === 200) {
+                    console.log(`      ✅ Confirmation sent to ${route.url}`);
+                    resolve();
+                  } else {
+                    console.log(`      ⚠️  Confirmation to ${route.url} returned status ${res.statusCode}`);
+                    resolve(); // Don't fail the whole process for confirmation issues
+                  }
+                });
+              }
+            );
+
+            req.on('error', error => {
+              console.log(`      ⚠️  Failed to send confirmation to ${route.url}: ${error.message}`);
+              resolve(); // Don't fail the whole process for confirmation issues
+            });
+
+            req.on('timeout', () => {
+              req.destroy();
+              console.log(`      ⚠️  Confirmation to ${route.url} timed out`);
+              resolve(); // Don't fail the whole process for confirmation issues
+            });
+
+            req.write(postData);
+            req.end();
+          });
+        } catch (error) {
+          console.log(`      ⚠️  Error sending confirmation to ${route.url}: ${error.message}`);
+        }
+      }
+    } catch (error) {
+      console.log(`      ⚠️  Failed to send confirmation to prover(s): ${error.message}`);
+    }
+  }
+
+  /**
+   * Send confirmation message to Hedera topic
+   * @param {object} originalMessage - Original message data
+   * @param {array} challengeResults - Results of challenge verification
+   * @param {string} signerAddress - Signer address
+   */
+  async sendConfirmationMessage(
+    originalMessage,
+    challengeResults,
+    signerAddress
+  ) {
+    try {
+      if (!this.client || !this.currentTopicId) {
+        console.log(
+          '      ⚠️  No Hedera client or topic - skipping confirmation message'
+        );
+        return;
+      }
+
+      const confirmation = {
+        type: 'route-verification-success',
+        timestamp: Date.now(),
+        originalSigner: signerAddress,
+        verifiedRoutes: challengeResults
+          .filter(r => r.responseValid)
+          .map(r => ({
+            addr: r.addr,
+            url: r.url,
+          })),
+        totalRoutes: challengeResults.length,
+        successfulRoutes: challengeResults.filter(r => r.responseValid).length,
+      };
+
+      const message = JSON.stringify(confirmation);
+      const transaction = new TopicMessageSubmitTransaction({
+        topicId: this.currentTopicId,
+        message: message,
+      });
+
+      await transaction.execute(this.client);
+      console.log('      📤 Confirmation message sent to Hedera topic');
+    } catch (error) {
+      console.log(
+        `      ⚠️  Failed to send confirmation message: ${error.message}`
+      );
+    }
+  }
+
+  /**
+   * Send failure notification to Hedera topic
+   * @param {object} originalMessage - Original message data
+   * @param {array} challengeResults - Results of challenge verification
+   * @param {string} signerAddress - Signer address
+   */
+  async sendFailureNotification(
+    originalMessage,
+    challengeResults,
+    signerAddress
+  ) {
+    try {
+      if (!this.client || !this.currentTopicId) {
+        console.log(
+          '      ⚠️  No Hedera client or topic - skipping failure notification'
+        );
+        return;
+      }
+
+      const notification = {
+        type: 'route-verification-failure',
+        timestamp: Date.now(),
+        originalSigner: signerAddress,
+        failedRoutes: challengeResults
+          .filter(r => !r.responseValid)
+          .map(r => ({
+            addr: r.addr,
+            url: r.url,
+            error: r.error || 'Challenge or response verification failed',
+          })),
+        totalRoutes: challengeResults.length,
+        failedCount: challengeResults.filter(r => !r.responseValid).length,
+      };
+
+      const message = JSON.stringify(notification);
+      const transaction = new TopicMessageSubmitTransaction({
+        topicId: this.currentTopicId,
+        message: message,
+      });
+
+      await transaction.execute(this.client);
+      console.log('      📤 Failure notification sent to Hedera topic');
+    } catch (error) {
+      console.log(
+        `      ⚠️  Failed to send failure notification: ${error.message}`
       );
     }
   }

@@ -159,21 +159,6 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    if (req.url === '/routes' && req.method === 'POST') {
-      const { body, jsonData } = await parseRequestBody(req);
-      if (jsonData) {
-        await updateRoutes(jsonData, saveDatabase, getDBFilePath());
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(
-          JSON.stringify({ message: 'Routes updated', routes: getRoutingDB() })
-        );
-      } else {
-        res.writeHead(400, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'Invalid JSON payload' }));
-      }
-      return;
-    }
-
     // Handle Hedera topic info endpoint
     if (req.url === '/status/topic' && req.method === 'GET') {
       res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -290,7 +275,6 @@ async function startServer() {
       `  GET  http://localhost:${PORT}/status/public-key - Get RSA public key`
     );
     console.log(`  GET  http://localhost:${PORT}/routes - View current routes`);
-    console.log(`  POST http://localhost:${PORT}/routes - Update routes`);
     console.log('\nExample request:');
     console.log(`  curl -X POST http://localhost:${PORT} \\`);
     console.log('    -H "Content-Type: application/json" \\');

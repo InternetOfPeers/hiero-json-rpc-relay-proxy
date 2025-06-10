@@ -164,7 +164,10 @@ describe('Prover Main Functionality', () => {
       assert.ok(testPayload.routes);
       assert.ok(Array.isArray(testPayload.routes));
       assert.strictEqual(testPayload.routes.length, 2);
-      assert.strictEqual(testPayload.routes[0].addr, '0x4f1a953df9df8d1c6073ce57f7493e50515fa73f');
+      assert.strictEqual(
+        testPayload.routes[0].addr,
+        '0x4f1a953df9df8d1c6073ce57f7493e50515fa73f'
+      );
       assert.strictEqual(testPayload.routes[0].url, testUrl);
       assert.strictEqual(testPayload.routes[0].sig, expectedSignature);
       assert.strictEqual(mockWallet.signMessage.mock.calls.length, 2);
