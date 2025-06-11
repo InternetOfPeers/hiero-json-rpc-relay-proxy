@@ -1,0 +1,863 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hiero JSON RPC Relay Proxy - Presentation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .presentation-container {
+            width: 95%;
+            max-width: 1200px;
+            height: 90vh;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+            position: relative;
+        }
+
+        .slide {
+            display: none;
+            padding: 60px;
+            height: 100%;
+            position: relative;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        }
+
+        .slide.active {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .slide h1 {
+            font-size: 3.5rem;
+            color: #2c3e50;
+            margin-bottom: 30px;
+            text-align: center;
+            font-weight: 700;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .slide h2 {
+            font-size: 2.5rem;
+            color: #34495e;
+            margin-bottom: 40px;
+            text-align: center;
+            font-weight: 600;
+        }
+
+        .slide-content {
+            display: grid;
+            gap: 30px;
+            flex-grow: 1;
+        }
+
+        .slide1 .slide-content {
+            grid-template-columns: 1fr 1fr;
+            align-items: center;
+        }
+
+        .slide2 .slide-content {
+            grid-template-columns: 1fr;
+        }
+
+        .slide3 .slide-content {
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+        }
+
+        .slide4 .slide-content,
+        .slide5 .slide-content,
+        .slide6 .slide-content,
+        .slide7 .slide-content,
+        .slide8 .slide-content {
+            grid-template-columns: 1fr;
+        }
+
+        .registration-flow .process-steps {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .step-card {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+            position: relative;
+            border-left: 5px solid #3498db;
+        }
+
+        .step-number {
+            position: absolute;
+            top: -15px;
+            left: 20px;
+            background: #3498db;
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1.2rem;
+        }
+
+        .step-card h4 {
+            color: #2c3e50;
+            margin: 20px 0 15px 0;
+            font-size: 1.3rem;
+        }
+
+        .step-card p {
+            color: #34495e;
+            line-height: 1.5;
+        }
+
+        .tech-details {
+            display: grid;
+            gap: 30px;
+        }
+
+        .tech-section h3 {
+            color: #8e44ad;
+            font-size: 1.8rem;
+            margin-bottom: 20px;
+            border-bottom: 3px solid #9b59b6;
+            padding-bottom: 10px;
+        }
+
+        .security-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .security-card {
+            background: linear-gradient(135deg, #fd79a8 0%, #e84393 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .security-card h4 {
+            font-size: 1.2rem;
+            margin-bottom: 10px;
+        }
+
+        .feature-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .feature-list li {
+            background: white;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            border-left: 4px solid #27ae60;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .impact-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 25px;
+        }
+
+        .impact-card {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+        }
+
+        .impact-card.ecosystem {
+            border-top: 5px solid #00b894;
+        }
+
+        .impact-card.community {
+            border-top: 5px solid #6c5ce7;
+        }
+
+        .impact-card.technical {
+            border-top: 5px solid #fd79a8;
+        }
+
+        .impact-card.adoption {
+            border-top: 5px solid #fdcb6e;
+        }
+
+        .impact-card h3 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            font-size: 1.4rem;
+        }
+
+        .impact-card ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .impact-card li {
+            padding: 8px 0;
+            border-bottom: 1px solid #ecf0f1;
+            color: #34495e;
+        }
+
+        .impact-card li:before {
+            content: "✓ ";
+            color: #27ae60;
+            font-weight: bold;
+            margin-right: 8px;
+        }
+
+        .roadmap {
+            display: grid;
+            gap: 30px;
+        }
+
+        .phase {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .phase h3 {
+            color: #e74c3c;
+            font-size: 1.8rem;
+            margin-bottom: 20px;
+            text-align: center;
+            border-bottom: 3px solid #e74c3c;
+            padding-bottom: 10px;
+        }
+
+        .phase-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+
+        .deliverables h4,
+        .success-metrics h4 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            font-size: 1.3rem;
+        }
+
+        .deliverables ul,
+        .success-metrics ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .deliverables li,
+        .success-metrics li {
+            padding: 8px 0;
+            color: #34495e;
+            border-bottom: 1px solid #ecf0f1;
+        }
+
+        .deliverables li:before {
+            content: "🔧 ";
+            margin-right: 8px;
+        }
+
+        .success-metrics li:before {
+            content: "📊 ";
+            margin-right: 8px;
+        }
+
+        .cta-content {
+            display: grid;
+            gap: 40px;
+        }
+
+        .vision-statement {
+            text-align: center;
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .vision-statement h3 {
+            color: #e74c3c;
+            font-size: 2rem;
+            margin-bottom: 25px;
+        }
+
+        .large-text {
+            font-size: 1.2rem;
+            line-height: 1.6;
+            color: #2c3e50;
+            margin-bottom: 20px;
+        }
+
+        .next-steps h3 {
+            color: #27ae60;
+            font-size: 1.8rem;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .steps-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 20px;
+        }
+
+        .step-box {
+            background: linear-gradient(135deg, #00b894 0%, #00a085 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+        }
+
+        .step-box h4 {
+            font-size: 1.3rem;
+            margin-bottom: 15px;
+        }
+
+        .project-link {
+            background: #2c3e50;
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .project-link a {
+            color: #74b9ff;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .project-overview {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .project-overview h3 {
+            color: #2980b9;
+            font-size: 1.8rem;
+            margin-bottom: 20px;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+        }
+
+        .project-overview p {
+            font-size: 1.1rem;
+            line-height: 1.6;
+            color: #2c3e50;
+            margin-bottom: 15px;
+        }
+
+        .key-features {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .key-features h3 {
+            color: #27ae60;
+            font-size: 1.8rem;
+            margin-bottom: 20px;
+            border-bottom: 3px solid #2ecc71;
+            padding-bottom: 10px;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .feature-card {
+            background: linear-gradient(135deg, #74b9ff 0%, #0984e3 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            transform: translateY(0);
+            transition: transform 0.3s ease;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .feature-card h4 {
+            font-size: 1.3rem;
+            margin-bottom: 10px;
+        }
+
+        .feature-card p {
+            font-size: 0.95rem;
+        }
+
+        .advantages-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+
+        .advantage-card {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+            border-left: 5px solid #e74c3c;
+        }
+
+        .advantage-card h4 {
+            color: #e74c3c;
+            font-size: 1.4rem;
+            margin-bottom: 15px;
+        }
+
+        .advantage-card p {
+            color: #2c3e50;
+            line-height: 1.5;
+            font-size: 1rem;
+        }
+
+        .benefits-section {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .benefits-section h3 {
+            color: #8e44ad;
+            font-size: 1.8rem;
+            margin-bottom: 20px;
+            text-align: center;
+            border-bottom: 3px solid #9b59b6;
+            padding-bottom: 10px;
+        }
+
+        .benefits-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .benefits-list li {
+            background: linear-gradient(135deg, #a29bfe 0%, #6c5ce7 100%);
+            color: white;
+            padding: 15px 20px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .benefits-list li:before {
+            content: "✓ ";
+            font-weight: bold;
+            margin-right: 10px;
+        }
+
+        .navigation {
+            position: absolute;
+            bottom: 30px;
+            right: 30px;
+            display: flex;
+            gap: 15px;
+        }
+
+        .nav-btn {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
+        }
+
+        .nav-btn:hover {
+            background: #2980b9;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(52, 152, 219, 0.4);
+        }
+
+        .nav-btn:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .slide-counter {
+            position: absolute;
+            bottom: 30px;
+            left: 30px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-weight: 600;
+        }
+
+        .highlight {
+            background: linear-gradient(45deg, #ff6b6b, #feca57);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: bold;
+        }
+
+        @media (max-width: 768px) {
+            .slide {
+                padding: 30px;
+            }
+
+            .slide h1 {
+                font-size: 2.5rem;
+            }
+
+            .slide h2 {
+                font-size: 2rem;
+            }
+
+            .slide1 .slide-content,
+            .slide3 .slide-content,
+            .advantages-section,
+            .registration-flow .process-steps,
+            .security-grid,
+            .impact-grid,
+            .phase-content,
+            .steps-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .features-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="presentation-container">
+        <!-- Slide 1: Title and Vision -->
+        <div class="slide active slide3">
+            <h1>Community-Managed Hashio Service</h1>
+            <h2 class="highlight">Decentralized Web3 Infrastructure on Hedera</h2>
+            <div class="slide-content">
+                <div class="project-overview">
+                    <h3>🌟 Vision Statement</h3>
+                    <p><strong>Transform Hashio into a community-managed service</strong> - the beginning of a journey
+                        to educate the community that free resources don't exist, and that a true Web3 community
+                        requires active participation from all stakeholders.</p>
+                    <p><strong>Mission:</strong> Create the first community-managed Hedera service that demonstrates how
+                        to build innovative, decentralized Web3 infrastructure using Hedera's unique capabilities.</p>
+                </div>
+                <div class="key-features">
+                    <h3>🎯 Core Concept</h3>
+                    <div class="features-grid">
+                        <div class="feature-card">
+                            <h4>🏛️ Dual Service Model</h4>
+                            <p>Free basic service + Premium community-managed tier</p>
+                        </div>
+                        <div class="feature-card">
+                            <h4>🔒 Contract Ownership</h4>
+                            <p>Smart contract owners control their own relay infrastructure</p>
+                        </div>
+                        <div class="feature-card">
+                            <h4>⚡ Enhanced Performance</h4>
+                            <p>Higher throughput, gas fee payment, better debugging</p>
+                        </div>
+                        <div class="feature-card">
+                            <h4>🌐 Web3 Education</h4>
+                            <p>Teaching community about sustainable decentralized services</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 2: Current Problems -->
+        <div class="slide slide2">
+            <h2>Current JSON-RPC Relay Challenges</h2>
+            <div class="slide-content">
+                <div class="advantages-section">
+                    <div class="advantage-card">
+                        <h4>💰 Cost Issues</h4>
+                        <p>The relay currently handles all default traffic for Ethereum transactions to Hedera, creating
+                            significant operational costs (though upcoming HIPs will reduce these costs considerably)
+                            and forcing the service to throttle requests.</p>
+                        </p>
+                    </div>
+                    <div class="advantage-card">
+                        <h4>🏢 Enterprise Performance Expectations</h4>
+                        <p>Users demand enterprise-level performance and reliability from a free service, creating
+                            unsustainable expectations and resource strain.</p>
+                    </div>
+                    <div class="advantage-card">
+                        <h4>🐛 Debugging Difficulties</h4>
+                        <p>Centralized infrastructure makes it challenging for developers to debug issues, limiting
+                            their ability to optimize their applications effectively. Running multiple relays is an
+                            option, but at the moment it creates friction points on the users side.</p>
+                    </div>
+                    <div class="advantage-card">
+                        <h4>⚡ Throttling Limitations</h4>
+                        <p>Rate limiting on the free service restricts high-volume applications and prevents optimal
+                            user experience for demanding use cases.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 3: Proposed Solution -->
+        <div class="slide slide3">
+            <h2>The Community-Managed Solution</h2>
+            <div class="slide-content">
+                <div class="project-overview">
+                    <h3>🔄 Service Architecture</h3>
+                    <p><strong>Maintain Free Tier:</strong> Hashgraph continues providing free JSON-RPC Relay service at
+                        <strong>https://*.hashio.io/api</strong> with existing limitations (throttling, debugging
+                        challenges).
+                    </p>
+                    <p><strong>New Advanced Tier:</strong> Users can use the
+                        <strong>https://web3.*.hashio.io/api</strong> endpoint to leverage the custom relay network.
+                    </p>
+                    <p><strong>Smart Registration & Routing:</strong> Smart contract owners can register their own relay
+                        servers for smart contracts they control. When users interact with registered contracts,
+                        requests are automatically routed to the community-managed relays. Unregistered contracts
+                        continue using the free service.</p>
+                </div>
+                <div class="benefits-section">
+                    <h3>✨ Key Benefits</h3>
+                    <ul class="benefits-list">
+                        <li>Contract owners control their infrastructure and performance</li>
+                        <li>Enhanced debugging capabilities for registered applications</li>
+                        <li>Higher throughput and custom gas fee policies</li>
+                        <li>Reduced load on Hashgraph infrastructure</li>
+                        <li>Educational pathway to Web3 decentralization</li>
+                        <li>Demonstration of Hedera's unique consensus capabilities</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 4: Strategic Impact -->
+        <div class="slide slide7">
+            <h2>Strategic Impact & Benefits</h2>
+            <div class="slide-content">
+                <div class="impact-grid">
+                    <div class="impact-card ecosystem">
+                        <h3>🌱 Ecosystem Development</h3>
+                        <ul>
+                            <li>Demonstrates utility of paid HCS topics</li>
+                            <li>Shows real-world Web3 service innovation on Hedera</li>
+                            <li>Creates template for other community-managed services</li>
+                            <li>Establishes "Hashio" as brand for Web3 infrastructure</li>
+                        </ul>
+                    </div>
+                    <div class="impact-card community">
+                        <h3>👥 Community Education</h3>
+                        <ul>
+                            <li>Teaches that sustainable services require community participation</li>
+                            <li>Demonstrates practical decentralization benefits</li>
+                            <li>Creates pathway from free to premium Web3 services</li>
+                            <li>Builds understanding of infrastructure economics</li>
+                        </ul>
+                    </div>
+                    <div class="impact-card technical">
+                        <h3>🔧 Technical Advancement</h3>
+                        <ul>
+                            <li>Showcases Hedera for coordination of web3 services</li>
+                            <li>Proves viability of cryptographic ownership verification</li>
+                            <li>Demonstrates secure, scalable routing architecture</li>
+                            <li>Creates reusable patterns for other services</li>
+                        </ul>
+                    </div>
+                    <div class="impact-card adoption">
+                        <h3>📈 Adoption Benefits</h3>
+                        <ul>
+                            <li>Reduces operational costs for Hashgraph</li>
+                            <li>Improves performance for participating applications</li>
+                            <li>Creates economic incentives for quality service</li>
+                            <li>Enables custom features (gas payment, higher throttling limits)</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 5: Hiero JSON RPC Relay Proxy -->
+        <div class="slide slide3">
+            <h1>Technical Implementation</h1>
+            <h2 class="highlight">Hiero JSON RPC Relay Proxy</h2>
+            <div class="slide-content">
+                <div class="project-overview">
+                    <h3>🚀 What is it?</h3>
+                    <p><strong>Smart Contract-Aware Routing:</strong> Dynamically routes Ethereum JSON-RPC requests
+                        to
+                        custom backend servers based on contract addresses.</p>
+                    <p><strong>Hedera-Secured:</strong> Uses Hedera Consensus Service for secure,
+                        cryptographically-verified route registration.</p>
+                    <p><strong>Open Source & MPV-Ready:</strong> Comprehensive monorepo with proxy server,
+                        registration client tools (prover), and documentation.</p>
+                    <p><strong>Spam Protection:</strong> Built-in HIP-991 paid topics ($1 per message) prevent
+                        malicious registrations.</p>
+                </div>
+                <div class="key-features">
+                    <h3>🔧 Key Technical Features</h3>
+                    <div class="features-grid">
+                        <div class="feature-card">
+                            <h4>🔐 Secure Routing</h4>
+                            <p>RSA+AES encryption with ECDSA signature verification</p>
+                        </div>
+                        <div class="feature-card">
+                            <h4>⚡ Smart Fallback</h4>
+                            <p>Defaults to hashio.io for unregistered contracts</p>
+                        </div>
+                        <div class="feature-card">
+                            <h4>🛡️ Ownership Proof</h4>
+                            <p>Supports CREATE & CREATE2 deployment verification</p>
+                        </div>
+                        <div class="feature-card">
+                            <h4>🔄 Challenge-Response</h4>
+                            <p>Verifies endpoint availability and authenticity</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 6: Call to Action -->
+        <div class="slide slide9">
+            <h1>Web3 Infrastructure Revolution</h1>
+            <div class="slide-content">
+                <div class="cta-content">
+                    <div class="vision-statement">
+                        <h3>🚀 Be Part of the Future</h3>
+                        <p class="large-text">Sustainable and decentralized services are not only possible but superior
+                            to traditional centralized approaches.</p>
+                        <p class="large-text">Web3 communities actively participating in building and maintaining their
+                            own infrastructure can prove it.</p>
+                    </div>
+                    <div class="next-steps">
+                        <h3>🎯 Next Steps</h3>
+                        <div class="steps-grid">
+                            <div class="step-box">
+                                <h4>For Developers</h4>
+                                <p>Start planning your community relay infrastructure and evaluate the benefits for your
+                                    applications</p>
+                            </div>
+                            <div class="step-box">
+                                <h4>For the Community</h4>
+                                <p>Engage in discussions about sustainable Web3 infrastructure and the future of
+                                    decentralized services</p>
+                            </div>
+                            <div class="step-box">
+                                <h4>For Hashgraph</h4>
+                                <p>Begin technical planning and resource allocation for this revolutionary
+                                    community-managed approach</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="project-link">
+                    <p><strong>Technical Implementation Available:</strong></p>
+                    <p><a href="https://github.com/internetofpeers/hiero-json-rpc-relay-proxy"
+                            target="_blank">https://github.com/internetofpeers/hiero-json-rpc-relay-proxy</a></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation -->
+        <div class="navigation">
+            <button class="nav-btn" id="prevBtn" onclick="changeSlide(-1)">Previous</button>
+            <button class="nav-btn" id="nextBtn" onclick="changeSlide(1)">Next</button>
+        </div>
+
+        <!-- Slide Counter -->
+        <div class="slide-counter">
+            <span id="slideNumber">1</span> / <span id="totalSlides">6</span>
+        </div>
+    </div>
+
+    <script>
+        let currentSlide = 1;
+        const totalSlides = 6;
+
+        function showSlide(n) {
+            const slides = document.querySelectorAll('.slide');
+            const slideNumber = document.getElementById('slideNumber');
+            const prevBtn = document.getElementById('prevBtn');
+            const nextBtn = document.getElementById('nextBtn');
+
+            if (n > totalSlides) currentSlide = 1;
+            if (n < 1) currentSlide = totalSlides;
+
+            slides.forEach(slide => slide.classList.remove('active'));
+            slides[currentSlide - 1].classList.add('active');
+
+            slideNumber.textContent = currentSlide;
+
+            prevBtn.disabled = currentSlide === 1;
+            nextBtn.disabled = currentSlide === totalSlides;
+        }
+
+        function changeSlide(n) {
+            currentSlide += n;
+            showSlide(currentSlide);
+        }
+
+        // Keyboard navigation
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+                changeSlide(-1);
+            } else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+                changeSlide(1);
+            }
+        });
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function () {
+            showSlide(1);
+        });
+    </script>
+</body>
+
+</html>

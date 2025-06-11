@@ -255,7 +255,7 @@ A shared utility package providing common functionality used by both proxy and p
 
 #### Sequence Diagram
 
-[Click here if you don't see the graphical Mermaid flow](docs/flow2.svg)
+[Click here if you don't see the graphical Mermaid flow](docs/hiero-json-rpc-relay-flow2.svg)
 
 ```mermaid
 sequenceDiagram
