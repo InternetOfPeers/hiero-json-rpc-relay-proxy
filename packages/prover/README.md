@@ -309,7 +309,7 @@ The signature verification ensures that only the deployer of the contract at `ad
 
 ## Example Output
 
-```
+```shell
 🔐 Encrypted Message Sender Prover
 =================================
 
@@ -369,7 +369,7 @@ The prover handles various error scenarios:
 
 ### Project Structure
 
-```
+```text
 prover/
 ├── src/
 │   ├── prover.js          # Main prover script

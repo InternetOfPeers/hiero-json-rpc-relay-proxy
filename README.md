@@ -283,29 +283,6 @@ PROVER_HEDERA_PRIVATE_KEY=0x48b52aba58f4b8dd4cd0e527...
 
 ### [@hiero-json-rpc-relay/proxy](./packages/proxy)
 
-The main JSON-RPC relay proxy server that:
-
-- **Acts as a JSON-RPC relay proxy** routing Ethereum requests to appropriate backend servers
-- **Analyzes transaction "to" addresses** from `eth_sendRawTransaction` calls to determine routing
-- **Maintains dynamic routing table** mapping contract addresses to specific JSON-RPC relay endpoints
-- **Provides fallback routing** to default JSON-RPC relay (e.g., hashio.io) for unregistered addresses
-- **Manages secure route registration** via verified Hedera Consensus Service messages
-- **Creates and manages HIP-991 paid topics** with $0.50 submission fee to prevent spam
-- **Handles RSA hybrid encryption** for secure message communication on Hedera topics
-- **Verifies contract ownership** through deterministic address computation and ECDSA signatures for both CREATE and CREATE2 deployments
-- **Implements challenge-response verification** for URL reachability and endpoint validation
-- **Sends direct HTTP confirmation** to provers upon successful route verification
-- **Provides status and management endpoints** for monitoring and configuration
-
-**Key Features**:
-
-- Dynamic address-based routing for Ethereum JSON-RPC requests
-- Secure route registration through Hedera Consensus Service
-- Cryptographic proof of contract ownership required for route updates
-- HTTP route update endpoints removed for security (all updates via Hedera only)
-
-### [@hiero-json-rpc-relay/proxy](./packages/proxy)
-
 **Version**: 1.0.0  
 **Description**: Ethereum transaction routing proxy with Hedera Consensus Service integration and RSA key management
 

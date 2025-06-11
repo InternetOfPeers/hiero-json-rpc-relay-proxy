@@ -152,8 +152,6 @@ To update routes:
 4. Proxy verifies signatures and sends challenges to URLs
 5. Respond to challenges to complete verification
 
-````
-
 ## HIP-991 Paid Topic Implementation
 
 The proxy implements **HIP-991 Paid Topics** to prevent spam and ensure quality route registrations while maintaining decentralized access.
@@ -180,7 +178,7 @@ When the proxy starts, it automatically:
 ```javascript
 // HIP-991 Topic Configuration
 const customFee = new CustomFixedFee()
-  .setAmount(50000000)  // 0.5 HBAR in tinybars
+  .setAmount(50000000) // 0.5 HBAR in tinybars
   .setFeeCollectorAccountId(proxyAccountId);
 
 const topic = new TopicCreateTransaction()
@@ -188,7 +186,7 @@ const topic = new TopicCreateTransaction()
   .addCustomFee(customFee)
   .addFeeExemptKey(proxyPrivateKey.publicKey)
   .setFeeScheduleKey(proxyPrivateKey.publicKey);
-````
+```
 
 ### Balance Requirements
 
@@ -231,8 +229,7 @@ const topic = new TopicCreateTransaction()
 
 ## Project Structure
 
-```
-
+```text
 proxy/
 ├── src/
 │ ├── proxy.js # Main proxy server
