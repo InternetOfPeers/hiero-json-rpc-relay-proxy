@@ -1,5 +1,3 @@
-const http = require('http');
-const https = require('https');
 const {
   Client,
   PrivateKey,
@@ -19,6 +17,8 @@ const {
   decryptAES,
   validateRouteSignatures,
   hedera: { getMirrorNodeUrl },
+  http: { makeHttpRequest },
+  calculateDynamicFees,
 } = require('@hiero-json-rpc-relay/common');
 const { updateRoutes, saveDatabase } = require('./dbManager');
 
@@ -131,21 +131,25 @@ class HederaManager {
         );
       }
 
+      // Calculate dynamic fees based on current exchange rate
+      const feeCalculation = await calculateDynamicFees();
+
       // Get the proxy's account ID to use as submit key (exempt from fees)
       const proxyAccountId = AccountId.fromString(this.accountId);
       const proxyPrivateKey = PrivateKey.fromStringED25519(this.privateKey);
 
-      // Create the $0.50 custom fixed fee (50,000,000 tinybars = 0.5 HBAR)
       const customFee = new CustomFixedFee()
-        .setAmount(50000000) // 0.5 HBAR in tinybars (50,000,000 tinybars)
+        .setAmount(feeCalculation.customFeeAmount) // Dynamic $1 equivalent in tinybars
         .setFeeCollectorAccountId(proxyAccountId); // Proxy collects the fees
 
       const transaction = new TopicCreateTransaction()
         .setTopicMemo('Hiero JSON-RPC Relay Proxy Management')
         .setFeeScheduleKey(proxyPrivateKey.publicKey) // Allow proxy to update fees
-        .addCustomFee(customFee) // Add the $0.50 fee for message submission
+        .addCustomFee(customFee) // Add the $1 fee for message submission
         .addFeeExemptKey(proxyPrivateKey.publicKey) // Proxy is exempt from fees
-        .setMaxTransactionFee(new Hbar(20)); // Set max fee to 20 HBAR for HIP-991 topic creation
+        .setMaxTransactionFee(
+          new Hbar(Math.ceil(feeCalculation.maxTransactionFeeHbar) + 1)
+        ); // Ceil and add 1 HBAR buffer for safety
 
       const txResponse = await transaction.execute(this.client);
       const receipt = await txResponse.getReceipt(this.client);
@@ -159,7 +163,30 @@ class HederaManager {
       console.log(
         `🚫 Fee exempt keys: [${proxyPrivateKey.publicKey.toStringRaw()}] (proxy exempt)`
       );
-      console.log(`💰 Message submission cost for others: $0.50 (0.5 HBAR)`);
+
+      // Display dynamic fee information
+      if (feeCalculation.exchangeRate) {
+        console.log(
+          `💰 Message submission cost: ${feeCalculation.customFeeAmount} tinybars ($1.00 USD at current rate)`
+        );
+        console.log(
+          `💰 Max transaction fee: ${feeCalculation.maxTransactionFeeHbar.toFixed(6)} HBAR ($2.00 USD at current rate)`
+        );
+        console.log(
+          `📊 Exchange rate used: ${feeCalculation.exchangeRate.centsPerHbar.toFixed(4)} cents per HBAR`
+        );
+      } else {
+        console.log(
+          `💰 Message submission cost: ${feeCalculation.customFeeAmount} tinybars ($1.00 USD - fallback rate)`
+        );
+        console.log(
+          `💰 Max transaction fee: ${feeCalculation.maxTransactionFeeHbar} HBAR ($2.00 USD - fallback rate)`
+        );
+        console.log(
+          `⚠️  Using fallback rates due to exchange rate API unavailability`
+        );
+      }
+
       console.log(`💼 Fee collector: ${proxyAccountId} (proxy receives fees)`);
 
       this.currentTopicId = newTopicId.toString();
@@ -186,80 +213,30 @@ class HederaManager {
 
       console.log(`Fetching: ${url}`);
 
-      return new Promise((resolve, reject) => {
-        const timeoutId = setTimeout(() => {
-          console.log(
-            'Timeout: Failed to check topic messages within 5 seconds'
-          );
-          reject(
-            new Error(
-              'Timeout: Failed to check topic messages within 5 seconds'
-            )
-          );
-        }, 5000);
-
-        const httpModule = this.mirrorNodeUrl.startsWith('https:')
-          ? https
-          : http;
-
-        const req = httpModule.get(url, res => {
-          clearTimeout(timeoutId);
-
-          let data = '';
-          res.on('data', chunk => {
-            data += chunk;
-          });
-
-          res.on('end', () => {
-            try {
-              if (res.statusCode === 200) {
-                const response = JSON.parse(data);
-                console.log(
-                  `Found existing message in topic ${topicIdString} (sequence: ${response.sequence_number})`
-                );
-                resolve(true);
-              } else if (res.statusCode === 404) {
-                console.log(
-                  `No messages found in topic ${topicIdString} (404 response)`
-                );
-                resolve(false);
-              } else {
-                console.log(
-                  `Mirror node returned status ${res.statusCode} for topic ${topicIdString}`
-                );
-                reject(
-                  new Error(
-                    `Mirror node returned status ${res.statusCode}: ${data}`
-                  )
-                );
-              }
-            } catch (parseError) {
-              console.error(
-                'Error parsing mirror node response:',
-                parseError.message
-              );
-              reject(
-                new Error(
-                  `Failed to parse mirror node response: ${parseError.message}`
-                )
-              );
-            }
-          });
-        });
-
-        req.on('error', error => {
-          clearTimeout(timeoutId);
-          console.error('Error calling mirror node API:', error.message);
-          reject(new Error(`Failed to call mirror node API: ${error.message}`));
-        });
-
-        req.setTimeout(5000, () => {
-          req.destroy();
-          reject(
-            new Error('Mirror node API request timed out after 5 seconds')
-          );
-        });
+      const response = await makeHttpRequest(url, {
+        method: 'GET',
+        timeout: 5000,
       });
+
+      if (response.statusCode === 200) {
+        const data = response.json || JSON.parse(response.body);
+        console.log(
+          `Found existing message in topic ${topicIdString} (sequence: ${data.sequence_number})`
+        );
+        return true;
+      } else if (response.statusCode === 404) {
+        console.log(
+          `No messages found in topic ${topicIdString} (404 response)`
+        );
+        return false;
+      } else {
+        console.log(
+          `Mirror node returned status ${response.statusCode} for topic ${topicIdString}`
+        );
+        throw new Error(
+          `Mirror node returned status ${response.statusCode}: ${response.body}`
+        );
+      }
     } catch (error) {
       console.log(
         `Error checking messages in topic ${topicIdString}:`,
@@ -637,60 +614,22 @@ class HederaManager {
       // Get messages from the topic (ordered by sequence number)
       const url = `${this.mirrorNodeUrl}/api/v1/topics/${topicIdString}/messages?limit=${limit}&order=asc`;
 
-      return new Promise((resolve, reject) => {
-        const timeoutId = setTimeout(() => {
-          reject(
-            new Error('Mirror node API request timed out after 5 seconds')
-          );
-        }, 5000);
-
-        const httpModule = this.mirrorNodeUrl.startsWith('https:')
-          ? https
-          : http;
-
-        const req = httpModule.get(url, res => {
-          clearTimeout(timeoutId);
-
-          let data = '';
-          res.on('data', chunk => {
-            data += chunk;
-          });
-
-          res.on('end', () => {
-            try {
-              if (res.statusCode === 200) {
-                const response = JSON.parse(data);
-                resolve(response.messages || []);
-              } else if (res.statusCode === 404) {
-                // No messages found
-                resolve([]);
-              } else {
-                reject(
-                  new Error(
-                    `Mirror node returned status ${res.statusCode}: ${data}`
-                  )
-                );
-              }
-            } catch (parseError) {
-              reject(
-                new Error(
-                  `Failed to parse mirror node response: ${parseError.message}`
-                )
-              );
-            }
-          });
-        });
-
-        req.on('error', error => {
-          clearTimeout(timeoutId);
-          reject(new Error(`Failed to call mirror node API: ${error.message}`));
-        });
-
-        req.setTimeout(5000, () => {
-          req.destroy();
-          reject(new Error('Mirror node API request timed out'));
-        });
+      const response = await makeHttpRequest(url, {
+        method: 'GET',
+        timeout: 5000,
       });
+
+      if (response.statusCode === 200) {
+        const data = response.json || JSON.parse(response.body);
+        return data.messages || [];
+      } else if (response.statusCode === 404) {
+        // No messages found
+        return [];
+      } else {
+        throw new Error(
+          `Mirror node returned status ${response.statusCode}: ${response.body}`
+        );
+      }
     } catch (error) {
       console.log(
         `Error getting messages from topic ${topicIdString}:`,
@@ -883,55 +822,28 @@ class HederaManager {
             });
           }
 
-          await new Promise((resolve, reject) => {
-            const client = confirmationUrl.protocol === 'https:' ? https : http;
-            const req = client.request(
-              confirmationUrl,
-              {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Content-Length': Buffer.byteLength(postData),
-                },
-                timeout: 10000, // 10 second timeout
+          try {
+            const response = await makeHttpRequest(confirmationUrl.toString(), {
+              method: 'POST',
+              body: postData,
+              timeout: 10000,
+              headers: {
+                'Content-Type': 'application/json',
               },
-              res => {
-                let data = '';
-                res.on('data', chunk => (data += chunk));
-                res.on('end', () => {
-                  if (res.statusCode === 200) {
-                    console.log(
-                      `      ✅ Failure notification sent to ${route.url}`
-                    );
-                    resolve();
-                  } else {
-                    console.log(
-                      `      ⚠️  Failure notification to ${route.url} returned status ${res.statusCode}`
-                    );
-                    resolve(); // Don't fail the whole process
-                  }
-                });
-              }
+            });
+
+            if (response.statusCode === 200) {
+              console.log(`      ✅ Failure notification sent to ${route.url}`);
+            } else {
+              console.log(
+                `      ⚠️  Failure notification to ${route.url} returned status ${response.statusCode}`
+              );
+            }
+          } catch (httpError) {
+            console.log(
+              `      ⚠️  Failed to send failure notification to ${route.url}: ${httpError.message}`
             );
-
-            req.on('error', error => {
-              console.log(
-                `      ⚠️  Failed to send failure notification to ${route.url}: ${error.message}`
-              );
-              resolve(); // Don't fail the whole process
-            });
-
-            req.on('timeout', () => {
-              req.destroy();
-              console.log(
-                `      ⚠️  Failure notification to ${route.url} timed out`
-              );
-              resolve(); // Don't fail the whole process
-            });
-
-            req.write(postData);
-            req.end();
-          });
+          }
         } catch (error) {
           console.log(
             `      ⚠️  Error sending failure notification to ${route.url}: ${error.message}`
@@ -994,70 +906,37 @@ class HederaManager {
         postData = JSON.stringify(challengeObj);
       }
 
-      return new Promise((resolve, reject) => {
-        const client = challengeUrl.protocol === 'https:' ? https : http;
-        const req = client.request(
-          challengeUrl,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Content-Length': Buffer.byteLength(postData),
-            },
-            timeout: 10000, // 10 second timeout
-          },
-          res => {
-            let data = '';
-            res.on('data', chunk => (data += chunk));
-            res.on('end', () => {
-              try {
-                if (res.statusCode === 200) {
-                  let response;
-                  try {
-                    // Try to decrypt AES-encrypted response first
-                    response = this.decryptFromProver(contractAddress, data);
-                    console.log(
-                      `         🔓 Challenge response decrypted with AES key`
-                    );
-                  } catch (aesError) {
-                    // Fallback to parsing as unencrypted JSON
-                    console.log(
-                      `         📄 Parsing unencrypted challenge response`
-                    );
-                    response = JSON.parse(data);
-                  }
-
-                  resolve({
-                    success: true,
-                    challenge: challengeObj.challenge,
-                    response: response,
-                  });
-                } else {
-                  reject(
-                    new Error(
-                      `Challenge failed with status ${res.statusCode}: ${data}`
-                    )
-                  );
-                }
-              } catch (error) {
-                reject(new Error(`Invalid response format: ${error.message}`));
-              }
-            });
-          }
-        );
-
-        req.on('error', error => {
-          reject(new Error(`Challenge request failed: ${error.message}`));
-        });
-
-        req.on('timeout', () => {
-          req.destroy();
-          reject(new Error('Challenge request timed out'));
-        });
-
-        req.write(postData);
-        req.end();
+      const response = await makeHttpRequest(challengeUrl.toString(), {
+        method: 'POST',
+        body: postData,
+        timeout: 10000,
+        headers: {
+          'Content-Type': 'application/json',
+        },
       });
+
+      if (response.statusCode === 200) {
+        let responseData;
+        try {
+          // Try to decrypt AES-encrypted response first
+          responseData = this.decryptFromProver(contractAddress, response.body);
+          console.log(`         🔓 Challenge response decrypted with AES key`);
+        } catch (aesError) {
+          // Fallback to parsing as unencrypted JSON
+          console.log(`         📄 Parsing unencrypted challenge response`);
+          responseData = response.json || JSON.parse(response.body);
+        }
+
+        return {
+          success: true,
+          challenge: challengeObj.challenge,
+          response: responseData,
+        };
+      } else {
+        throw new Error(
+          `Challenge failed with status ${response.statusCode}: ${response.body}`
+        );
+      }
     } catch (error) {
       throw new Error(`Challenge generation failed: ${error.message}`);
     }
@@ -1324,51 +1203,28 @@ class HederaManager {
             postData = JSON.stringify(confirmation);
           }
 
-          await new Promise((resolve, reject) => {
-            const client = confirmationUrl.protocol === 'https:' ? https : http;
-            const req = client.request(
-              confirmationUrl,
-              {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Content-Length': Buffer.byteLength(postData),
-                },
-                timeout: 10000, // 10 second timeout
+          try {
+            const response = await makeHttpRequest(confirmationUrl.toString(), {
+              method: 'POST',
+              body: postData,
+              timeout: 10000,
+              headers: {
+                'Content-Type': 'application/json',
               },
-              res => {
-                let data = '';
-                res.on('data', chunk => (data += chunk));
-                res.on('end', () => {
-                  if (res.statusCode === 200) {
-                    console.log(`      ✅ Confirmation sent to ${route.url}`);
-                    resolve();
-                  } else {
-                    console.log(
-                      `      ⚠️  Confirmation to ${route.url} returned status ${res.statusCode}`
-                    );
-                    resolve(); // Don't fail the whole process for confirmation issues
-                  }
-                });
-              }
-            );
+            });
 
-            req.on('error', error => {
+            if (response.statusCode === 200) {
+              console.log(`      ✅ Confirmation sent to ${route.url}`);
+            } else {
               console.log(
-                `      ⚠️  Failed to send confirmation to ${route.url}: ${error.message}`
+                `      ⚠️  Confirmation to ${route.url} returned status ${response.statusCode}`
               );
-              resolve(); // Don't fail the whole process for confirmation issues
-            });
-
-            req.on('timeout', () => {
-              req.destroy();
-              console.log(`      ⚠️  Confirmation to ${route.url} timed out`);
-              resolve(); // Don't fail the whole process for confirmation issues
-            });
-
-            req.write(postData);
-            req.end();
-          });
+            }
+          } catch (httpError) {
+            console.log(
+              `      ⚠️  Failed to send confirmation to ${route.url}: ${httpError.message}`
+            );
+          }
         } catch (error) {
           console.log(
             `      ⚠️  Error sending confirmation to ${route.url}: ${error.message}`

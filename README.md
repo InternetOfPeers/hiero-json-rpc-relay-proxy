@@ -148,14 +148,14 @@ sequenceDiagram
   rect rgb(191, 223, 255)
     Note right of Proxy: Setup
     Proxy ->> Proxy: 🔑 Generate RSA key pair
-    Proxy ->> HCS: Create new HIP-991 Paid Topic ($0.50 submission fee)
+    Proxy ->> HCS: Create new HIP-991 Paid Topic ($1 submission fee)
     Proxy ->> HCS: Publish RSA Public Key (proxy exempt from fees)
     Proxy -->> HCS: ⏳ Subscribe to messages
   end
   Prover ->> Proxy: Fetch /status
   Proxy -->> Prover: Answer with Topic ID & RSA Public Key
   Prover ->> Prover: 🔑 Generate AES shared secret key
-  Prover ->> HCS: 🔐 Submit Route Data (RSA+AES Encrypted, ECDSA signed), 💰 Pay $0.50 Topic Fee
+  Prover ->> HCS: 🔐 Submit Route Data (RSA+AES Encrypted, ECDSA signed), 💰 Pay $1 Topic Fee
   Prover ->> Prover: ⏳ Listen for Challenge Requests
   HCS -->> Proxy: Deliver Encrypted Message
   Proxy ->> Proxy: Decrypt Message (RSA+AES), Extract AES key

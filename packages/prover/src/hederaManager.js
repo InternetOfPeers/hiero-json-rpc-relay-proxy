@@ -7,6 +7,7 @@ const {
 } = require('@hashgraph/sdk');
 const {
   hedera: { initHederaClient, getMirrorNodeUrl },
+  calculateDynamicFees,
 } = require('@hiero-json-rpc-relay/common');
 
 // Prover Hedera Manager Module
@@ -64,19 +65,29 @@ class HederaManager {
     }
   }
 
-  // Check if topic exists and is accessible
+  // Check if topic exists using mirror node
   async checkTopicExists(topicIdString) {
-    if (!this.client || !topicIdString) {
+    if (!topicIdString) {
       return false;
     }
 
     try {
-      console.log(`🔍 Checking if topic ${topicIdString} exists...`);
-      const topicInfoQuery = new TopicInfoQuery().setTopicId(topicIdString);
+      console.log(
+        `🔍 Checking if topic ${topicIdString} exists via mirror node...`
+      );
+      const mirrorNodeUrl = getMirrorNodeUrl(this.network);
+      const url = `${mirrorNodeUrl}/api/v1/topics/${topicIdString}`;
 
-      const topicInfo = await topicInfoQuery.execute(this.client);
+      // Use node-fetch for HTTP requests
+      const response = await fetch(url);
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const topicData = await response.json();
       console.log(`✅ Topic ${topicIdString} exists and is accessible`);
-      console.log(`   Topic memo: ${topicInfo.topicMemo}`);
+      console.log(`   Topic memo: ${topicData.memo || 'No memo'}`);
       return true;
     } catch (error) {
       console.log(
@@ -99,17 +110,23 @@ class HederaManager {
       console.log(`📤 Submitting message to HIP-991 topic ${topicIdString}...`);
 
       // Create custom fee limit for HIP-991 topic
-      // Set maximum willing to pay: 0.6 HBAR (above the $0.50 topic fee)
-      const customFee = new CustomFixedFee().setAmount(50000000);
+      const feeCalculation = await calculateDynamicFees();
+      const customFee = new CustomFixedFee().setAmount(
+        feeCalculation.tinybarsFor1Dollar * 2 + 1000
+      ); // Set custom fee in tinybars for $2 worth of HBAR + 1000 tinybars buffer
       const customFeeLimit = new CustomFeeLimit()
         .setAccountId(this.client.operatorAccountId) // Prover account pays the fee
-        .setFees([customFee]); // Maximum 0.6 HBAR for custom fees
+        .setFees([customFee]);
 
       const transaction = new TopicMessageSubmitTransaction()
         .setTopicId(topicIdString)
         .setMessage(message)
         .addCustomFeeLimit(customFeeLimit) // Set max custom fee limit for HIP-991
-        .setMaxTransactionFee(new Hbar(10)); // Set max transaction fee to 1 HBAR
+        .setMaxTransactionFee(
+          new Hbar(
+            Math.ceil(feeCalculation.tinybarsFor1Dollar / 100_000_000) + 1
+          )
+        ); // Set max transaction fee to $2 worth of HBAR + 1 HBAR buffer
 
       const txResponse = await transaction.execute(this.client);
       const receipt = await txResponse.getReceipt(this.client);
@@ -199,6 +216,7 @@ class HederaManager {
   ) {
     const http = require('http');
     const https = require('https');
+    const fetch = require('node-fetch');
 
     try {
       console.log(

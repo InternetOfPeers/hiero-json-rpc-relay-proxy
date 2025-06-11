@@ -1,5 +1,5 @@
 const { Client, PrivateKey, AccountId } = require('@hashgraph/sdk');
-
+const { makeHttpRequest } = require('./httpUtils');
 /**
  * Common Hedera utilities shared between prover and proxy
  */
@@ -176,6 +176,99 @@ function parseTopicMessage(message) {
   }
 }
 
+// Fetch current HBAR-to-USD exchange rate from Hedera mirror node
+async function getExchangeRate(mirrorNodeUrl = 'testnet') {
+  try {
+    const url = `https://${mirrorNodeUrl}.mirrornode.hedera.com/api/v1/network/exchangerate`;
+
+    const response = await makeHttpRequest(url, {
+      method: 'GET',
+      timeout: 5000,
+    });
+
+    if (response.statusCode === 200) {
+      const data = response.json || JSON.parse(response.body);
+      if (
+        data.current_rate &&
+        data.current_rate.cent_equivalent &&
+        data.current_rate.hbar_equivalent
+      ) {
+        return data.current_rate;
+      } else {
+        throw new Error('Invalid exchange rate response format');
+      }
+    } else {
+      throw new Error(
+        `Exchange rate API returned status ${response.statusCode}: ${response.body}`
+      );
+    }
+  } catch (error) {
+    throw new Error(`Exchange rate fetch failed: ${error.message}`);
+  }
+}
+
+// Calculate dynamic fees based on current exchange rate
+async function calculateDynamicFees() {
+  try {
+    console.log('📊 Fetching current HBAR-to-USD exchange rate...');
+
+    // Fetch current exchange rate
+    const exchangeRate = await getExchangeRate();
+    const { cent_equivalent, hbar_equivalent } = exchangeRate;
+
+    console.log(
+      `💱 Current exchange rate: ${cent_equivalent} cents = ${hbar_equivalent} HBAR`
+    );
+
+    // Calculate cents per HBAR
+    const centsPerHbar = cent_equivalent / hbar_equivalent;
+    console.log(`💰 Rate: ${centsPerHbar.toFixed(4)} cents per HBAR`);
+
+    // Calculate tinybars for $1 (100 cents)
+    const hbarFor1Dollar = 100 / centsPerHbar;
+    const tinybarsFor1Dollar = Math.round(hbarFor1Dollar * 100000000); // Convert HBAR to tinybars
+
+    // Calculate HBAR for $2 (200 cents)
+    const hbarFor2Dollars = 200 / centsPerHbar;
+
+    console.log(
+      `💵 $1.00 USD = ${hbarFor1Dollar.toFixed(6)} HBAR = ${tinybarsFor1Dollar} tinybars`
+    );
+    console.log(`💵 $2.00 USD = ${hbarFor2Dollars.toFixed(6)} HBAR`);
+
+    return {
+      customFeeAmount: tinybarsFor1Dollar,
+      maxTransactionFeeHbar: hbarFor2Dollars,
+      tinybarsFor1Dollar: tinybarsFor1Dollar,
+      exchangeRate: {
+        centsPerHbar,
+        centEquivalent: cent_equivalent,
+        hbarEquivalent: hbar_equivalent,
+      },
+    };
+  } catch (error) {
+    console.log(`⚠️  Failed to fetch exchange rate: ${error.message}`);
+    console.log('🔄 Falling back to default values...');
+
+    // Fallback to reasonable default values
+    const fallbackCustomFee = 554676291; // ~$1 at historical rates
+    const fallbackMaxFee = 12; // $2 equivalent at historical rates
+
+    console.log(
+      `💵 Fallback: Custom fee = ${fallbackCustomFee} tinybars (~$1.00 USD)`
+    );
+    console.log(
+      `💵 Fallback: Max transaction fee = ${fallbackMaxFee} HBAR (~$2.00 USD)`
+    );
+
+    return {
+      customFeeAmount: fallbackCustomFee,
+      maxTransactionFeeHbar: fallbackMaxFee,
+      exchangeRate: null, // Indicates fallback was used
+    };
+  }
+}
+
 /**
  * Common Hedera error types
  */
@@ -191,6 +284,8 @@ const HederaErrorTypes = {
 
 module.exports = {
   initHederaClient,
+  getExchangeRate,
+  calculateDynamicFees,
   getMirrorNodeUrl,
   isValidAccountId,
   isValidTopicId,
