@@ -2,6 +2,25 @@
 
 A monorepo containing a dynamic JSON-RPC relay proxy that routes Ethereum requests to different backend servers based on contract addresses. The system uses Hedera Consensus Service for secure route registration and includes cryptographic verification of contract ownership. It consists of three main packages: a common utilities package, a proxy server that acts as a JSON-RPC relay with dynamic routing, and a prover client that establishes secure route registration.
 
+## Flow Overview
+
+### Normal Proxy Operations
+
+1. **JSON-RPC Request**: dApps/wallets send requests to the proxy
+2. **Address Extraction**: Proxy extracts "to" address from `eth_sendRawTransaction`
+3. **Route Lookup**: Check if address exists in verified route database
+4. **Routing Decision**: Route to custom relay if found, otherwise default to hashio.io
+
+### Route Registration Process
+
+1. **Contract Address Generation**: Owner generates deterministic address using either CREATE (deployer + nonce) or CREATE2 (deployer + salt + init code hash)
+2. **Cryptographic Proof**: Signs route data with ECDSA to prove ownership
+3. **Secure Submission**: Encrypts and submits route data to Hedera Consensus Service
+4. **Message Processing**: Proxy decrypts, verifies signatures, and validates ownership
+5. **Challenge-Response**: Proxy challenges the claimed JSON-RPC endpoint URL
+6. **Verification**: Prover responds with ECDSA signature to prove control of endpoint
+7. **Route Activation**: Successful verification adds route to database and sends confirmation
+
 ## 🚀 Quick Start
 
 ### Prerequisites
@@ -105,180 +124,6 @@ npm install --workspace=packages/prover
      -d '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}'
    ```
 
-## 🏗️ Architecture
-
-### Flow 1: Normal JSON-RPC Routing (Daily Operations)
-
-```text
-┌──────────┐    ┌──────────────────────────────────────────────────┐     ┌────────────────┐
-│ Ethereum │    │              JSON-RPC Relay PROXY                │     │   JSON-RPC     │
-│ dApps/   │───►│                                                  │────►│   Relay        │
-│ Wallets  │    │  1. Receive JSON-RPC Request                     │     │   Servers      │
-│ Clients  │    │  2. Extract `to` from `eth_sendRawTransaction`   │     │                │
-└──────────┘    │  3. Lookup address in routes database            │     │                │
-                │                                                  │     │                │
-                │  ┌─────────────────┐  ┌──────────────────┐       │     │                │
-                │  │ Address Lookup  │  │  Routes Database │       │     │                │
-                │  │                 │  │   (Verified)     │       │     │                │
-                │  │ 0x123... ──────►│  │                  │       │     │                │
-                │  │                 │  │ 0x123 → relay-a  │       │     │                │
-                │  │                 │  │ 0x456 → relay-b  │       │     │                │
-                │  └─────────────────┘  │ 0x789 → relay-c  │       │     │                │
-                │                       └──────────────────┘       │     │                │
-                │                                                  │     │ • hashio.io    │
-                |  IF FOUND: Route to custom JSON-RPC Relay        │     │ • example.com  |
-                |                                                  │     | • acme.org     |
-                │  IF NOT FOUND: Route to Default (hashio.io)      │     │ • ...          │
-                └──────────────────────────────────────────────────┘     └────────────────┘
-```
-
-### Flow 2: Route Registration & Verification
-
-#### Sequence Diagram
-
-[Click here if you don't see the graphical Mermaid flow](docs/flow2.svg)
-
-```mermaid
-sequenceDiagram
-  participant Prover as Prover (Contract Owner)
-  participant Proxy as Proxy
-  participant HCS as HCS
-
-  autonumber
-  rect rgb(191, 223, 255)
-    Note right of Proxy: Setup
-    Proxy ->> Proxy: 🔑 Generate RSA key pair
-    Proxy ->> HCS: Create new HIP-991 Paid Topic ($1 submission fee)
-    Proxy ->> HCS: Publish RSA Public Key (proxy exempt from fees)
-    Proxy -->> HCS: ⏳ Subscribe to messages
-  end
-  Prover ->> Proxy: Fetch /status
-  Proxy -->> Prover: Answer with Topic ID & RSA Public Key
-  Prover ->> Prover: 🔑 Generate AES shared secret key
-  Prover ->> HCS: 🔐 Submit Route Data (RSA+AES Encrypted, ECDSA signed), 💰 Pay $1 Topic Fee
-  Prover ->> Prover: ⏳ Listen for Challenge Requests
-  HCS -->> Proxy: Deliver Encrypted Message
-  Proxy ->> Proxy: Decrypt Message (RSA+AES), Extract AES key
-  Proxy ->> Proxy: Verify Signature, Extract Address (ECDSA)
-  Proxy ->> Proxy: ✅ Confirm Smart Contract's ownership (Address + Nonce)
-  Proxy ->> Prover: 🔐 Send Challenge Request (RSA Signed, AES Encrypted)
-  Prover -->> Proxy: 🔐 Respond to Challenge (ECDSA Signed, AES Encrypted)
-  Proxy ->> Proxy: Verify Challenge Response, Prover is accessible
-  Proxy ->> Proxy: Update Verified Routes Database
-  Proxy ->> Prover: 🎉 Confirm Route Registration Success (AES Encrypted)
-  rect rgb(255, 191, 191)
-    Note over Prover, Proxy: Security Cleanup
-    Prover ->> Prover: 🗑️ Remove AES key from memory
-    Proxy ->> Proxy: 🗑️ Remove AES key from memory
-  end
-```
-
-#### Updated Description
-
-1. **Contract Owner (Prover)**:
-
-   - Generates route data, including the contract address and relay information.
-   - Creates a shared AES secret key for secure communication with the Proxy.
-   - Signs the data using ECDSA and encrypts it using hybrid encryption (RSA for AES key + AES for payload).
-   - Submits the encrypted message to the Hedera topic.
-   - Maintains the AES key in memory for subsequent encrypted communications.
-
-2. **Hedera Consensus Service**:
-
-   - Acts as a secure message relay, delivering the encrypted message to the Proxy.
-   - **HIP-991 Paid Topics**: Implements $0.50 USD equivalent submission fee (0.5 HBAR) to prevent spam.
-   - **Fee Collection**: Proxy collects submission fees as topic creator and fee collector.
-   - **Fee Exemption**: Proxy is exempt from submission fees via fee exempt key.
-
-3. **JSON-RPC Relay Proxy**:
-
-   - Decrypts the message using its RSA private key to extract the AES key.
-   - Uses the AES key to decrypt the route data payload.
-   - Verifies the ECDSA signature to ensure authenticity.
-   - Validates the route data and updates the verified route database.
-   - Sends encrypted challenge requests to the Prover using the shared AES key.
-   - Verifies encrypted challenge responses from the Prover.
-   - Sends encrypted confirmation of successful route registration.
-   - Removes the AES key from memory after successful completion.
-
-4. **Security Features**:
-
-   - **Hybrid Encryption**: RSA encrypts the AES key, AES encrypts all communication payloads.
-   - **Shared Secret**: AES key enables secure bidirectional communication.
-   - **Memory Cleanup**: Both Proxy and Prover remove the AES key after completion.
-   - **Forward Secrecy**: Each registration session uses a unique AES key.
-   - Verifies the ECDSA signature to ensure authenticity.
-   - Validates the route data and updates the verified route database.
-   - Sends a challenge request to the Prover to verify its availability.
-   - Verifies the Prover's challenge response.
-   - Confirms the successful route registration to the Prover.
-
-### Flow Overview
-
-#### Flow 1: Normal Operations
-
-1. **JSON-RPC Request**: dApps/wallets send requests to the proxy
-2. **Address Extraction**: Proxy extracts "to" address from `eth_sendRawTransaction`
-3. **Route Lookup**: Check if address exists in verified route database
-4. **Routing Decision**: Route to custom relay if found, otherwise default to hashio.io
-
-#### Flow 2: Route Registration Process
-
-1. **Contract Address Generation**: Owner generates deterministic address using either CREATE (deployer + nonce) or CREATE2 (deployer + salt + init code hash)
-2. **Cryptographic Proof**: Signs route data with ECDSA to prove ownership
-3. **Secure Submission**: Encrypts and submits route data to Hedera Consensus Service
-4. **Message Processing**: Proxy decrypts, verifies signatures, and validates ownership
-5. **Challenge-Response**: Proxy challenges the claimed JSON-RPC endpoint URL
-6. **Verification**: Prover responds with ECDSA signature to prove control of endpoint
-7. **Route Activation**: Successful verification adds route to database and sends confirmation
-
-## 💰 HIP-991 Paid Topic Implementation
-
-The system implements **HIP-991 Paid Topics** to prevent spam and ensure quality route registrations. This provides economic security while maintaining decentralized access.
-
-### Topic Economics
-
-- **Submission Fee**: $0.50 USD equivalent (0.5 HBAR) per message submission
-- **Fee Purpose**: Prevents spam attacks and ensures serious route registration attempts
-- **Fee Collection**: Proxy collects all submission fees as the topic creator
-- **Fee Exemption**: Proxy is exempt from fees via fee exempt key for operational messages
-
-### Technical Implementation
-
-#### Proxy (Topic Creator)
-
-- **Creates HIP-991 topic** with custom fixed fee of 0.5 HBAR per submission
-- **Exempt from fees** via fee exempt key for publishing RSA public key and confirmations
-- **Collects all fees** paid by provers for route registration attempts
-- **Sets fee schedule key** to allow future fee adjustments if needed
-
-#### Prover (Message Submitter)
-
-- **Pays 0.5 HBAR fee** automatically when submitting route registration messages
-- **Sets custom fee limit** to maximum 0.6 HBAR to account for network fee variations
-- **Must have sufficient balance** before attempting route registration
-- **Receives route verification** and confirmation after successful payment and validation
-
-### Economic Benefits
-
-1. **Spam Prevention**: 0.5 HBAR cost makes spam attacks economically unfeasible
-2. **Quality Assurance**: Only serious projects with genuine intent will pay for registration
-3. **Network Sustainability**: Fees support proxy operation and maintenance
-4. **Fair Access**: No central gatekeeping - anyone can register by paying the transparent fee
-5. **Scalable Economics**: Fee collection scales with usage without additional infrastructure
-
-### Configuration Requirements
-
-```bash
-# Proxy must have sufficient balance for topic creation (≥25 HBAR recommended)
-PROXY_HEDERA_ACCOUNT_ID=0.0.123456
-PROXY_HEDERA_PRIVATE_KEY=302e020100300506032b65700...
-
-# Prover must have sufficient balance for submissions (≥1 HBAR recommended)
-PROVER_HEDERA_ACCOUNT_ID=0.0.789012
-PROVER_HEDERA_PRIVATE_KEY=0x48b52aba58f4b8dd4cd0e527...
-```
-
 ## 📦 Packages
 
 ### [@hiero-json-rpc-relay/proxy](./packages/proxy)
@@ -377,6 +222,161 @@ A shared utility package providing common functionality used by both proxy and p
          │  Package    │
          │ (utilities) │
          └─────────────┘
+```
+
+## 🏗️ Architecture
+
+### Flow 1: Normal JSON-RPC Routing Operations
+
+```text
+┌──────────┐    ┌──────────────────────────────────────────────────┐     ┌────────────────┐
+│ Ethereum │    │              JSON-RPC Relay PROXY                │     │   JSON-RPC     │
+│ dApps/   │───►│                                                  │────►│   Relay        │
+│ Wallets  │    │  1. Receive JSON-RPC Request                     │     │   Servers      │
+│ Clients  │    │  2. Extract `to` from `eth_sendRawTransaction`   │     │                │
+└──────────┘    │  3. Lookup address in routes database            │     │                │
+                │                                                  │     │                │
+                │  ┌─────────────────┐  ┌──────────────────┐       │     │                │
+                │  │ Address Lookup  │  │  Routes Database │       │     │                │
+                │  │                 │  │   (Verified)     │       │     │                │
+                │  │ 0x123... ──────►│  │                  │       │     │                │
+                │  │                 │  │ 0x123 → relay-a  │       │     │                │
+                │  │                 │  │ 0x456 → relay-b  │       │     │                │
+                │  └─────────────────┘  │ 0x789 → relay-c  │       │     │                │
+                │                       └──────────────────┘       │     │                │
+                │                                                  │     │ • hashio.io    │
+                |  IF FOUND: Route to custom JSON-RPC Relay        │     │ • example.com  |
+                |                                                  │     | • acme.org     |
+                │  IF NOT FOUND: Route to Default (hashio.io)      │     │ • ...          │
+                └──────────────────────────────────────────────────┘     └────────────────┘
+```
+
+### Flow 2: Route Registration & Verification
+
+#### Sequence Diagram
+
+[Click here if you don't see the graphical Mermaid flow](docs/flow2.svg)
+
+```mermaid
+sequenceDiagram
+  participant Prover as Prover (Contract Owner)
+  participant Proxy as Proxy
+  participant HCS as HCS
+
+  autonumber
+  rect rgb(191, 223, 255)
+    Note right of Proxy: Setup
+    Proxy ->> Proxy: 🔑 Generate RSA key pair
+    Proxy ->> HCS: Create new HIP-991 Paid Topic ($1 submission fee)
+    Proxy ->> HCS: Publish RSA Public Key (proxy exempt from fees)
+    Proxy -->> HCS: ⏳ Subscribe to messages
+  end
+  Prover ->> Proxy: Fetch /status
+  Proxy -->> Prover: Answer with Topic ID & RSA Public Key
+  Prover ->> Prover: 🔑 Generate AES shared secret key
+  Prover ->> HCS: 🔐 Submit Route Data (RSA+AES Encrypted, ECDSA signed), 💰 Pay $1 Topic Fee
+  Prover ->> Prover: ⏳ Listen for Challenge Requests
+  HCS -->> Proxy: Deliver Encrypted Message
+  Proxy ->> Proxy: Decrypt Message (RSA+AES), Extract AES key
+  Proxy ->> Proxy: Verify Signature, Extract Address (ECDSA)
+  Proxy ->> Proxy: ✅ Confirm Smart Contract's ownership (Address + Nonce)
+  Proxy ->> Prover: 🔐 Send Challenge Request (RSA Signed, AES Encrypted)
+  Prover -->> Proxy: 🔐 Respond to Challenge (ECDSA Signed, AES Encrypted)
+  Proxy ->> Proxy: Verify Challenge Response, Prover is accessible
+  Proxy ->> Proxy: Update Verified Routes Database
+  Proxy ->> Prover: 🎉 Confirm Route Registration Success (AES Encrypted)
+  rect rgb(255, 191, 191)
+    Note over Prover, Proxy: Security Cleanup
+    Prover ->> Prover: 🗑️ Remove AES key from memory
+    Proxy ->> Proxy: 🗑️ Remove AES key from memory
+  end
+```
+
+#### Detailed Description
+
+1. **Contract Owner (Prover)**:
+
+   - Generates route data, including the contract address and relay information.
+   - Creates a shared AES secret key for secure communication with the Proxy.
+   - Signs the data using ECDSA and encrypts it using hybrid encryption (RSA for AES key + AES for payload).
+   - Submits the encrypted message to the Hedera topic.
+   - Maintains the AES key in memory for subsequent encrypted communications.
+
+2. **Hedera Consensus Service**:
+
+   - Acts as a secure message relay, delivering the encrypted message to the Proxy.
+   - **HIP-991 Paid Topics**: Implements $0.50 USD equivalent submission fee (0.5 HBAR) to prevent spam.
+   - **Fee Collection**: Proxy collects submission fees as topic creator and fee collector.
+   - **Fee Exemption**: Proxy is exempt from submission fees via fee exempt key.
+
+3. **JSON-RPC Relay Proxy**:
+
+   - Decrypts the message using its RSA private key to extract the AES key.
+   - Uses the AES key to decrypt the route data payload.
+   - Verifies the ECDSA signature to ensure authenticity.
+   - Validates the route data and updates the verified route database.
+   - Sends encrypted challenge requests to the Prover using the shared AES key.
+   - Verifies encrypted challenge responses from the Prover.
+   - Sends encrypted confirmation of successful route registration.
+   - Removes the AES key from memory after successful completion.
+
+4. **Security Features**:
+
+   - **Hybrid Encryption**: RSA encrypts the AES key, AES encrypts all communication payloads.
+   - **Shared Secret**: AES key enables secure bidirectional communication.
+   - **Memory Cleanup**: Both Proxy and Prover remove the AES key after completion.
+   - **Forward Secrecy**: Each registration session uses a unique AES key.
+   - Verifies the ECDSA signature to ensure authenticity.
+   - Validates the route data and updates the verified route database.
+   - Sends a challenge request to the Prover to verify its availability.
+   - Verifies the Prover's challenge response.
+   - Confirms the successful route registration to the Prover.
+
+## 💰 HIP-991 Paid Topic Implementation
+
+The system implements **HIP-991 Paid Topics** to prevent spam and ensure quality route registrations. This provides economic security while maintaining decentralized access.
+
+### Topic Economics
+
+- **Submission Fee**: $0.50 USD equivalent (0.5 HBAR) per message submission
+- **Fee Purpose**: Prevents spam attacks and ensures serious route registration attempts
+- **Fee Collection**: Proxy collects all submission fees as the topic creator
+- **Fee Exemption**: Proxy is exempt from fees via fee exempt key for operational messages
+
+### Technical Implementation
+
+#### Proxy (Topic Creator)
+
+- **Creates HIP-991 topic** with custom fixed fee of 0.5 HBAR per submission
+- **Exempt from fees** via fee exempt key for publishing RSA public key and confirmations
+- **Collects all fees** paid by provers for route registration attempts
+- **Sets fee schedule key** to allow future fee adjustments if needed
+
+#### Prover (Message Submitter)
+
+- **Pays 0.5 HBAR fee** automatically when submitting route registration messages
+- **Sets custom fee limit** to maximum 0.6 HBAR to account for network fee variations
+- **Must have sufficient balance** before attempting route registration
+- **Receives route verification** and confirmation after successful payment and validation
+
+### Economic Benefits
+
+1. **Spam Prevention**: 0.5 HBAR cost makes spam attacks economically unfeasible
+2. **Quality Assurance**: Only serious projects with genuine intent will pay for registration
+3. **Network Sustainability**: Fees support proxy operation and maintenance
+4. **Fair Access**: No central gatekeeping - anyone can register by paying the transparent fee
+5. **Scalable Economics**: Fee collection scales with usage without additional infrastructure
+
+### Configuration Requirements
+
+```bash
+# Proxy must have sufficient balance for topic creation (≥25 HBAR recommended)
+PROXY_HEDERA_ACCOUNT_ID=0.0.123456
+PROXY_HEDERA_PRIVATE_KEY=302e020100300506032b65700...
+
+# Prover must have sufficient balance for submissions (≥1 HBAR recommended)
+PROVER_HEDERA_ACCOUNT_ID=0.0.789012
+PROVER_HEDERA_PRIVATE_KEY=0x48b52aba58f4b8dd4cd0e527...
 ```
 
 ## 📁 Project Structure
