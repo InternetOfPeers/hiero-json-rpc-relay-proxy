@@ -5,6 +5,7 @@ const {
   initDatabase,
   getTargetServer,
   getRoutingDB,
+  getMaskedRoutingDB,
   initRSAKeyPair,
   getRSAKeyPair,
   hasRSAKeyPair,
@@ -116,7 +117,7 @@ const server = http.createServer(async (req, res) => {
     // Handle management routes
     if (req.url === '/routes' && req.method === 'GET') {
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify(getRoutingDB(), null, 2));
+      res.end(JSON.stringify(getMaskedRoutingDB(), null, 2));
       return;
     }
 

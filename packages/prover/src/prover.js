@@ -994,12 +994,6 @@ async function initPairingWithProxy() {
 
     const testUrl = `http://localhost:${PROVER_PORT}`;
 
-    // Import the function to compute correct addresses
-    const {
-      getContractAddressFromCreate,
-      getContractAddressFromCreate2,
-    } = require('@hiero-json-rpc-relay/common');
-
     // Create test routes with COMPUTED addresses based on the actual signer
     const route1 = {
       addr: '0x3ed660420aa9bc674e8f80f744f8062603da385e',
@@ -1014,6 +1008,7 @@ async function initPairingWithProxy() {
       route1.url
     );
 
+    // This is going to fail. This is intentionally to demonstrate failure handling
     const route2 = {
       addr: '0xfcec100d41f4bcc889952e1a73ad6d96783c491a',
       proofType: 'create',

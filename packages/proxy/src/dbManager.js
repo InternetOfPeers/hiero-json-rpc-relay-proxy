@@ -192,6 +192,15 @@ function getRoutingDB() {
   return database.routes;
 }
 
+function getMaskedRoutingDB() {
+  // Return a masked version of the routing database
+  const maskedRoutes = {};
+  for (const [key, value] of Object.entries(database.routes)) {
+    maskedRoutes[key] = '<masked>';
+  }
+  return maskedRoutes;
+}
+
 function updateRoutes(newRoutes, save = null, DB_FILE = null) {
   // Normalize addresses to lowercase
   const normalizedRoutes = {};
@@ -210,6 +219,7 @@ module.exports = {
   saveDatabase,
   getTargetServer,
   getRoutingDB,
+  getMaskedRoutingDB,
   updateRoutes,
   initRSAKeyPair,
   getRSAKeyPair,
