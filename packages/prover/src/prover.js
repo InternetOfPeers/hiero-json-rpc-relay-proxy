@@ -992,54 +992,84 @@ async function initPairingWithProxy() {
       }
     };
 
-    const testUrl = `http://localhost:${PROVER_PORT}`;
+    // Create test routes from environment configuration or use defaults
+    const routeConfigs = [];
 
-    // Create test routes with COMPUTED addresses based on the actual signer
-    const route1 = {
-      addr: '0x3ed660420aa9bc674e8f80f744f8062603da385e',
-      proofType: 'create',
-      nonce: 33,
-      url: testUrl,
-    };
-    route1.sig = await signRouteData(
-      route1.addr,
-      route1.proofType,
-      route1.nonce,
-      route1.url
-    );
+    // Parse routes from environment variables
+    let routeIndex = 1;
+    // example format for create: PROVER_ROUTE_1="0x1234567890abcdef,http://example.com,create,42"
+    // example format for create2: PROVER_ROUTE_2="0x1234567890abcdef,http://example.com,create2,0x0000000000000000000000000000000000000000000000000000000000000001,0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"
+    while (process.env[`PROVER_ROUTE_${routeIndex}`]) {
+      const routeString = process.env[`PROVER_ROUTE_${routeIndex}`];
+      const parts = routeString.split(',').map(part => part.trim());
 
-    // This is going to fail. This is intentionally to demonstrate failure handling
-    const route2 = {
-      addr: '0xfcec100d41f4bcc889952e1a73ad6d96783c491a',
-      proofType: 'create',
-      nonce: 30,
-      url: testUrl,
-    };
-    route2.sig = await signRouteData(
-      route2.addr,
-      route2.proofType,
-      route2.nonce,
-      route2.url
-    );
+      if (parts.length < 2) {
+        console.warn(
+          `⚠️  Skipping invalid route ${routeIndex}: expected at least addr,proofType`
+        );
+        routeIndex++;
+        continue;
+      }
 
-    // CREATE2 route example
-    const route3 = {
-      addr: '0xbd8b5269f85c4460b04d5deaaf51022a41783a32',
-      proofType: 'create2',
-      salt: '0x0000000000000000000000000000000000000000000000000000000000000001',
-      initCodeHash:
-        '0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470',
-      url: testUrl,
-    };
-    route3.sig = await signRouteData(
-      route3.addr,
-      route3.proofType,
-      route3.salt,
-      route3.url
-    );
+      const routeConfig = {
+        addr: parts[0],
+        url: parts[1],
+        proofType: parts[2],
+      };
+
+      // Handle CREATE2-specific fields
+      if (routeConfig.proofType === 'create2') {
+        routeConfig.salt =
+          parts[3] ||
+          '0x0000000000000000000000000000000000000000000000000000000000000001';
+        routeConfig.initCodeHash =
+          parts[4] ||
+          '0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470';
+      } else {
+        // For non-CREATE2 routes, use nonce
+        routeConfig.nonce = parts[3];
+      }
+
+      routeConfigs.push(routeConfig);
+      routeIndex++;
+    }
+
+    // If no routes configured in environment, stop the process
+    if (routeConfigs.length === 0) {
+      console.log('📋 No routes configured in environment, exiting process');
+      process.exit(0);
+    }
+
+    // Sign all routes and create the final routes array
+    const routes = [];
+    for (let i = 0; i < routeConfigs.length; i++) {
+      const config = routeConfigs[i];
+      const route = { ...config };
+
+      if (config.proofType === 'create2') {
+        route.sig = await signRouteData(
+          config.addr,
+          config.proofType,
+          config.salt,
+          config.url
+        );
+      } else {
+        route.sig = await signRouteData(
+          config.addr,
+          config.proofType,
+          config.nonce,
+          config.url
+        );
+      }
+
+      console.log(
+        `🔑 Signed route ${i + 1}: ${config.addr} (${config.proofType})`
+      );
+      routes.push(route);
+    }
 
     const payload = {
-      routes: [route1, route2, route3],
+      routes: routes,
     };
 
     // Generate and store AES keys for each contract address
