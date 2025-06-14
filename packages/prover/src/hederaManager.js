@@ -7,7 +7,8 @@ const {
 } = require('@hashgraph/sdk');
 const {
   hedera: { initHederaClient, getMirrorNodeUrl },
-  calculateDynamicFees,
+  centsToTinybars,
+  centsToHBAR,
 } = require('@hiero-json-rpc-relay/common');
 
 // Prover Hedera Manager Module
@@ -109,11 +110,10 @@ class HederaManager {
     try {
       console.log(`📤 Submitting message to HIP-991 topic ${topicIdString}...`);
 
-      // Create custom fee limit for HIP-991 topic
-      const feeCalculation = await calculateDynamicFees();
+      // Set custom fee in tinybars for $2 worth of HBAR
       const customFee = new CustomFixedFee().setAmount(
-        feeCalculation.tinybarsFor1Dollar * 2 + 1000
-      ); // Set custom fee in tinybars for $2 worth of HBAR + 1000 tinybars buffer
+        await centsToTinybars(200)
+      );
       const customFeeLimit = new CustomFeeLimit()
         .setAccountId(this.client.operatorAccountId) // Prover account pays the fee
         .setFees([customFee]);
@@ -122,11 +122,7 @@ class HederaManager {
         .setTopicId(topicIdString)
         .setMessage(message)
         .addCustomFeeLimit(customFeeLimit) // Set max custom fee limit for HIP-991
-        .setMaxTransactionFee(
-          new Hbar(
-            Math.ceil(feeCalculation.tinybarsFor1Dollar / 100_000_000) + 1
-          )
-        ); // Set max transaction fee to $2 worth of HBAR + 1 HBAR buffer
+        .setMaxTransactionFee(new Hbar(Math.ceil(await centsToHBAR(110))));
 
       const txResponse = await transaction.execute(this.client);
       const receipt = await txResponse.getReceipt(this.client);

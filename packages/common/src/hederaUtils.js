@@ -207,66 +207,35 @@ async function getExchangeRate(mirrorNodeUrl = 'testnet') {
   }
 }
 
-// Calculate dynamic fees based on current exchange rate
-async function calculateDynamicFees() {
-  try {
-    console.log('📊 Fetching current HBAR-to-USD exchange rate...');
-
-    // Fetch current exchange rate
-    const exchangeRate = await getExchangeRate();
-    const { cent_equivalent, hbar_equivalent } = exchangeRate;
-
-    console.log(
-      `💱 Current exchange rate: ${cent_equivalent} cents = ${hbar_equivalent} HBAR`
-    );
-
-    // Calculate cents per HBAR
-    const centsPerHbar = cent_equivalent / hbar_equivalent;
-    console.log(`💰 Rate: ${centsPerHbar.toFixed(4)} cents per HBAR`);
-
-    // Calculate tinybars for $1 (100 cents)
-    const hbarFor1Dollar = 100 / centsPerHbar;
-    const tinybarsFor1Dollar = Math.round(hbarFor1Dollar * 100000000); // Convert HBAR to tinybars
-
-    // Calculate HBAR for $2 (200 cents)
-    const hbarFor2Dollars = 200 / centsPerHbar;
-
-    console.log(
-      `💵 $1.00 USD = ${hbarFor1Dollar.toFixed(6)} HBAR = ${tinybarsFor1Dollar} tinybars`
-    );
-    console.log(`💵 $2.00 USD = ${hbarFor2Dollars.toFixed(6)} HBAR`);
-
-    return {
-      customFeeAmount: tinybarsFor1Dollar,
-      maxTransactionFeeHbar: hbarFor2Dollars,
-      tinybarsFor1Dollar: tinybarsFor1Dollar,
-      exchangeRate: {
-        centsPerHbar,
-        centEquivalent: cent_equivalent,
-        hbarEquivalent: hbar_equivalent,
-      },
-    };
-  } catch (error) {
-    console.log(`⚠️  Failed to fetch exchange rate: ${error.message}`);
-    console.log('🔄 Falling back to default values...');
-
-    // Fallback to reasonable default values
-    const fallbackCustomFee = 554676291; // ~$1 at historical rates
-    const fallbackMaxFee = 12; // $2 equivalent at historical rates
-
-    console.log(
-      `💵 Fallback: Custom fee = ${fallbackCustomFee} tinybars (~$1.00 USD)`
-    );
-    console.log(
-      `💵 Fallback: Max transaction fee = ${fallbackMaxFee} HBAR (~$2.00 USD)`
-    );
-
-    return {
-      customFeeAmount: fallbackCustomFee,
-      maxTransactionFeeHbar: fallbackMaxFee,
-      exchangeRate: null, // Indicates fallback was used
-    };
+/**
+ * Convert cents to HBAR based on current exchange rate
+ * @param {number} cents - Amount in cents to convert
+ * @returns {Promise<number>} Equivalent amount in HBAR
+ */
+async function centsToHBAR(cents) {
+  if (typeof cents !== 'number' || cents < 0) {
+    throw new Error('Invalid cents value. Must be a non-negative number.');
   }
+  console.log('📊 Fetching current HBAR-to-USD exchange rate...');
+  // Fetch current exchange rate
+  const exchangeRate = await getExchangeRate();
+  const { cent_equivalent, hbar_equivalent } = exchangeRate;
+  // Calculate cents per HBAR
+  const centsPerHbar = cent_equivalent / hbar_equivalent;
+  const hbarFor1Dollar = 100 / centsPerHbar;
+  console.log(
+    `💰 Exchange rate: ${cent_equivalent} cents = ${hbar_equivalent} HBAR. ~${centsPerHbar.toFixed(2)} cents per HBAR, $1.00 USD = ${hbarFor1Dollar.toFixed(6)} HBAR`
+  );
+  return cents / centsPerHbar;
+}
+
+/**
+ * Convert cents to tinybars based on current exchange rate
+ * @param {number} cents - Amount in cents to convert
+ * @returns {Promise<number>} Equivalent amount in tinybars
+ */
+async function centsToTinybars(cents) {
+  return Math.round((await centsToHBAR(cents)) * 100_000_000);
 }
 
 /**
@@ -285,7 +254,8 @@ const HederaErrorTypes = {
 module.exports = {
   initHederaClient,
   getExchangeRate,
-  calculateDynamicFees,
+  centsToHBAR,
+  centsToTinybars,
   getMirrorNodeUrl,
   isValidAccountId,
   isValidTopicId,

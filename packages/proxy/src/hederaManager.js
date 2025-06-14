@@ -18,7 +18,8 @@ const {
   validateRouteSignatures,
   hedera: { getMirrorNodeUrl },
   http: { makeHttpRequest },
-  calculateDynamicFees,
+  centsToTinybars,
+  centsToHBAR,
 } = require('@hiero-json-rpc-relay/common');
 const { updateRoutes, saveDatabase } = require('./dbManager');
 
@@ -125,21 +126,18 @@ class HederaManager {
         .execute(this.client);
       console.log(`💰 Account balance: ${balance.hbars} HBAR`);
 
-      if (balance.hbars.toBigNumber().isLessThan(25)) {
+      if (balance.hbars.toBigNumber().isLessThan(await centsToHBAR(250))) {
         console.log(
           '⚠️  Warning: Account balance is low for HIP-991 topic creation'
         );
       }
-
-      // Calculate dynamic fees based on current exchange rate
-      const feeCalculation = await calculateDynamicFees();
 
       // Get the proxy's account ID to use as submit key (exempt from fees)
       const proxyAccountId = AccountId.fromString(this.accountId);
       const proxyPrivateKey = PrivateKey.fromStringED25519(this.privateKey);
 
       const customFee = new CustomFixedFee()
-        .setAmount(feeCalculation.customFeeAmount) // Dynamic $1 equivalent in tinybars
+        .setAmount(await centsToTinybars(150)) // Dynamic $1 equivalent in tinybars
         .setFeeCollectorAccountId(proxyAccountId); // Proxy collects the fees
 
       const transaction = new TopicCreateTransaction()
@@ -147,9 +145,7 @@ class HederaManager {
         .setFeeScheduleKey(proxyPrivateKey.publicKey) // Allow proxy to update fees
         .addCustomFee(customFee) // Add the $1 fee for message submission
         .addFeeExemptKey(proxyPrivateKey.publicKey) // Proxy is exempt from fees
-        .setMaxTransactionFee(
-          new Hbar(Math.ceil(feeCalculation.maxTransactionFeeHbar) + 1)
-        ); // Ceil and add 1 HBAR buffer for safety
+        .setMaxTransactionFee(new Hbar(Math.ceil(await centsToHBAR(220))));
 
       const txResponse = await transaction.execute(this.client);
       const receipt = await txResponse.getReceipt(this.client);
@@ -163,30 +159,6 @@ class HederaManager {
       console.log(
         `🚫 Fee exempt keys: [${proxyPrivateKey.publicKey.toStringRaw()}] (proxy exempt)`
       );
-
-      // Display dynamic fee information
-      if (feeCalculation.exchangeRate) {
-        console.log(
-          `💰 Message submission cost: ${feeCalculation.customFeeAmount} tinybars ($1.00 USD at current rate)`
-        );
-        console.log(
-          `💰 Max transaction fee: ${feeCalculation.maxTransactionFeeHbar.toFixed(6)} HBAR ($2.00 USD at current rate)`
-        );
-        console.log(
-          `📊 Exchange rate used: ${feeCalculation.exchangeRate.centsPerHbar.toFixed(4)} cents per HBAR`
-        );
-      } else {
-        console.log(
-          `💰 Message submission cost: ${feeCalculation.customFeeAmount} tinybars ($1.00 USD - fallback rate)`
-        );
-        console.log(
-          `💰 Max transaction fee: ${feeCalculation.maxTransactionFeeHbar} HBAR ($2.00 USD - fallback rate)`
-        );
-        console.log(
-          `⚠️  Using fallback rates due to exchange rate API unavailability`
-        );
-      }
-
       console.log(`💼 Fee collector: ${proxyAccountId} (proxy receives fees)`);
 
       this.currentTopicId = newTopicId.toString();

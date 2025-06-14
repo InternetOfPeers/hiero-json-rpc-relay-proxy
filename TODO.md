@@ -1,6 +1,5 @@
 # todo list
 
-- add a way to set routes for the prover via config file
 - support removing routes
 - the proxy restart from the last non processed message and to up to the latest message (call <https://testnet.mirrornode.hedera.com/api/v1/topics/0.0.6139083/messages?order=desc&limit=1> and get sequence_number). After that, start polling for new messages.
 - create a separate package to check the exchange rate every hour at X and 5 minutes and set the custom fees accordingly to keep the custom fees at one dollars
