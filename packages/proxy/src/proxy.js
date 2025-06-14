@@ -117,7 +117,9 @@ const server = http.createServer(async (req, res) => {
     // Handle management routes
     if (req.url === '/routes' && req.method === 'GET') {
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify(getMaskedRoutingDB(), null, 2));
+      res.end(
+        JSON.stringify(getMaskedRoutingDB(PROXY_DEFAULT_SERVER), null, 2)
+      );
       return;
     }
 
@@ -179,7 +181,7 @@ const server = http.createServer(async (req, res) => {
 
       if (rawTx && rawTx.length > 0) {
         toAddress = extractToFromTransaction(rawTx[0]);
-        // Get target server based on "to" address only for eth_sendRawTransaction
+        // Get target server based on "to" address
         targetServer = getTargetServer(toAddress, PROXY_DEFAULT_SERVER);
         console.log(
           `${req.method} ${req.url} - method: ${jsonData.method}, to address: "${toAddress}" -> ${targetServer}`

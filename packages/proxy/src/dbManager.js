@@ -192,13 +192,25 @@ function getRoutingDB() {
   return database.routes;
 }
 
-function getMaskedRoutingDB() {
+function getMaskedRoutingDB(fallback = null) {
   // Return a masked version of the routing database
   const maskedRoutes = {};
   for (const [key, value] of Object.entries(database.routes)) {
-    maskedRoutes[key] = '<masked>';
+    if (key !== '0x0000000000000000000000000000000000000000') {
+      maskedRoutes[key] = '<masked>';
+    } else {
+      maskedRoutes[key] = value; // Keep the default server unmasked
+    }
   }
-  return maskedRoutes;
+  // order the masked routes by address
+  const orderedKeys = Object.keys(maskedRoutes).sort();
+  const orderedMaskedRoutes = {};
+  for (const key of orderedKeys) {
+    orderedMaskedRoutes[key] = maskedRoutes[key];
+  }
+  // add PROXY_DEFAULT_SERVER to the masked routes
+  orderedMaskedRoutes['fallback'] = fallback;
+  return orderedMaskedRoutes;
 }
 
 function updateRoutes(newRoutes, save = null, DB_FILE = null) {
