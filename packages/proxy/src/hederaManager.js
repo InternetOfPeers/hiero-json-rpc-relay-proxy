@@ -1040,7 +1040,7 @@ class HederaManager {
         `      🎯 Challenge-response results: ${successfulChallenges}/${challengeResults.length} successful`
       );
 
-      // FIXED: Send individual confirmations to successful routes (not all-or-nothing)
+      // Send individual confirmations to successful routes (not all-or-nothing)
       const successfulRoutes = challengeResults.filter(
         r => r.challengeSuccess && r.responseValid
       );

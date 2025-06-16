@@ -6,7 +6,7 @@ const { spawn } = require('node:child_process');
 const fs = require('node:fs').promises;
 const path = require('node:path');
 
-// Utility function to make HTTP requests without node-fetch
+// Utility function to make HTTP requests
 function makeRequest(url, options = {}) {
   return new Promise((resolve, reject) => {
     const urlObj = new URL(url);

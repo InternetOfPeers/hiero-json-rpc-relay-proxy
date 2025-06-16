@@ -7,6 +7,7 @@ const {
 } = require('@hashgraph/sdk');
 const {
   hedera: { initHederaClient, getMirrorNodeUrl },
+  http: { makeHttpRequest },
   centsToTinybars,
   centsToHBAR,
 } = require('@hiero-json-rpc-relay/common');
@@ -79,17 +80,22 @@ class HederaManager {
       const mirrorNodeUrl = getMirrorNodeUrl(this.network);
       const url = `${mirrorNodeUrl}/api/v1/topics/${topicIdString}`;
 
-      // Use node-fetch for HTTP requests
-      const response = await fetch(url);
+      // Use makeHttpRequest from common package
+      const response = await makeHttpRequest(url, {
+        method: 'GET',
+        timeout: 5000,
+      });
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      if (response.statusCode === 200) {
+        const topicData = response.json || JSON.parse(response.body);
+        console.log(`✅ Topic ${topicIdString} exists and is accessible`);
+        console.log(`   Topic memo: ${topicData.memo || 'No memo'}`);
+        return true;
+      } else {
+        throw new Error(
+          `HTTP ${response.statusCode}: ${response.statusText || 'Request failed'}`
+        );
       }
-
-      const topicData = await response.json();
-      console.log(`✅ Topic ${topicIdString} exists and is accessible`);
-      console.log(`   Topic memo: ${topicData.memo || 'No memo'}`);
-      return true;
     } catch (error) {
       console.log(
         `❌ Topic ${topicIdString} does not exist or is not accessible:`,
@@ -210,10 +216,6 @@ class HederaManager {
     topicId,
     network = 'testnet'
   ) {
-    const http = require('http');
-    const https = require('https');
-    const fetch = require('node-fetch');
-
     try {
       console.log(
         `🔍 Fetching public key from topic ${topicId} on ${network}...`
@@ -225,103 +227,74 @@ class HederaManager {
       const url = `${mirrorNodeUrl}/api/v1/topics/${topicId}/messages/1`;
       console.log(`📡 Calling mirror node: ${url}`);
 
-      return new Promise((resolve, reject) => {
-        const client = url.startsWith('https') ? https : http;
-
-        const request = client.get(url, response => {
-          let data = '';
-
-          response.on('data', chunk => {
-            data += chunk;
-          });
-
-          response.on('end', () => {
-            try {
-              if (response.statusCode !== 200) {
-                throw new Error(`HTTP ${response.statusCode}: ${data}`);
-              }
-
-              const messageData = JSON.parse(data);
-              console.log(`📨 Received message data from mirror node`);
-
-              // Extract the message content (base64 encoded)
-              if (!messageData.message) {
-                throw new Error(
-                  'No message content found in mirror node response'
-                );
-              }
-
-              // Decode the base64 message
-              const messageContent = Buffer.from(
-                messageData.message,
-                'base64'
-              ).toString('utf8');
-              console.log(
-                `📄 Decoded message content (${messageContent.length} chars)`
-              );
-
-              // Try to parse as JSON to extract public key
-              let publicKey;
-              try {
-                const messageJson = JSON.parse(messageContent);
-
-                // Look for public key in common fields
-                if (messageJson.publicKey) {
-                  publicKey = messageJson.publicKey;
-                } else if (messageJson.public_key) {
-                  publicKey = messageJson.public_key;
-                } else if (messageJson.rsaPublicKey) {
-                  publicKey = messageJson.rsaPublicKey;
-                } else if (messageJson.key) {
-                  publicKey = messageJson.key;
-                } else {
-                  throw new Error('No public key field found in message JSON');
-                }
-              } catch (jsonError) {
-                // If not JSON, assume the entire message content is the public key
-                console.log(
-                  `⚠️  Message is not JSON, treating entire content as public key`
-                );
-                publicKey = messageContent.trim();
-              }
-
-              // Validate public key format (should start with -----BEGIN and end with -----END)
-              if (
-                !publicKey.includes('-----BEGIN') ||
-                !publicKey.includes('-----END')
-              ) {
-                throw new Error(
-                  'Invalid public key format - missing PEM headers'
-                );
-              }
-
-              console.log(
-                `✅ Successfully extracted public key from topic first message`
-              );
-              console.log(
-                `🔑 Public key preview: ${publicKey.substring(0, 50)}...`
-              );
-
-              resolve(publicKey);
-            } catch (error) {
-              reject(
-                new Error(
-                  `Failed to parse mirror node response: ${error.message}`
-                )
-              );
-            }
-          });
-        });
-
-        request.on('error', error => {
-          reject(new Error(`Mirror node request failed: ${error.message}`));
-        });
-
-        request.setTimeout(10000, () => {
-          request.destroy();
-          reject(new Error('Mirror node request timeout'));
-        });
+      // Use makeHttpRequest from common package
+      const response = await makeHttpRequest(url, {
+        method: 'GET',
+        timeout: 10000,
       });
+
+      if (response.statusCode !== 200) {
+        throw new Error(
+          `HTTP ${response.statusCode}: ${response.body || 'Request failed'}`
+        );
+      }
+
+      const messageData = response.json || JSON.parse(response.body);
+      console.log(`📨 Received message data from mirror node`);
+
+      // Extract the message content (base64 encoded)
+      if (!messageData.message) {
+        throw new Error('No message content found in mirror node response');
+      }
+
+      // Decode the base64 message
+      const messageContent = Buffer.from(
+        messageData.message,
+        'base64'
+      ).toString('utf8');
+      console.log(
+        `📄 Decoded message content (${messageContent.length} chars)`
+      );
+
+      // Try to parse as JSON to extract public key
+      let publicKey;
+      try {
+        const messageJson = JSON.parse(messageContent);
+
+        // Look for public key in common fields
+        if (messageJson.publicKey) {
+          publicKey = messageJson.publicKey;
+        } else if (messageJson.public_key) {
+          publicKey = messageJson.public_key;
+        } else if (messageJson.rsaPublicKey) {
+          publicKey = messageJson.rsaPublicKey;
+        } else if (messageJson.key) {
+          publicKey = messageJson.key;
+        } else {
+          throw new Error('No public key field found in message JSON');
+        }
+      } catch (jsonError) {
+        // If not JSON, assume the entire message content is the public key
+        console.log(
+          `⚠️  Message is not JSON, treating entire content as public key`
+        );
+        publicKey = messageContent.trim();
+      }
+
+      // Validate public key format (should start with -----BEGIN and end with -----END)
+      if (
+        !publicKey.includes('-----BEGIN') ||
+        !publicKey.includes('-----END')
+      ) {
+        throw new Error('Invalid public key format - missing PEM headers');
+      }
+
+      console.log(
+        `✅ Successfully extracted public key from topic first message`
+      );
+      console.log(`🔑 Public key preview: ${publicKey.substring(0, 50)}...`);
+
+      return publicKey;
     } catch (error) {
       throw new Error(
         `Failed to fetch public key from topic: ${error.message}`
