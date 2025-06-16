@@ -26,8 +26,6 @@ describe('dbManager', function () {
     `test_routing_db_${TEST_NETWORK}.json`
   );
   const defaultRoutes = {
-    '0x4f1a953df9df8d1c6073ce57f7493e50515fa73f':
-      'https://testnet.hashio.io/api',
     '0x0000000000000000000000000000000000000000':
       'https://testnet.hashio.io/api',
   };
@@ -65,7 +63,10 @@ describe('dbManager', function () {
 
   test('should return the correct target server for known and unknown addresses', function () {
     assert.strictEqual(
-      getTargetServer('0x4f1a953df9df8d1c6073ce57f7493e50515fa73f', 'default'),
+      getTargetServer(
+        '0x4f1a953df9df8d1c6073ce57f7493e50515fa73f',
+        'https://testnet.hashio.io/api'
+      ),
       'https://testnet.hashio.io/api'
     );
     assert.strictEqual(getTargetServer('0xnotfound', 'default'), 'default');

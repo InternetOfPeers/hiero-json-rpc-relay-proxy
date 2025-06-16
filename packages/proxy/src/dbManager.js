@@ -108,8 +108,6 @@ async function initDatabase(DB_FILE) {
     // Create default database with new structure
     database = {
       routes: {
-        '0x4f1a953df9df8d1c6073ce57f7493e50515fa73f':
-          'https://testnet.hashio.io/api',
         '0x0000000000000000000000000000000000000000':
           'https://testnet.hashio.io/api',
       },

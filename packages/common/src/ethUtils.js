@@ -117,6 +117,7 @@ function extractToFromTransaction(rawTx) {
     }
 
     let decoded;
+    let transactionType = null;
 
     // If input is already an array (pre-decoded transaction)
     if (Array.isArray(rawTx)) {
@@ -125,8 +126,24 @@ function extractToFromTransaction(rawTx) {
       // Remove 0x prefix if present
       const cleanTx = rawTx.startsWith('0x') ? rawTx.slice(2) : rawTx;
 
-      // Decode the RLP-encoded transaction
-      decoded = rlpDecode('0x' + cleanTx);
+      // Check if this is a typed transaction (EIP-2718)
+      if (cleanTx.length >= 2) {
+        const firstByte = cleanTx.slice(0, 2);
+
+        // If first byte is 0x01 or 0x02, it's a typed transaction
+        if (firstByte === '01' || firstByte === '02') {
+          transactionType = parseInt(firstByte, 16);
+          // For typed transactions, we need to decode the payload after the type byte
+          const payload = cleanTx.slice(2);
+          decoded = rlpDecode('0x' + payload);
+        } else {
+          // Legacy transaction
+          decoded = rlpDecode('0x' + cleanTx);
+        }
+      } else {
+        // Legacy transaction
+        decoded = rlpDecode('0x' + cleanTx);
+      }
 
       if (!decoded || !Array.isArray(decoded)) {
         return null;
@@ -139,29 +156,23 @@ function extractToFromTransaction(rawTx) {
       return null;
     }
 
-    // For different transaction types, the "to" field is at different positions
-    // Legacy transactions: [nonce, gasPrice, gasLimit, to, value, data, v, r, s]
-    // EIP-1559 transactions: [chainId, nonce, maxPriorityFeePerGas, maxFeePerGas, gasLimit, to, value, data, accessList, v, r, s]
-
+    // Extract "to" field based on transaction type
     let toField = null;
 
-    // Check if this is a typed transaction (first byte indicates type)
-    if (decoded.length >= 6) {
-      // Try legacy transaction format first (most common)
-      const legacyToField = decoded[3]; // "to" is at index 3 in legacy transactions
-
-      if (legacyToField && legacyToField !== '' && legacyToField.length > 0) {
-        toField = legacyToField;
-      } else if (decoded.length >= 9) {
-        // Try EIP-1559 format - "to" is at index 5
-        const eip1559ToField = decoded[5];
-        if (
-          eip1559ToField &&
-          eip1559ToField !== '' &&
-          eip1559ToField.length > 0
-        ) {
-          toField = eip1559ToField;
-        }
+    if (transactionType === 1) {
+      // EIP-2930 (Type 1) transaction: [chainId, nonce, gasPrice, gasLimit, to, value, data, accessList, signatureYParity, signatureR, signatureS]
+      if (decoded.length >= 5) {
+        toField = decoded[4]; // "to" is at index 4
+      }
+    } else if (transactionType === 2) {
+      // EIP-1559 (Type 2) transaction: [chainId, nonce, maxPriorityFeePerGas, maxFeePerGas, gasLimit, to, value, data, accessList, signatureYParity, signatureR, signatureS]
+      if (decoded.length >= 6) {
+        toField = decoded[5]; // "to" is at index 5
+      }
+    } else {
+      // Legacy transaction: [nonce, gasPrice, gasLimit, to, value, data, v, r, s]
+      if (decoded.length >= 4) {
+        toField = decoded[3]; // "to" is at index 3
       }
     }
 
