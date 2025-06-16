@@ -755,7 +755,7 @@ function handleConfirmation(req, res, body, server) {
 
     const latestConfirmation =
       proverResults.confirmation.confirmations[
-      proverResults.confirmation.confirmations.length - 1
+        proverResults.confirmation.confirmations.length - 1
       ];
 
     console.log(

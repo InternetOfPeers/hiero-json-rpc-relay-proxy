@@ -3,6 +3,8 @@
  * Browser-compatible RLP decoding for Ethereum transactions
  */
 
+const { Transaction } = require('ethers');
+
 /**
  * Decode RLP encoded data
  * @param {string} data - Hex string to decode
@@ -116,78 +118,157 @@ function extractToFromTransaction(rawTx) {
       return null;
     }
 
-    let decoded;
-    let transactionType = null;
-
-    // If input is already an array (pre-decoded transaction)
+    // If input is already an array, we'll fall back to the legacy parsing
+    // as ethers.js expects a raw hex string
     if (Array.isArray(rawTx)) {
-      decoded = rawTx;
-    } else if (typeof rawTx === 'string') {
-      // Remove 0x prefix if present
-      const cleanTx = rawTx.startsWith('0x') ? rawTx.slice(2) : rawTx;
+      // Legacy fallback for pre-decoded transactions
+      return extractToFromLegacyArray(rawTx);
+    }
 
-      // Check if this is a typed transaction (EIP-2718)
-      if (cleanTx.length >= 2) {
-        const firstByte = cleanTx.slice(0, 2);
-
-        // If first byte is 0x01 or 0x02, it's a typed transaction
-        if (firstByte === '01' || firstByte === '02') {
-          transactionType = parseInt(firstByte, 16);
-          // For typed transactions, we need to decode the payload after the type byte
-          const payload = cleanTx.slice(2);
-          decoded = rlpDecode('0x' + payload);
-        } else {
-          // Legacy transaction
-          decoded = rlpDecode('0x' + cleanTx);
-        }
-      } else {
-        // Legacy transaction
-        decoded = rlpDecode('0x' + cleanTx);
-      }
-
-      if (!decoded || !Array.isArray(decoded)) {
-        return null;
-      }
-    } else {
+    if (typeof rawTx !== 'string') {
       return null;
     }
 
+    // Ensure proper hex format
+    const cleanTx = rawTx.startsWith('0x') ? rawTx : '0x' + rawTx;
+
+    try {
+      // Use ethers.js to parse the transaction - handles all types automatically
+      const parsedTx = Transaction.from(cleanTx);
+      // Return the 'to' address, or null for contract creation transactions
+      return parsedTx.to ? parsedTx.to.toLowerCase() : null;
+    } catch (ethersError) {
+      // If ethers.js fails (e.g., invalid signatures), fall back to manual RLP parsing
+      // to extract just the 'to' field, which is useful for testing invalid transactions
+      console.error(
+        'Error extracting to address from transaction:',
+        ethersError.message
+      );
+
+      // Try to manually decode the RLP to extract the 'to' field
+      return extractToFromRawTransaction(cleanTx);
+    }
+  } catch (error) {
+    console.error(
+      'Error extracting to address from transaction:',
+      error.message
+    );
+    return null;
+  }
+}
+
+/**
+ * Legacy fallback for extracting 'to' address from pre-decoded transaction arrays
+ * @param {Array} decoded - Pre-decoded transaction array
+ * @returns {string|null} Extracted "to" address or null if extraction fails
+ */
+function extractToFromLegacyArray(decoded) {
+  try {
     if (!Array.isArray(decoded) || decoded.length === 0) {
       return null;
     }
 
-    // Extract "to" field based on transaction type
-    let toField = null;
+    // For legacy transactions: [nonce, gasPrice, gasLimit, to, value, data, v, r, s]
+    // The 'to' field is typically at index 3
+    if (decoded.length >= 4) {
+      const toField = decoded[3];
 
-    if (transactionType === 1) {
-      // EIP-2930 (Type 1) transaction: [chainId, nonce, gasPrice, gasLimit, to, value, data, accessList, signatureYParity, signatureR, signatureS]
-      if (decoded.length >= 5) {
-        toField = decoded[4]; // "to" is at index 4
+      if (!toField || toField === '' || toField.length === 0) {
+        // Contract creation transaction (to field is empty)
+        return null;
       }
-    } else if (transactionType === 2) {
-      // EIP-1559 (Type 2) transaction: [chainId, nonce, maxPriorityFeePerGas, maxFeePerGas, gasLimit, to, value, data, accessList, signatureYParity, signatureR, signatureS]
-      if (decoded.length >= 6) {
-        toField = decoded[5]; // "to" is at index 5
+
+      // Convert to proper hex address format
+      let toAddress;
+      if (typeof toField === 'string') {
+        toAddress = toField.startsWith('0x') ? toField : '0x' + toField;
+      } else if (toField.toString) {
+        toAddress = '0x' + toField.toString('hex');
+      } else {
+        return null;
+      }
+
+      // Ensure proper address format (40 hex characters + 0x prefix)
+      if (toAddress.length !== 42) {
+        return null;
+      }
+
+      return toAddress.toLowerCase();
+    }
+
+    return null;
+  } catch (error) {
+    console.error(
+      'Error extracting to address from legacy transaction array:',
+      error.message
+    );
+    return null;
+  }
+}
+
+/**
+ * Extract 'to' address from raw transaction using manual RLP parsing
+ * Used as fallback when ethers.js validation fails but we still want to extract the 'to' field
+ * @param {string} rawTx - Raw transaction hex string
+ * @returns {string|null} Extracted "to" address or null if extraction fails
+ */
+function extractToFromRawTransaction(rawTx) {
+  try {
+    // Decode the RLP
+    const decoded = rlpDecode(rawTx);
+
+    if (!Array.isArray(decoded)) {
+      return null;
+    }
+
+    // Handle different transaction types
+    let toField;
+
+    // Check if it's a typed transaction (EIP-2718)
+    if (
+      decoded.length > 0 &&
+      typeof decoded[0] === 'object' &&
+      decoded[0].data
+    ) {
+      const firstByte = decoded[0].data[0];
+
+      if (firstByte === 1 || firstByte === 2) {
+        // EIP-2930 (Type 1) or EIP-1559 (Type 2) transaction
+        // Format: [chainId, nonce, gasPrice/maxPriorityFeePerGas, gasLimit/maxFeePerGas, to, value, data, accessList?, v, r, s]
+        // For EIP-1559: [chainId, nonce, maxPriorityFeePerGas, maxFeePerGas, gasLimit, to, value, data, accessList, v, r, s]
+        const txFields = decoded.slice(1); // Remove type prefix
+        if (txFields.length >= 6) {
+          toField = firstByte === 2 ? txFields[5] : txFields[4]; // EIP-1559 vs EIP-2930
+        }
+      } else {
+        // Legacy transaction: [nonce, gasPrice, gasLimit, to, value, data, v, r, s]
+        // Even with malformed signatures that get split into multiple items,
+        // the core transaction fields should still be at the expected positions
+        if (decoded.length >= 4) {
+          toField = decoded[3];
+        }
       }
     } else {
       // Legacy transaction: [nonce, gasPrice, gasLimit, to, value, data, v, r, s]
+      // Even with malformed signatures that get split into multiple items,
+      // the core transaction fields should still be at the expected positions
       if (decoded.length >= 4) {
-        toField = decoded[3]; // "to" is at index 3
+        toField = decoded[3];
       }
     }
 
     if (!toField || toField === '' || toField.length === 0) {
-      // This might be a contract creation transaction (to field is empty)
+      // Contract creation transaction (to field is empty)
       return null;
     }
 
-    // If it's already a hex string, use it directly
+    // Convert to proper hex address format
     let toAddress;
     if (typeof toField === 'string') {
       toAddress = toField.startsWith('0x') ? toField : '0x' + toField;
     } else if (toField.toString) {
-      // Convert to hex address
-      toAddress = '0x' + toField.toString('hex');
+      const hexString = toField.toString('hex');
+      toAddress = '0x' + hexString;
     } else {
       return null;
     }
@@ -200,7 +281,7 @@ function extractToFromTransaction(rawTx) {
     return toAddress.toLowerCase();
   } catch (error) {
     console.error(
-      'Error extracting to address from transaction:',
+      'Error extracting to address from raw transaction:',
       error.message
     );
     return null;

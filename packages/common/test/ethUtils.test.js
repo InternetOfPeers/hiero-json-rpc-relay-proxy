@@ -64,7 +64,8 @@ describe('Ethereum Utils', () => {
 
     test('should extract to address from EIP-1559 (Type 2) transaction', () => {
       // Real EIP-1559 transaction that was failing before the fix
-      const eip1559RawTx = '0x02f874820128820134857dba821800857dba821800826b9c944f1a953df9df8d1c6073ce57f7493e50515fa73f8084d0e30db0c001a0ea5ecef0a498846872303b4d75e9d01de7aef6aa4c490e1e7959bdd22b7928ada032be16b65d017d8bff2fae2b29c5dc5305faeb401ba648ad73d65febd8bfc4df';
+      const eip1559RawTx =
+        '0x02f874820128820134857dba821800857dba821800826b9c944f1a953df9df8d1c6073ce57f7493e50515fa73f8084d0e30db0c001a0ea5ecef0a498846872303b4d75e9d01de7aef6aa4c490e1e7959bdd22b7928ada032be16b65d017d8bff2fae2b29c5dc5305faeb401ba648ad73d65febd8bfc4df';
       const expectedTo = '0x4f1a953df9df8d1c6073ce57f7493e50515fa73f';
 
       const result = extractToFromTransaction(eip1559RawTx);
@@ -132,6 +133,13 @@ describe('Ethereum Utils', () => {
   // ethTxDecoder tests
   describe('ethTxDecoder', () => {
     test('should decode a legacy Ethereum transaction and extract the to address', () => {
+      const rawTx =
+        '0xf86580808094f0d9b927f64374f0b48cbe56bc6af212d52ee25a880de0b6b3a7640000801ba01cb878c65bc244390fc6e760a41c42a1f61ebd42955d94f773632437ca69b3c8a05f9ecbf2c98ca234d8888f9a48ebb7f44bd54bc9553c32e87aefb0e789308f11';
+      const to = extractToFromTransaction(rawTx);
+      assert.strictEqual(to, '0xf0d9b927f64374f0b48cbe56bc6af212d52ee25a');
+    });
+
+    test('should decode an invalid legacy Ethereum transaction and extract the to address', () => {
       const rawTx =
         '0xf86b808504a817c800825208943535353535353535353535353535353535353535880de0b6b3a76400008025a0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0a05b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b';
       const to = extractToFromTransaction(rawTx);
