@@ -195,7 +195,7 @@ const server = http.createServer(async (req, res) => {
       // For all other methods, use default server
       const method = jsonData ? jsonData.method : 'unknown';
       console.log(
-        `${req.method} ${req.url} - method: ${method} -> ${PROXY_DEFAULT_SERVER} (default)`
+        `${req.method} ${req.url} - method: ${method} -> ${PROXY_DEFAULT_SERVER} (fallback)`
       );
     }
 
@@ -224,7 +224,9 @@ async function startServer() {
   }
 
   server.listen(PROXY_PORT, () => {
-    console.log(`Hiero JSON-RPC Relay Proxy running on port ${PROXY_PORT}`);
+    console.log(
+      `Community Managed Hiero JSON-RPC Relay running on port ${PROXY_PORT}`
+    );
     console.log(`Default target server: ${PROXY_DEFAULT_SERVER}`);
 
     const topicId = hederaManager.getTopicId();
